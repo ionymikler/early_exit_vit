@@ -1,0 +1,17 @@
+dataset:
+  channels_num: &channels_num 3
+  image_size: &image_size 256 # TODO: Change to CIFAR-100 image size
+  num_classes: &num_clases 10 # TODO: Change to meet LGViT details
+vit:
+  # Pairing some params from 'dataset' to 'vit' to avoid duplication
+  channels_num: *channels_num
+  image_size: *image_size
+  num_classes: *num_clases
+  
+  dropout: 0.0 # TODO: Change to meet LGViT details
+  emb_dropout: 0.1 # TODO: Change to meet LGViT details
+  embed_depth: 1024 # TODO: Change to meet LGViT details
+  heads: 16 # TODO: Change to meet LGViT details
+  mlp_dim: 204 # TODO: Change to meet LGViT details
+  patch_size: 32 # TODO: Change to meet LGViT details
+  transformer_layers: 2
