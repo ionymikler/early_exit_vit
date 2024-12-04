@@ -13,7 +13,7 @@ def pair(t):
 
 # classes
 
-class FeedForward(nn.Module):
+class AttentionFeedForward(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -78,7 +78,7 @@ class Transformer(nn.Module):
                     dropout = dropout
                 ),
                 
-                FeedForward(
+                AttentionFeedForward(
                     embed_depth=embed_depth,
                     hidden_dim=mlp_dim,
                     dropout = dropout
@@ -92,6 +92,7 @@ class Transformer(nn.Module):
             x = attn(x) + x
             x = ff(x) + x
             _l_idx += 1
+            
         return self.norm(x)
 
 class ViT(nn.Module):
@@ -158,7 +159,7 @@ class ViT(nn.Module):
 
         x = self.transformer(x)
 
-        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
+        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0] # take cls token or average all tokens (pooling)
 
-        x = self.to_latent(x)
+        x = self.to_latent(x) # identity, just for shape
         return self.mlp_head(x)
