@@ -1,6 +1,6 @@
 # Made by: Jonathan Mikler on 2024-12-04
 
-# V2: Exiting based still on mean, but uses nn.Linear for the exit heads
+# V3: conditional using fc.cond. Did not work yet (13.11.24)
 
 import torch
 import torch.nn as nn
@@ -9,6 +9,7 @@ import onnxruntime
 from torch.onnx import ONNXProgram
 import logging
 import functorch.experimental.control_flow as fc
+torch.cond
 
 
 def get_logger():
@@ -67,12 +68,14 @@ class TwoLayerNetDynamic(nn.Module):
         mean = x.mean()
 
         x = self.fully_connected_1(x)
-
-        if torch.gt(mean, self.threshold):
-            x = self.early_exit_head_1(x)
-        else:
-            x = self.last_exit(x)
+        x = fc.cond(mean>0.0,self.early_exit_head_1,self.last_exit,(x,))
         x = torch.cat([x, mean.reshape_as(x)], dim=1)
+
+        # if torch.gt(mean, self.threshold):
+        #     x = self.early_exit_head_1(x)
+        # else:
+        #     x = self.last_exit(x)
+        # x = torch.cat([x, mean.reshape_as(x)], dim=1)
         return x 
 
 def train_model(model, x_train, y_train, batch_size=5, epochs=100, learning_rate=0.01):
@@ -151,31 +154,29 @@ def export_model(model:nn.Module, _x):
     # logger.info(f"Model exported to {onnx_filepath}")
 
     ### Using scripting ###
-    filename = f"{model.model_name}_scripting"
-    onnx_filepath = f"./models/onnx/{filename}.onnx"
-
-    script_module = torch.jit.script(model)
-    torch.onnx.export(
-        model=script_module,
-        args=_x,
-        f=onnx_filepath,
-        report=True
-    )
-
-    logger.info(f"✅ Model exported to {onnx_filepath}")
-
-    ### Using TorchDynamo ###
-    # filename = f"{model.model_name}_dynamo"
+    # filename = f"{model.model_name}_scripting"
     # onnx_filepath = f"./models/onnx/{filename}.onnx"
-    # onnx_program:ONNXProgram = torch.onnx.export(
-    #     model=model,
-    #     args=(_x,),
-    #     dynamo=True,
+
+    # script_module = torch.jit.script(model)
+    # torch.onnx.export(
+    #     model=script_module,
+    #     args=_x,
+    #     f=onnx_filepath,
     #     report=True
     # )
-
-    # onnx_program.save(onnx_filepath)
     # logger.info(f"✅ Model exported to {onnx_filepath}")
+
+    ### Using TorchDynamo ###
+    filename = f"{model.model_name}_dynamo"
+    onnx_filepath = f"./models/onnx/{filename}.onnx"
+    onnx_program:ONNXProgram = torch.onnx.export(
+        model=model,
+        args=(_x,),
+        dynamo=True,
+        report=True
+    )
+    onnx_program.save(onnx_filepath)
+    logger.info(f"✅ Model exported to {onnx_filepath}")
 
     return onnx_filepath
 

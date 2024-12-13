@@ -1,36 +1,11 @@
 # Made by: Jonathan Mikler on 2024-12-04
 
-# V2: Exiting based still on mean, but uses nn.Linear for the exit heads
+# V1: Exit example to easily show with the results how the model exits one way or the other
 
 import torch
 import torch.nn as nn
 import onnx
 import onnxruntime
-from torch.onnx import ONNXProgram
-import logging
-import functorch.experimental.control_flow as fc
-
-
-def get_logger():
-    # Set up logging
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-
-    # Create a stream handler
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-
-    # Create a formatter and set it for the handler
-    formatter = logging.Formatter('[%(levelname)s][%(name)s][%(asctime)s]: %(message)s')
-    stream_handler.setFormatter(formatter)
-
-    # Add the handler to the logger
-    logger.addHandler(stream_handler)
-
-    logger.debug("Logger initialized with stream handler at DEBUG level")
-    return logger
-
-logger = get_logger()
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
@@ -53,10 +28,12 @@ class TwoLayerNetDynamic(nn.Module):
         super(TwoLayerNetDynamic, self).__init__()
         self.model_name = 'TwoLayerNetDynamic'
 
-        self.fully_connected_1 = nn.Linear(input_size, hidden_size)
-        self.early_exit_head_1 = nn.Linear(hidden_size, output_size)
+        # self.fully_connected_1 = nn.Linear(input_size, hidden_size)
+        # self.early_exit_head_1 = nn.Linear(hidden_size, output_size)
 
-        self.threshold = torch.tensor([0.0], dtype=torch.float32).to(DEVICE)
+        self.threshold = nn.Parameter(torch.tensor([5], dtype=torch.float32))
+        # self.threshold = torch.tensor([5]).type(torch.float32).to(DEVICE)
+
         self.last_exit = nn.Linear(hidden_size, output_size)
 
         self.training_exits = False
@@ -64,16 +41,11 @@ class TwoLayerNetDynamic(nn.Module):
         print("TwoLayerNetDynamic initialized")
 
     def forward(self, x: torch.Tensor):
-        mean = x.mean()
-
-        x = self.fully_connected_1(x)
-
-        if torch.gt(mean, self.threshold):
-            x = self.early_exit_head_1(x)
+        if torch.gt(x.mean(), self.threshold):
+            x = torch.mul(x, 2)
         else:
-            x = self.last_exit(x)
-        x = torch.cat([x, mean.reshape_as(x)], dim=1)
-        return x 
+            x = torch.mul(x, 1)
+        return x
 
 def train_model(model, x_train, y_train, batch_size=5, epochs=100, learning_rate=0.01):
     # pass data to device
@@ -137,51 +109,23 @@ def run_model(x, model):
     y_pred = model(x)
     return y_pred
 
-def export_model(model:nn.Module, _x):
-    logger.info(f"Exporting model to ONNX format")
-
-    # ### Using tracing ###
-    # filename = f"{model.model_name}_tracing"
-    # onnx_filepath = f"./models/onnx/{filename}.onnx"
-    # torch.onnx.export(
-    #     model=model,
-    #     args=_x,
-    #     f=onnx_filepath
-    # )
-    # logger.info(f"Model exported to {onnx_filepath}")
-
-    ### Using scripting ###
-    filename = f"{model.model_name}_scripting"
-    onnx_filepath = f"./models/onnx/{filename}.onnx"
+def export_model(model:nn.Module, _x, onnx_filepath):
+    print(f"Exporting model to ONNX format")
+    filepath = f"./models/onnx/{model.model_name}.onnx"
 
     script_module = torch.jit.script(model)
+
     torch.onnx.export(
         model=script_module,
         args=_x,
-        f=onnx_filepath,
-        report=True
-    )
-
-    logger.info(f"✅ Model exported to {onnx_filepath}")
-
-    ### Using TorchDynamo ###
-    # filename = f"{model.model_name}_dynamo"
-    # onnx_filepath = f"./models/onnx/{filename}.onnx"
-    # onnx_program:ONNXProgram = torch.onnx.export(
-    #     model=model,
-    #     args=(_x,),
-    #     dynamo=True,
-    #     report=True
-    # )
-
-    # onnx_program.save(onnx_filepath)
-    # logger.info(f"✅ Model exported to {onnx_filepath}")
-
-    return onnx_filepath
+        f=onnx_filepath
+    )    
+    
+    print(f"Model exported to {filepath}")
 
 def load_and_run_onnx(onnx_filepath, _x):
-    logger.info(f"Loading and running ONNX model")
-    logger.info(f'[onnx] Input: {_x}')
+    print(f"Loading and running ONNX model")
+    print(f'Input: {_x}')
     
     onnx_model = onnx.load(onnx_filepath)
     onnx.checker.check_model(onnx_model)
@@ -194,7 +138,7 @@ def load_and_run_onnx(onnx_filepath, _x):
     # compute ONNX Runtime output prediction
     ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(_x)}
     ort_outs = ort_session.run(None, ort_inputs)
-    logger.info(f'[onnx] Output: {ort_outs}')
+    print(f'Output: {ort_outs}')
 
 def main():
     TASK = 'export' # 'train' or 'export'
@@ -216,15 +160,16 @@ def main():
         model = train_model(model, epochs=500, x_train=x_train, y_train=y_train)
         eval_model(model, x_test=x_train, y_test=y_train)
     elif TASK == 'export':
-        _x = torch.normal(mean=0.0, std=2.0, size=(1, 1), dtype=torch.float32).to(DEVICE)
-        logger.info(f'Input: {_x}')
+        _x = torch.normal(mean=5.0, std=2.0, size=(1, 1), dtype=torch.float32).to(DEVICE)
+        print(f'Input: {_x}')
         
         # run the model for sanity check
         y_pred = run_model(_x, model)
-        logger.info(f'Prediction: {y_pred}')
+        print(f'Prediction: {y_pred}')
 
         ## ONNX
-        onnx_filepath = export_model(model, _x)
+        onnx_filepath = f"./models/onnx/{model.model_name}.onnx"
+        # export_model(model, _x, onnx_filepath)
 
         load_and_run_onnx(onnx_filepath,_x)
     
