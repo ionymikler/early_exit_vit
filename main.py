@@ -32,11 +32,18 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
     logger.info("Exporting model to ONNX format")
 
     script_module = torch.jit.script(model)
+
     torch.onnx.export(model=script_module, args=_x, f=onnx_filepath, report=True)
 
     logger.info(f"✅ Model exported to {onnx_filepath}")
 
     return onnx_filepath
+
+
+def run_model(x, model):
+    logger.info("Running model")
+    pred = model(x)
+    logger.info(f"Prediction shape: {pred.shape}")
 
 
 def main():
@@ -58,9 +65,8 @@ def main():
         mlp_dim=vit_config["mlp_dim"],
     )
 
-    img = torch.randn(1, channels_num, img_size, img_size)
-    pred = model(img)  # (1, 1000)
-    logger.info(f"Prediction shape: {pred.shape}")
+    img = torch.randn(2, channels_num, img_size, img_size)
+    run_model(x=img, model=model)
 
     model_name = "early_exit_vit"
     onnx_filepath = f"./models/onnx/{model_name}.onnx"

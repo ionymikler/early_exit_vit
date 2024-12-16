@@ -3,7 +3,6 @@
 import torch
 from torch import nn
 
-from einops import repeat
 from einops.layers.torch import Rearrange
 
 from utils.logging_utils import get_logger_ready
@@ -35,7 +34,7 @@ class AttentionFeedForward(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, embed_depth, num_heads=8, dim_head=64, dropout=0.0):
+    def __init__(self, *, embed_depth, mlp_dim, num_heads=8, dim_head=64, dropout=0.0):
         super().__init__()
 
         inner_dim = dim_head * num_heads
@@ -57,10 +56,14 @@ class Attention(nn.Module):
         self.qkv_rearrage = Rearrange("b n (h d) -> b h n d", h=num_heads)
         self.out_rearrange = Rearrange("b h n d -> b n (h d)", h=num_heads)
 
-        self.to_out = (
+        self.to_ff = (
             nn.Sequential(nn.Linear(inner_dim, embed_depth), nn.Dropout(dropout))
             if project_out
             else nn.Identity()
+        )
+
+        self.feed_forward = AttentionFeedForward(
+            embed_depth=embed_depth, hidden_dim=mlp_dim, dropout=dropout
         )
 
     def forward(self, x):
@@ -84,15 +87,20 @@ class Attention(nn.Module):
         attn = self.softmax(scaled_scores)
         attn = self.dropout(attn)
 
-        out = torch.matmul(attn, v)
+        attn_out = torch.matmul(attn, v)
 
         # out = rearrange(
         #     out, "b h n d -> b n (h d)"
         # )
-        out = self.out_rearrange(
-            out
+        attn_out = self.out_rearrange(
+            attn_out
         )  # TODO: Review this again. Understand the rearrange function
-        return self.to_out(out)
+
+        x = self.to_ff(attn_out)
+
+        out = self.feed_forward(x)
+
+        return out
 
 
 class Transformer(nn.Module):
@@ -105,28 +113,28 @@ class Transformer(nn.Module):
 
         for _ in range(num_layers):
             self.layers.append(
-                nn.ModuleList(
-                    [
-                        Attention(
-                            embed_depth=embed_depth,
-                            num_heads=num_attn_heads,
-                            dim_head=dim_head,
-                            dropout=dropout,
-                        ),
-                        AttentionFeedForward(
-                            embed_depth=embed_depth, hidden_dim=mlp_dim, dropout=dropout
-                        ),
-                    ]
+                Attention(
+                    embed_depth=embed_depth,
+                    num_heads=num_attn_heads,
+                    dim_head=dim_head,
+                    dropout=dropout,
+                    mlp_dim=mlp_dim,
                 )
             )
 
     def forward(self, x):
         _l_idx = 0
-        for attn, ff in self.layers:
+        # for attn, ff in self.layers:
+        #     print(f"[forward]: Layer {_l_idx}")
+        #     x = attn(x) + x
+        #     x = ff(x) + x
+        #     _l_idx += 1
+
+        for attn in self.layers:
             print(f"[forward]: Layer {_l_idx}")
-            x = attn(x) + x
-            x = ff(x) + x
             _l_idx += 1
+
+            x = attn(x) + x
 
         return self.norm(x)
 
@@ -214,8 +222,9 @@ class ViT(nn.Module):
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
 
-        cls_tokens = repeat(self.cls_token, "1 1 d -> b 1 d", b=b)
-        x = torch.cat((cls_tokens, x), dim=1)
+        # batch_cls_tokens = repeat(self.cls_token, "1 1 d -> b 1 d", b=b)
+        batch_cls_tokens = self.cls_token.repeat(b, 1, 1)
+        x = torch.cat((batch_cls_tokens, x), dim=1)
         x += self.pos_embedding[:, : (n + 1)]
         x = self.dropout(x)
 
