@@ -3,19 +3,21 @@
 import torch
 from torch import nn
 
-from einops import rearrange, repeat
+from einops import repeat
 from einops.layers.torch import Rearrange
 
+from utils.logging_utils import get_logger_ready
+
+
 # helpers
-
-
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
 
+logger = get_logger_ready("ViT")
+
+
 # classes
-
-
 class AttentionFeedForward(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout=0.0):
         super().__init__()
@@ -35,6 +37,7 @@ class AttentionFeedForward(nn.Module):
 class Attention(nn.Module):
     def __init__(self, embed_depth, num_heads=8, dim_head=64, dropout=0.0):
         super().__init__()
+
         inner_dim = dim_head * num_heads
         project_out = not (
             num_heads == 1 and dim_head == embed_depth
@@ -52,6 +55,7 @@ class Attention(nn.Module):
             embed_depth, inner_dim * 3, bias=False
         )  # QUESTION: Why bias=False?
         self.qkv_rearrage = Rearrange("b n (h d) -> b h n d", h=num_heads)
+        self.out_rearrange = Rearrange("b h n d -> b n (h d)", h=num_heads)
 
         self.to_out = (
             nn.Sequential(nn.Linear(inner_dim, embed_depth), nn.Dropout(dropout))
@@ -68,7 +72,12 @@ class Attention(nn.Module):
         qkv_i = [
             self.to_qkv(x)[:, :, embed_dim * i : embed_dim * (i + 1)] for i in range(3)
         ]
-        q, k, v = map(self.qkv_rearrage, qkv_i)
+        # q, k, v = map(self.qkv_rearrage, qkv_i)
+
+        # qkv_rearrage = Rearrange("b n (h d) -> b h n d", h=self.num_heads)
+        q = self.qkv_rearrage(qkv_i[0])
+        k = self.qkv_rearrage(qkv_i[1])
+        v = self.qkv_rearrage(qkv_i[2])
 
         scaled_scores = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
@@ -76,8 +85,12 @@ class Attention(nn.Module):
         attn = self.dropout(attn)
 
         out = torch.matmul(attn, v)
-        out = rearrange(
-            out, "b h n d -> b n (h d)"
+
+        # out = rearrange(
+        #     out, "b h n d -> b n (h d)"
+        # )
+        out = self.out_rearrange(
+            out
         )  # TODO: Review this again. Understand the rearrange function
         return self.to_out(out)
 
@@ -89,6 +102,7 @@ class Transformer(nn.Module):
         super().__init__()
         self.norm = nn.LayerNorm(embed_depth)
         self.layers = nn.ModuleList([])
+
         for _ in range(num_layers):
             self.layers.append(
                 nn.ModuleList(

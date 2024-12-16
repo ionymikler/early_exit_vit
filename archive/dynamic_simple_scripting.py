@@ -7,6 +7,7 @@ import torch.nn as nn
 import onnx
 import onnxruntime
 import logging
+from datetime import datetime
 
 
 def get_logger():
@@ -55,7 +56,16 @@ class TwoLayerNetDynamic(nn.Module):
         self.model_name = "TwoLayerNetDynamic"
 
         self.fully_connected_1 = nn.Linear(input_size, hidden_size)
+        self.fully_connected_2 = nn.Linear(hidden_size, hidden_size)
+
         self.early_exit_head_1 = nn.Linear(hidden_size, output_size)
+
+        self.layers = nn.ModuleList(
+            [
+                self.fully_connected_1,
+                self.fully_connected_2,
+            ]
+        )
 
         self.threshold = torch.tensor([0.0], dtype=torch.float32).to(DEVICE)
         self.last_exit = nn.Linear(hidden_size, output_size)
@@ -67,7 +77,10 @@ class TwoLayerNetDynamic(nn.Module):
     def forward(self, x: torch.Tensor):
         mean = x.mean()
 
-        x = self.fully_connected_1(x)
+        for fc in self.layers:
+            x = torch.relu(fc(x))
+
+        # x = self.fully_connected_1(x)
 
         if torch.gt(mean, self.threshold):
             x = self.early_exit_head_1(x)
@@ -157,7 +170,7 @@ def export_model(model: nn.Module, _x):
 
     ### Using scripting ###
     filename = f"{model.model_name}_scripting"
-    onnx_filepath = f"./models/onnx/{filename}.onnx"
+    onnx_filepath = f"./models/onnx/{filename}_{datetime.now()}.onnx"
 
     script_module = torch.jit.script(model)
     torch.onnx.export(model=script_module, args=_x, f=onnx_filepath, report=True)

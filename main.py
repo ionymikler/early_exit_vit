@@ -9,7 +9,7 @@ import torch.nn as nn
 from utils.logging_utils import get_logger_ready
 from vit import ViT
 
-logger = get_logger_ready()
+logger = get_logger_ready("main")
 
 
 def parse_config():

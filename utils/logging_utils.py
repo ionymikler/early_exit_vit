@@ -1,9 +1,9 @@
 import logging
 
 
-def get_logger_ready():
+def get_logger_ready(name: str) -> logging.Logger:
     # Set up logging
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
     # Create a stream handler
@@ -17,5 +17,4 @@ def get_logger_ready():
     # Add the handler to the logger
     logger.addHandler(stream_handler)
 
-    logger.debug("Logger initialized with stream handler at DEBUG level")
     return logger
