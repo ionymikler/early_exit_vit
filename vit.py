@@ -34,15 +34,17 @@ class Attention(nn.Module):
         inner_dim = dim_head *  num_heads
         project_out = not (num_heads == 1 and dim_head == embed_depth) # if more than one head, project out
 
-        self.heads = num_heads
+        self.num_heads = num_heads
         self.scale = dim_head ** -0.5
 
         self.norm = nn.LayerNorm(embed_depth)
+        
 
-        self.attend = nn.Softmax(dim = -1)
+        self.softmax = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
 
-        self.to_qkv = nn.Linear(embed_depth, inner_dim * 3, bias = False)
+        self.to_qkv = nn.Linear(embed_depth, inner_dim * 3, bias = False) #QUESTION: Why bias=False?
+        self.qkv_rearrage = Rearrange('b n (h d) -> b h n d', h = num_heads)
 
         self.to_out = nn.Sequential(
             nn.Linear(inner_dim, embed_depth),
@@ -51,17 +53,20 @@ class Attention(nn.Module):
 
     def forward(self, x):
         x = self.norm(x)
+        embed_dim = x.shape[-1]
 
-        qkv = self.to_qkv(x).chunk(3, dim = -1)
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+        # qkv = self.to_qkv(x).chunk(3, dim = -1)
+        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+        qkv_i = [self.to_qkv(x)[:, :, embed_dim * i:embed_dim * (i + 1)] for i in range(3)]
+        q, k, v = map(self.qkv_rearrage, qkv_i)
 
-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        scaled_scores = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
-        attn = self.attend(dots)
+        attn = self.softmax(scaled_scores)
         attn = self.dropout(attn)
 
         out = torch.matmul(attn, v)
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = rearrange(out, 'b h n d -> b n (h d)') # TODO: Review this again. Understand the rearrange function
         return self.to_out(out)
 
 class Transformer(nn.Module):
@@ -88,7 +93,7 @@ class Transformer(nn.Module):
     def forward(self, x):
         _l_idx = 0
         for attn, ff in self.layers:
-            print(f"Layer {_l_idx}")
+            print(f"[forward]: Layer {_l_idx}")
             x = attn(x) + x
             x = ff(x) + x
             _l_idx += 1
@@ -97,6 +102,7 @@ class Transformer(nn.Module):
 
 class ViT(nn.Module):
     def __init__(self, *, image_size:int, patch_size:int, num_classes:int, embed_depth:int, num_layers_transformer:int, num_attn_heads:int, mlp_dim:int, pool:str = 'cls', channels:int = 3, dim_head:int = 64, dropout:float = 0., emb_dropout:float = 0.):
+        # * to enforce only keyword arguments
         """
         Initializes the Vision Transformer (ViT) model.
 
@@ -110,7 +116,7 @@ class ViT(nn.Module):
             mlp_dim (int): Dimension of the MLP (Feed-Forward) layer.
             pool (str, optional): Pooling type, either 'cls' (class token) or 'mean' (mean pooling). Default is 'cls'.
             channels (int, optional): Number of input channels. Default is 3.
-            dim_head (int, optional): Dimension of each attention head. Default is 64.
+            dim_head (int, optional): Depth dimension of the attention matrices in each head. Default is 64.
             dropout (float, optional): Dropout rate for the transformer. Default is 0.
             emb_dropout (float, optional): Dropout rate for the embedding layer. Default is 0.
         """
