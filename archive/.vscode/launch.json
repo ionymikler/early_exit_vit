@@ -1,0 +1,53 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {"name": "current file",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/archive/vit_pytorch_gupta/vit",
+            "program": "${file}",
+            "console": "integratedTerminal",
+        },
+        {"name": "ee.main",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/early_exit_vit/",
+            // "program": "${file}",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--config-path", "/home/iony/DTU/f24/thesis/code/early_exit_vit/config/run_args.yml"
+            ]
+        },
+        {"name": "ee.current_file",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/early_exit_vit/",
+            "program": "${file}",
+            "console": "integratedTerminal",
+        },
+
+        {"name": "Launch Extension",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
+            "preLaunchTask": "npm",
+            "request": "launch",
+            "type": "extensionHost"
+        },
+
+        {"name": "onnx_export",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "onnx_export.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/lgvit/lgvit_repo/"
+        },
+    ]
+}
