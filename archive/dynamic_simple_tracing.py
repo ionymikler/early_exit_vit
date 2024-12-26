@@ -30,11 +30,7 @@ class TwoLayerNetDynamic(nn.Module):
         super(TwoLayerNetDynamic, self).__init__()
         self.model_name = "TwoLayerNetDynamic"
 
-        # self.fully_connected_1 = nn.Linear(input_size, hidden_size)
-        # self.early_exit_head_1 = nn.Linear(hidden_size, output_size)
-
         self.threshold = nn.Parameter(torch.tensor([5], dtype=torch.float32))
-        # self.threshold = torch.tensor([5]).type(torch.float32).to(DEVICE)
 
         self.last_exit = nn.Linear(hidden_size, output_size)
 

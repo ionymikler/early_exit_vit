@@ -3,11 +3,10 @@
 import argparse
 import yaml
 import torch
-import torch.nn as nn
 
 # local imports
 from utils.logging_utils import get_logger_ready
-from vit import ViT
+from vit import NamedModule, PatchEmbeddingSimple
 
 logger = get_logger_ready("main")
 
@@ -15,7 +14,7 @@ logger = get_logger_ready("main")
 def parse_config():
     parser = argparse.ArgumentParser(description="Process config file path.")
     parser.add_argument(
-        "--config_path",
+        "--config-path",
         type=str,
         required=True,
         help="Path to the configuration JSON file",
@@ -28,22 +27,55 @@ def parse_config():
     return config
 
 
-def export_model(model: nn.Module, _x, onnx_filepath: str):
-    logger.info("Exporting model to ONNX format")
+def run_model(x, model):
+    logger.info("Running model")
+    out = model(x)
+    logger.info(f"model output shape: {out.shape}")
 
-    script_module = torch.jit.script(model)
 
-    torch.onnx.export(model=script_module, args=_x, f=onnx_filepath, report=True)
+def export_model(model: NamedModule, _x, onnx_filepath: str):
+    logger.info(f"Exporting model '{model.name}' to ONNX format")
 
-    logger.info(f"✅ Model exported to {onnx_filepath}")
+    model = torch.jit.script(model)
+    torch.onnx.export(
+        model=model,
+        args=_x,
+        f=onnx_filepath,
+        verbose=True,
+        report=True,
+        opset_version=20,
+        dynamo=False,
+    )
+
+    logger.info(f"✅ Model exported to '{onnx_filepath}'")
 
     return onnx_filepath
 
 
-def run_model(x, model):
-    logger.info("Running model")
-    pred = model(x)
-    logger.info(f"Prediction shape: {pred.shape}")
+def gen_data(data_shape: tuple):
+    return torch.randn(data_shape)
+
+
+def get_model(model_config: dict) -> NamedModule:
+    # model = ViT(
+    #     num_layers_transformer=model_config["transformer_layers"],
+    #     image_size=model_config["image_size"],
+    #     patch_size=model_config["patch_size"],
+    #     num_classes=model_config["num_classes"],
+    #     embed_depth=model_config["embed_depth"],
+    #     num_attn_heads=model_config["heads"],
+    #     mlp_dim=model_config["mlp_dim"],
+    # )
+
+    model = PatchEmbeddingSimple(
+        image_size=model_config["image_size"],
+        patch_size=model_config["patch_size"],
+        embed_depth=model_config["embed_depth"],
+        pool=model_config["pool"],
+        channels=model_config["channels_num"],
+    )
+
+    return model
 
 
 def main():
@@ -54,24 +86,15 @@ def main():
     img_size = args["dataset"]["image_size"]
 
     # ViT config
-    vit_config = args["vit"]
-    model = ViT(
-        num_layers_transformer=vit_config["transformer_layers"],
-        image_size=vit_config["image_size"],
-        patch_size=vit_config["patch_size"],
-        num_classes=vit_config["num_classes"],
-        embed_depth=vit_config["embed_depth"],
-        num_attn_heads=vit_config["heads"],
-        mlp_dim=vit_config["mlp_dim"],
-    )
+    model_config = args["model"]
 
-    img = torch.randn(2, channels_num, img_size, img_size)
-    run_model(x=img, model=model)
+    model = get_model(model_config)
 
-    model_name = "early_exit_vit"
-    onnx_filepath = f"./models/onnx/{model_name}.onnx"
-    export_model(model=model, _x=img, onnx_filepath=onnx_filepath)
-    # torch.onnx.export(model=model, args=img, f=f"models/onnx/{model_name}.onnx", input_names=["image_batch"], output_names=["pred"])
+    x = gen_data(data_shape=(2, channels_num, img_size, img_size))
+    run_model(x=x, model=model)
+
+    onnx_filepath = f"./models/onnx/{model.name}.onnx"
+    export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
 
     print("Model exported to model.onnx")
 

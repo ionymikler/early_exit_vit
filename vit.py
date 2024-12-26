@@ -8,15 +8,28 @@ from einops.layers.torch import Rearrange
 from utils.logging_utils import get_logger_ready
 
 
+logger = get_logger_ready("ViT")
+
+
 # helpers
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
 
-logger = get_logger_ready("ViT")
+def print(f, *args, **kwargs):
+    """
+    workaround for the lookup of the print function when exporting to ONNX
+    """
+    logger.info(f)
 
 
 # classes
+class NamedModule(nn.Module):
+    def __init__(self, name: str):
+        super().__init__()
+        self.name = name
+
+
 class AttentionFeedForward(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout=0.0):
         super().__init__()
@@ -75,12 +88,14 @@ class Attention(nn.Module):
         qkv_i = [
             self.to_qkv(x)[:, :, embed_dim * i : embed_dim * (i + 1)] for i in range(3)
         ]
+        print(f"Shapes after slicing: {[qkv.shape for qkv in qkv_i]}")
         # q, k, v = map(self.qkv_rearrage, qkv_i)
 
         # qkv_rearrage = Rearrange("b n (h d) -> b h n d", h=self.num_heads)
         q = self.qkv_rearrage(qkv_i[0])
         k = self.qkv_rearrage(qkv_i[1])
         v = self.qkv_rearrage(qkv_i[2])
+        print(f"Shapes after rearranging: q: {q.shape}, k: {k.shape}, v: {v.shape}")
 
         scaled_scores = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
@@ -95,6 +110,7 @@ class Attention(nn.Module):
         attn_out = self.out_rearrange(
             attn_out
         )  # TODO: Review this again. Understand the rearrange function
+        print(f"Shape after attention: {attn_out.shape}")
 
         x = self.to_ff(attn_out)
 
@@ -109,10 +125,9 @@ class Transformer(nn.Module):
     ):
         super().__init__()
         self.norm = nn.LayerNorm(embed_depth)
-        self.layers = nn.ModuleList([])
 
-        for _ in range(num_layers):
-            self.layers.append(
+        self.layers = nn.ModuleList(
+            [
                 Attention(
                     embed_depth=embed_depth,
                     num_heads=num_attn_heads,
@@ -120,16 +135,12 @@ class Transformer(nn.Module):
                     dropout=dropout,
                     mlp_dim=mlp_dim,
                 )
-            )
+                for _ in range(num_layers)
+            ]
+        )
 
     def forward(self, x):
         _l_idx = 0
-        # for attn, ff in self.layers:
-        #     print(f"[forward]: Layer {_l_idx}")
-        #     x = attn(x) + x
-        #     x = ff(x) + x
-        #     _l_idx += 1
-
         for attn in self.layers:
             print(f"[forward]: Layer {_l_idx}")
             _l_idx += 1
@@ -137,6 +148,81 @@ class Transformer(nn.Module):
             x = attn(x) + x
 
         return self.norm(x)
+
+
+class PatchEmbeddingSimple(NamedModule):
+    def __init__(
+        self,
+        *,
+        image_size: int,
+        patch_size: int,
+        embed_depth: int,
+        pool: str,
+        channels: int,
+    ):
+        super().__init__(name="PatchEmbedding")
+
+        image_height, image_width = pair(image_size)
+        patch_height, patch_width = pair(patch_size)
+        patch_dim = channels * patch_height * patch_width
+
+        self.rearrange = Rearrange(
+            "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
+            p1=patch_height,
+            p2=patch_width,
+        )
+        self.patch_embedding_linear = nn.Linear(patch_dim, embed_depth)
+
+        self.seq = nn.Sequential(self.rearrange, self.patch_embedding_linear)
+
+    def forward(self, image_batch: torch.Tensor):
+        out = self.seq(image_batch)
+        return out
+
+
+class PatchEmbedding(NamedModule):
+    def __init__(
+        self,
+        *,
+        image_size: int,
+        patch_size: int,
+        embed_depth: int,
+        pool: str,
+        channels: int,
+    ):
+        super().__init__(name="PatchEmbedding")
+
+        image_height, image_width = pair(image_size)
+        patch_height, patch_width = pair(patch_size)
+        print(f"image_height: {image_height}, image_width: {image_width}")
+        print(f"patch_height: {patch_height}, patch_width: {patch_width}")
+
+        assert (
+            image_height % patch_height == 0 and image_width % patch_width == 0
+        ), "Image dimensions must be divisible by the patch size."
+
+        # num_patches = (image_height // patch_height) * (image_width // patch_width)
+        patch_dim = channels * patch_height * patch_width
+        assert pool in {
+            "cls",
+            "mean",
+        }, "pool type must be either cls (cls token) or mean (mean pooling)"
+
+        self.patch_embedding_layers = nn.Sequential(
+            Rearrange(
+                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
+                p1=patch_height,
+                p2=patch_width,
+            ),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, embed_depth),
+            nn.LayerNorm(embed_depth),
+        )
+
+    def forward(self, image_batch: torch.Tensor):
+        print(f"image_batch shape: {image_batch.shape}")
+        out = self.patch_embedding_layers(image_batch)
+        return out
 
 
 class ViT(nn.Module):
@@ -175,6 +261,7 @@ class ViT(nn.Module):
             emb_dropout (float, optional): Dropout rate for the embedding layer. Default is 0.
         """
         super().__init__()
+        self.name = "ViT"
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
 
@@ -189,7 +276,7 @@ class ViT(nn.Module):
             "mean",
         }, "pool type must be either cls (cls token) or mean (mean pooling)"
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.Sequential(  # TODO: replace with PatchEmbedding
             Rearrange(
                 "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
                 p1=patch_height,
@@ -218,8 +305,8 @@ class ViT(nn.Module):
 
         self.mlp_head = nn.Linear(embed_depth, num_classes)
 
-    def forward(self, img):
-        x = self.to_patch_embedding(img)
+    def forward(self, x):
+        x = self.to_patch_embedding(x)
         b, n, _ = x.shape
 
         # batch_cls_tokens = repeat(self.cls_token, "1 1 d -> b 1 d", b=b)
@@ -235,4 +322,5 @@ class ViT(nn.Module):
         )  # take cls token or average all tokens (pooling)
 
         x = self.to_latent(x)  # identity, just for shape
-        return self.mlp_head(x)
+        x = self.mlp_head(x)
+        return x

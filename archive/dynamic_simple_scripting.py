@@ -80,8 +80,6 @@ class TwoLayerNetDynamic(nn.Module):
         for fc in self.layers:
             x = torch.relu(fc(x))
 
-        # x = self.fully_connected_1(x)
-
         if torch.gt(mean, self.threshold):
             x = self.early_exit_head_1(x)
         else:
