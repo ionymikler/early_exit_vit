@@ -24,12 +24,6 @@ def print(f):
 
 
 # classes
-class NamedModule(nn.Module):
-    def __init__(self, name: str):
-        super().__init__()
-        self.name = name
-
-
 class AttentionFeedForward(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout=0.0):
         super().__init__()
@@ -150,57 +144,18 @@ class Transformer(nn.Module):
         return self.norm(x)
 
 
-class PatchEmbeddingSimple(NamedModule):
-    def __init__(
-        self,
-        *,
-        image_size: int,
-        patch_size: int,
-        embed_depth: int,
-        pool: str,
-        channels: int,
-    ):
-        super().__init__(name="PatchEmbeddingSimple")
-
-        image_height, image_width = pair(image_size)
-        patch_height, patch_width = pair(patch_size)
-        patch_dim = channels * patch_height * patch_width
-
-        self.patch_embedding_linear = nn.Linear(patch_dim, embed_depth)
-
-        self.seq = nn.Sequential(
-            Rearrange(
-                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
-                p1=patch_height,
-                p2=patch_width,
-            ),
-            self.patch_embedding_linear,
-        )
-
-    def forward(self, image_batch: torch.Tensor):
-        out = self.seq(image_batch)
-        return out
-
-
-class PatchEmbedding(NamedModule):
+class PatchEmbedding(nn.Module):
     def __init__(
         self,
         *,
         config: dict,
     ):
-        super().__init__(name="PatchEmbedding")
+        super().__init__()
+        self.name = "PatchEmbedding"
+        self._set_config_params(config)
 
-        # params from config
-        image_size = config["image_size"]
-        patch_size = config["patch_size"]
-        embed_depth = config["embed_depth"]
-        pool = config["pool"]
-        channels = config["channels_num"]
-        emb_dropout = config["emb_dropout"]
-        # END params from config
-
-        image_height, image_width = pair(image_size)
-        patch_height, patch_width = pair(patch_size)
+        image_height, image_width = pair(self.config["image_size"])
+        patch_height, patch_width = pair(self.config["patch_size"])
         print(f"image_height: {image_height}, image_width: {image_width}")
         print(f"patch_height: {patch_height}, patch_width: {patch_width}")
 
@@ -209,8 +164,8 @@ class PatchEmbedding(NamedModule):
         ), "Image dimensions must be divisible by the patch size."
 
         num_patches = (image_height // patch_height) * (image_width // patch_width)
-        patch_dim = channels * patch_height * patch_width
-        assert pool in {
+        patch_dim = self.config["channels"] * patch_height * patch_width
+        assert self.config["pool"] in {
             "cls",
             "mean",
         }, "pool type must be either cls (cls token) or mean (mean pooling)"
@@ -222,13 +177,35 @@ class PatchEmbedding(NamedModule):
                 p2=patch_width,
             ),
             nn.LayerNorm(patch_dim),
-            nn.Linear(patch_dim, embed_depth),
-            nn.LayerNorm(embed_depth),
+            nn.Linear(patch_dim, self.config["embed_depth"]),
+            nn.LayerNorm(self.config["embed_depth"]),
         )
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, embed_depth))
-        self.cls_token = nn.Parameter(torch.randn(1, 1, embed_depth))
-        self.dropout = nn.Dropout(emb_dropout)
+        self.pos_embedding = nn.Parameter(
+            torch.randn(1, num_patches + 1, self.config["embed_depth"])
+        )
+        self.cls_token = nn.Parameter(torch.randn(1, 1, self.config["embed_depth"]))
+        self.dropout = nn.Dropout(self.config["emb_dropout"])
+
+    def _set_config_params(self, config: dict):
+        assert isinstance(config["image_size"], int) or isinstance(
+            config["image_size"], tuple
+        )
+        assert isinstance(config["patch_size"], int) or isinstance(
+            config["patch_size"], tuple
+        )
+        assert isinstance(config["embed_depth"], int)
+        assert isinstance(config["pool"], str)
+        assert isinstance(config["channels_num"], int)
+        assert isinstance(config["emb_dropout"], float)
+
+        self.config = {}
+        self.config["image_size"] = config["image_size"]
+        self.config["patch_size"] = config["patch_size"]
+        self.config["embed_depth"] = config["embed_depth"]
+        self.config["pool"] = config["pool"]
+        self.config["channels"] = config["channels_num"]
+        self.config["emb_dropout"] = config["emb_dropout"]
 
     def __call__(self, *args, **kwds) -> torch.Tensor:
         return super().__call__(*args, **kwds)
@@ -242,26 +219,15 @@ class PatchEmbedding(NamedModule):
         embedded_patches = torch.cat((cls_tokens_batch, embedded_patches), dim=1)
         embedded_patches += self.pos_embedding
 
-        patch_embeddings = self.dropout(embedded_patches)
-        return patch_embeddings
+        embedded_patches = self.dropout(embedded_patches)
+        return embedded_patches
 
 
 class ViT(nn.Module):
     def __init__(
         self,
         *,
-        image_size: int,
-        patch_size: int,
-        num_classes: int,
-        embed_depth: int,
-        num_layers_transformer: int,
-        num_attn_heads: int,
-        mlp_dim: int,
-        pool: str = "cls",
-        channels: int = 3,
-        dim_head: int = 64,
-        dropout: float = 0.0,
-        emb_dropout: float = 0.0,
+        config: dict,
     ):
         # * to enforce only keyword arguments
         """
@@ -283,48 +249,49 @@ class ViT(nn.Module):
         """
         super().__init__()
         self.name = "ViT"
-        image_height, image_width = pair(image_size)
-        patch_height, patch_width = pair(patch_size)
+        self._set_config_params(config)
 
-        assert (
-            image_height % patch_height == 0 and image_width % patch_width == 0
-        ), "Image dimensions must be divisible by the patch size."
-
-        num_patches = (image_height // patch_height) * (image_width // patch_width)
-        patch_dim = channels * patch_height * patch_width
-        assert pool in {
-            "cls",
-            "mean",
-        }, "pool type must be either cls (cls token) or mean (mean pooling)"
-
-        self.to_patch_embedding = nn.Sequential(  # TODO: replace with PatchEmbedding
-            Rearrange(
-                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
-                p1=patch_height,
-                p2=patch_width,
-            ),
-            nn.LayerNorm(patch_dim),
-            nn.Linear(patch_dim, embed_depth),
-            nn.LayerNorm(embed_depth),
-        )
-
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, embed_depth))
-        self.cls_token = nn.Parameter(torch.randn(1, 1, embed_depth))
-        self.dropout = nn.Dropout(emb_dropout)
+        self.patch_embedding = PatchEmbedding(config)
 
         self.transformer = Transformer(
-            embed_depth=embed_depth,
-            num_layers=num_layers_transformer,
-            num_attn_heads=num_attn_heads,
-            dim_head=dim_head,
-            mlp_dim=mlp_dim,
-            dropout=dropout,
+            embed_depth=self.config["embed_depth"],
+            num_layers=self.config["num_layers_transformer"],
+            num_attn_heads=self.config["num_attn_heads"],
+            dim_head=self.config["dim_head"],
+            mlp_dim=self.config["mlp_dim"],
+            dropout=self.config["dropout_transformer"],
         )
 
-        self.pool = pool
+        # self.pool = pool
         self.to_latent = nn.Identity()
 
-        self.mlp_head = nn.Linear(embed_depth, num_classes)
+        # self.mlp_head = nn.Linear(embed_depth, num_classes)
+
+    def _set_config_params(self, config: dict):
+        assert isinstance(config["image_size"], int) or isinstance(
+            config["image_size"], tuple
+        )
+        assert isinstance(config["patch_size"], int) or isinstance(
+            config["patch_size"], tuple
+        )
+        assert isinstance(config["embed_depth"], int)
+        assert isinstance(config["pool"], str)
+        assert isinstance(config["channels_num"], int)
+        assert isinstance(config["emb_dropout"], float)
+
+        self.config = {}
+        self.config["image_size"] = config["image_size"]
+        self.config["patch_size"] = config["patch_size"]
+        self.config["embed_depth"] = config["embed_depth"]
+        self.config["pool"] = config["pool"]
+        self.config["channels"] = config["channels_num"]
+        self.config["emb_dropout"] = config["emb_dropout"]
+
+        self.config["num_layers_transformer"] = config["num_layers_transformer"]
+        self.config["num_attn_heads"] = config["num_attn_heads"]
+        self.config["dim_head"] = config["dim_head"]
+        self.config["mlp_dim"] = config["mlp_dim"]
+        self.config["dropout_transformer"] = config["dropout_transformer"]
 
     def forward(self, x):
         x = self.to_patch_embedding(x)
