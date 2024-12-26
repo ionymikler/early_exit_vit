@@ -230,10 +230,20 @@ class PatchEmbedding(NamedModule):
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_depth))
         self.dropout = nn.Dropout(emb_dropout)
 
+    def __call__(self, *args, **kwds) -> torch.Tensor:
+        return super().__call__(*args, **kwds)
+
     def forward(self, image_batch: torch.Tensor):
         print(f"image_batch shape: {image_batch.shape}")
-        out = self.patch_embedding_layers(image_batch)
-        return out
+        embedded_patches = self.patch_embedding_layers(image_batch)
+        b, _, _ = embedded_patches.shape
+
+        cls_tokens_batch = self.cls_token.repeat(b, 1, 1)
+        embedded_patches = torch.cat((cls_tokens_batch, embedded_patches), dim=1)
+        embedded_patches += self.pos_embedding
+
+        patch_embeddings = self.dropout(embedded_patches)
+        return patch_embeddings
 
 
 class ViT(nn.Module):

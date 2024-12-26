@@ -3,6 +3,8 @@
 import argparse
 import yaml
 import torch
+import onnx
+import onnxruntime
 
 # local imports
 from utils.logging_utils import get_logger_ready
@@ -27,10 +29,14 @@ def parse_config():
     return config
 
 
-def run_model(x, model):
+def run_model(model, x, print_output=False):
     logger.info("Running model")
     out = model(x)
     logger.info(f"model output shape: {out.shape}")
+
+    if print_output:
+        logger.info(f"Output: {out}")
+    return out
 
 
 def export_model(model: NamedModule, _x, onnx_filepath: str):
@@ -44,8 +50,6 @@ def export_model(model: NamedModule, _x, onnx_filepath: str):
     )
     onnx_program.save(onnx_filepath)
     logger.info(f"✅ Model exported to '{onnx_filepath}'")
-
-    return onnx_filepath
 
 
 def gen_data(data_shape: tuple):
@@ -68,6 +72,32 @@ def get_model(model_config: dict) -> NamedModule:
     return model
 
 
+def load_and_run_onnx(onnx_filepath, _x, print_output=False):
+    logger.info("Loading and running ONNX model")
+    onnx_model = onnx.load(onnx_filepath)
+    onnx.checker.check_model(onnx_model)
+
+    ort_session = onnxruntime.InferenceSession(
+        onnx_filepath, providers=["CPUExecutionProvider"]
+    )
+
+    def to_numpy(tensor):
+        return (
+            tensor.detach().cpu().numpy()
+            if tensor.requires_grad
+            else tensor.cpu().numpy()
+        )
+
+    # compute ONNX Runtime output prediction
+    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(_x)}
+    ort_outs = ort_session.run(None, ort_inputs)
+
+    if print_output:
+        logger.info(f"[onnx] Output: {ort_outs}")
+
+    return ort_outs
+
+
 def main():
     args = parse_config()
 
@@ -81,12 +111,19 @@ def main():
     model = get_model(model_config)
 
     x = gen_data(data_shape=(2, channels_num, img_size, img_size))
-    run_model(x=x, model=model)
+    out_pytorch = run_model(x=x, model=model)
 
     onnx_filepath = f"./models/onnx/{model.name}.onnx"
     export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
 
-    print("Model exported to model.onnx")
+    out_ort = load_and_run_onnx(onnx_filepath, x)
+
+    # Compare the outputs
+    assert torch.allclose(
+        out_pytorch, torch.tensor(out_ort[0]), atol=1e-5
+    ), "Outputs are not equal"
+
+    logger.info("✅ Outputs are equal")
 
 
 if __name__ == "__main__":
