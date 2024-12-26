@@ -6,7 +6,7 @@ import torch
 
 # local imports
 from utils.logging_utils import get_logger_ready
-from vit import NamedModule, PatchEmbeddingSimple
+from vit import NamedModule, PatchEmbedding
 
 logger = get_logger_ready("main")
 
@@ -36,17 +36,13 @@ def run_model(x, model):
 def export_model(model: NamedModule, _x, onnx_filepath: str):
     logger.info(f"Exporting model '{model.name}' to ONNX format")
 
-    model = torch.jit.script(model)
-    torch.onnx.export(
+    onnx_program = torch.onnx.export(
         model=model,
-        args=_x,
-        f=onnx_filepath,
-        verbose=True,
+        args=(_x),
+        dynamo=True,
         report=True,
-        opset_version=20,
-        dynamo=False,
     )
-
+    onnx_program.save(onnx_filepath)
     logger.info(f"✅ Model exported to '{onnx_filepath}'")
 
     return onnx_filepath
@@ -67,13 +63,7 @@ def get_model(model_config: dict) -> NamedModule:
     #     mlp_dim=model_config["mlp_dim"],
     # )
 
-    model = PatchEmbeddingSimple(
-        image_size=model_config["image_size"],
-        patch_size=model_config["patch_size"],
-        embed_depth=model_config["embed_depth"],
-        pool=model_config["pool"],
-        channels=model_config["channels_num"],
-    )
+    model = PatchEmbedding(config=model_config)
 
     return model
 

@@ -16,7 +16,7 @@ def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
 
-def print(f, *args, **kwargs):
+def print(f):
     """
     workaround for the lookup of the print function when exporting to ONNX
     """
@@ -160,20 +160,22 @@ class PatchEmbeddingSimple(NamedModule):
         pool: str,
         channels: int,
     ):
-        super().__init__(name="PatchEmbedding")
+        super().__init__(name="PatchEmbeddingSimple")
 
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
         patch_dim = channels * patch_height * patch_width
 
-        self.rearrange = Rearrange(
-            "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
-            p1=patch_height,
-            p2=patch_width,
-        )
         self.patch_embedding_linear = nn.Linear(patch_dim, embed_depth)
 
-        self.seq = nn.Sequential(self.rearrange, self.patch_embedding_linear)
+        self.seq = nn.Sequential(
+            Rearrange(
+                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
+                p1=patch_height,
+                p2=patch_width,
+            ),
+            self.patch_embedding_linear,
+        )
 
     def forward(self, image_batch: torch.Tensor):
         out = self.seq(image_batch)
@@ -184,13 +186,18 @@ class PatchEmbedding(NamedModule):
     def __init__(
         self,
         *,
-        image_size: int,
-        patch_size: int,
-        embed_depth: int,
-        pool: str,
-        channels: int,
+        config: dict,
     ):
         super().__init__(name="PatchEmbedding")
+
+        # params from config
+        image_size = config["image_size"]
+        patch_size = config["patch_size"]
+        embed_depth = config["embed_depth"]
+        pool = config["pool"]
+        channels = config["channels_num"]
+        emb_dropout = config["emb_dropout"]
+        # END params from config
 
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -201,7 +208,7 @@ class PatchEmbedding(NamedModule):
             image_height % patch_height == 0 and image_width % patch_width == 0
         ), "Image dimensions must be divisible by the patch size."
 
-        # num_patches = (image_height // patch_height) * (image_width // patch_width)
+        num_patches = (image_height // patch_height) * (image_width // patch_width)
         patch_dim = channels * patch_height * patch_width
         assert pool in {
             "cls",
@@ -218,6 +225,10 @@ class PatchEmbedding(NamedModule):
             nn.Linear(patch_dim, embed_depth),
             nn.LayerNorm(embed_depth),
         )
+
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, embed_depth))
+        self.cls_token = nn.Parameter(torch.randn(1, 1, embed_depth))
+        self.dropout = nn.Dropout(emb_dropout)
 
     def forward(self, image_batch: torch.Tensor):
         print(f"image_batch shape: {image_batch.shape}")

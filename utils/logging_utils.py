@@ -12,6 +12,8 @@ def get_logger_ready(name: str) -> logging.Logger:
 
     # Create a formatter and set it for the handler
     formatter = logging.Formatter("[%(levelname)s][%(name)s][%(asctime)s]: %(message)s")
+    formatter.default_time_format = "%H:%M:%S"
+    formatter.default_msec_format = "%s.%03d"
     stream_handler.setFormatter(formatter)
 
     # Add the handler to the logger
