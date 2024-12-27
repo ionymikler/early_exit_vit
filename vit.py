@@ -1,5 +1,6 @@
 # Adapted from Github's lucidrains/vit-pytorch/vit_pytorch/vit.py (3.Dec.24)
 
+from enum import Enum
 import torch
 from torch import nn
 
@@ -12,7 +13,7 @@ logger = get_logger_ready("ViT")
 
 
 # helpers
-def pair(t):
+def ensure_tuple(t) -> tuple:
     return t if isinstance(t, tuple) else (t, t)
 
 
@@ -24,6 +25,89 @@ def print(f):
 
 
 # classes
+class PoolType(Enum):
+    CLS = "cls"
+    MEAN = "mean"
+
+
+class PatchEmbedding(nn.Module):
+    def __init__(
+        self,
+        config: dict,
+    ):
+        super().__init__()
+        self.name = "PatchEmbedding"
+        self._set_config_params(config)
+
+        image_height, image_width = ensure_tuple(self.config["image_size"])
+        patch_height, patch_width = ensure_tuple(self.config["patch_size"])
+        print(f"image_height: {image_height}, image_width: {image_width}")
+        print(f"patch_height: {patch_height}, patch_width: {patch_width}")
+
+        assert (
+            image_height % patch_height == 0 and image_width % patch_width == 0
+        ), "Image dimensions must be divisible by the patch size."
+
+        num_patches = (image_height // patch_height) * (image_width // patch_width)
+        patch_dim = self.config["channels"] * patch_height * patch_width
+        assert self.config["pool"] in {
+            "cls",
+            "mean",
+        }, "pool type must be either cls (cls token) or mean (mean pooling)"
+
+        self.patch_embedding_layers = nn.Sequential(
+            Rearrange(
+                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
+                p1=patch_height,
+                p2=patch_width,
+            ),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, self.config["embed_depth"]),
+            nn.LayerNorm(self.config["embed_depth"]),
+        )
+
+        self.pos_embedding = nn.Parameter(
+            torch.randn(1, num_patches + 1, self.config["embed_depth"])
+        )
+        self.cls_token = nn.Parameter(torch.randn(1, 1, self.config["embed_depth"]))
+        self.dropout = nn.Dropout(self.config["dropout_embedding"])
+
+    def _set_config_params(self, config: dict):
+        assert isinstance(config["image_size"], int) or isinstance(
+            config["image_size"], tuple
+        )
+        assert isinstance(config["patch_size"], int) or isinstance(
+            config["patch_size"], tuple
+        )
+        assert isinstance(config["embed_depth"], int)
+        assert isinstance(config["pool"], str)
+        assert isinstance(config["channels_num"], int)
+        assert isinstance(config["dropout_embedding"], float)
+
+        self.config = {}
+        self.config["image_size"] = config["image_size"]
+        self.config["patch_size"] = config["patch_size"]
+        self.config["embed_depth"] = config["embed_depth"]
+        self.config["pool"] = config["pool"]
+        self.config["channels"] = config["channels_num"]
+        self.config["dropout_embedding"] = config["dropout_embedding"]
+
+    def __call__(self, *args, **kwds) -> torch.Tensor:
+        return super().__call__(*args, **kwds)
+
+    def forward(self, image_batch: torch.Tensor):
+        print(f"image_batch shape: {image_batch.shape}")
+        embedded_patches = self.patch_embedding_layers(image_batch)
+        b, _, _ = embedded_patches.shape
+
+        cls_tokens_batch = self.cls_token.repeat(b, 1, 1)
+        embedded_patches = torch.cat((cls_tokens_batch, embedded_patches), dim=1)
+        embedded_patches += self.pos_embedding
+
+        embedded_patches = self.dropout(embedded_patches)
+        return embedded_patches
+
+
 class AttentionFeedForward(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout=0.0):
         super().__init__()
@@ -115,7 +199,7 @@ class Attention(nn.Module):
 
 class Transformer(nn.Module):
     def __init__(
-        self, embed_depth, num_layers, num_attn_heads, dim_head, mlp_dim, dropout=0.0
+        self, *, embed_depth, num_layers, num_attn_heads, dim_head, mlp_dim, dropout=0.0
     ):
         super().__init__()
         self.norm = nn.LayerNorm(embed_depth)
@@ -144,86 +228,11 @@ class Transformer(nn.Module):
         return self.norm(x)
 
 
-class PatchEmbedding(nn.Module):
-    def __init__(
-        self,
-        *,
-        config: dict,
-    ):
-        super().__init__()
-        self.name = "PatchEmbedding"
-        self._set_config_params(config)
-
-        image_height, image_width = pair(self.config["image_size"])
-        patch_height, patch_width = pair(self.config["patch_size"])
-        print(f"image_height: {image_height}, image_width: {image_width}")
-        print(f"patch_height: {patch_height}, patch_width: {patch_width}")
-
-        assert (
-            image_height % patch_height == 0 and image_width % patch_width == 0
-        ), "Image dimensions must be divisible by the patch size."
-
-        num_patches = (image_height // patch_height) * (image_width // patch_width)
-        patch_dim = self.config["channels"] * patch_height * patch_width
-        assert self.config["pool"] in {
-            "cls",
-            "mean",
-        }, "pool type must be either cls (cls token) or mean (mean pooling)"
-
-        self.patch_embedding_layers = nn.Sequential(
-            Rearrange(
-                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
-                p1=patch_height,
-                p2=patch_width,
-            ),
-            nn.LayerNorm(patch_dim),
-            nn.Linear(patch_dim, self.config["embed_depth"]),
-            nn.LayerNorm(self.config["embed_depth"]),
-        )
-
-        self.pos_embedding = nn.Parameter(
-            torch.randn(1, num_patches + 1, self.config["embed_depth"])
-        )
-        self.cls_token = nn.Parameter(torch.randn(1, 1, self.config["embed_depth"]))
-        self.dropout = nn.Dropout(self.config["emb_dropout"])
-
-    def _set_config_params(self, config: dict):
-        assert isinstance(config["image_size"], int) or isinstance(
-            config["image_size"], tuple
-        )
-        assert isinstance(config["patch_size"], int) or isinstance(
-            config["patch_size"], tuple
-        )
-        assert isinstance(config["embed_depth"], int)
-        assert isinstance(config["pool"], str)
-        assert isinstance(config["channels_num"], int)
-        assert isinstance(config["emb_dropout"], float)
-
-        self.config = {}
-        self.config["image_size"] = config["image_size"]
-        self.config["patch_size"] = config["patch_size"]
-        self.config["embed_depth"] = config["embed_depth"]
-        self.config["pool"] = config["pool"]
-        self.config["channels"] = config["channels_num"]
-        self.config["emb_dropout"] = config["emb_dropout"]
-
-    def __call__(self, *args, **kwds) -> torch.Tensor:
-        return super().__call__(*args, **kwds)
-
-    def forward(self, image_batch: torch.Tensor):
-        print(f"image_batch shape: {image_batch.shape}")
-        embedded_patches = self.patch_embedding_layers(image_batch)
-        b, _, _ = embedded_patches.shape
-
-        cls_tokens_batch = self.cls_token.repeat(b, 1, 1)
-        embedded_patches = torch.cat((cls_tokens_batch, embedded_patches), dim=1)
-        embedded_patches += self.pos_embedding
-
-        embedded_patches = self.dropout(embedded_patches)
-        return embedded_patches
-
-
 class ViT(nn.Module):
+    default_config: dict = {
+        "pool": PoolType.CLS,
+    }
+
     def __init__(
         self,
         *,
@@ -245,7 +254,7 @@ class ViT(nn.Module):
             channels (int, optional): Number of input channels. Default is 3.
             dim_head (int, optional): Depth dimension of the attention matrices in each head. Default is 64.
             dropout (float, optional): Dropout rate for the transformer. Default is 0.
-            emb_dropout (float, optional): Dropout rate for the embedding layer. Default is 0.
+            dropout_embedding (float, optional): Dropout rate for the embedding layer. Default is 0.
         """
         super().__init__()
         self.name = "ViT"
@@ -262,46 +271,43 @@ class ViT(nn.Module):
             dropout=self.config["dropout_transformer"],
         )
 
-        # self.pool = pool
+        self.pool = self.config["pool"]
         self.to_latent = nn.Identity()
 
-        # self.mlp_head = nn.Linear(embed_depth, num_classes)
+        self.mlp_head = nn.Linear(
+            self.config["embed_depth"], self.config["num_classes"]
+        )
 
     def _set_config_params(self, config: dict):
         assert isinstance(config["image_size"], int) or isinstance(
             config["image_size"], tuple
-        )
+        ), "image_size must be an int or a tuple"
         assert isinstance(config["patch_size"], int) or isinstance(
             config["patch_size"], tuple
-        )
-        assert isinstance(config["embed_depth"], int)
-        assert isinstance(config["pool"], str)
+        ), "patch_size must be an int or a tuple"
+
+        assert isinstance(config["embed_depth"], int), "embed_depth must be an int"
+        assert isinstance(config["pool"], str), "pool must be a string"
         assert isinstance(config["channels_num"], int)
-        assert isinstance(config["emb_dropout"], float)
+        assert isinstance(config["dropout_embedding"], float)
 
         self.config = {}
         self.config["image_size"] = config["image_size"]
         self.config["patch_size"] = config["patch_size"]
         self.config["embed_depth"] = config["embed_depth"]
-        self.config["pool"] = config["pool"]
+        self.config["pool"] = config.get("pool", ViT.default_config["pool"])
         self.config["channels"] = config["channels_num"]
-        self.config["emb_dropout"] = config["emb_dropout"]
+        self.config["dropout_embedding"] = config["dropout_embedding"]
 
         self.config["num_layers_transformer"] = config["num_layers_transformer"]
         self.config["num_attn_heads"] = config["num_attn_heads"]
         self.config["dim_head"] = config["dim_head"]
         self.config["mlp_dim"] = config["mlp_dim"]
         self.config["dropout_transformer"] = config["dropout_transformer"]
+        self.config["num_classes"] = config["num_classes"]
 
     def forward(self, x):
-        x = self.to_patch_embedding(x)
-        b, n, _ = x.shape
-
-        # batch_cls_tokens = repeat(self.cls_token, "1 1 d -> b 1 d", b=b)
-        batch_cls_tokens = self.cls_token.repeat(b, 1, 1)
-        x = torch.cat((batch_cls_tokens, x), dim=1)
-        x += self.pos_embedding[:, : (n + 1)]
-        x = self.dropout(x)
+        x = self.patch_embedding(x)
 
         x = self.transformer(x)
 

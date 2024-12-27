@@ -1,32 +1,15 @@
 #!/usr/bin/env python
 # Made by: Jonathan Mikler on 2024-12-03
-import argparse
-import yaml
 import torch
-import onnx
-import onnxruntime
+import torch.nn as nn
+from datetime import datetime
 
 # local imports
+import utils as my_utils
 from utils.logging_utils import get_logger_ready
-from vit import NamedModule, PatchEmbedding
+from vit import ViT
 
 logger = get_logger_ready("main")
-
-
-def parse_config():
-    parser = argparse.ArgumentParser(description="Process config file path.")
-    parser.add_argument(
-        "--config-path",
-        type=str,
-        required=True,
-        help="Path to the configuration JSON file",
-    )
-    args = parser.parse_args()
-
-    with open(args.config_path, "r") as f:
-        config = yaml.safe_load(f)
-
-    return config
 
 
 def run_model(model, x, print_output=False):
@@ -39,7 +22,7 @@ def run_model(model, x, print_output=False):
     return out
 
 
-def export_model(model: NamedModule, _x, onnx_filepath: str):
+def export_model(model: nn.Module, _x, onnx_filepath: str):
     logger.info(f"Exporting model '{model.name}' to ONNX format")
 
     onnx_program = torch.onnx.export(
@@ -52,54 +35,15 @@ def export_model(model: NamedModule, _x, onnx_filepath: str):
     logger.info(f"✅ Model exported to '{onnx_filepath}'")
 
 
-def gen_data(data_shape: tuple):
-    return torch.randn(data_shape)
-
-
-def get_model(model_config: dict) -> NamedModule:
-    # model = ViT(
-    #     num_layers_transformer=model_config["transformer_layers"],
-    #     image_size=model_config["image_size"],
-    #     patch_size=model_config["patch_size"],
-    #     num_classes=model_config["num_classes"],
-    #     embed_depth=model_config["embed_depth"],
-    #     num_attn_heads=model_config["heads"],
-    #     mlp_dim=model_config["mlp_dim"],
-    # )
-
-    model = PatchEmbedding(config=model_config)
+def get_model(model_config: dict) -> nn.Module:
+    model = ViT(config=model_config)
+    # model = PatchEmbedding(config=model_config)
 
     return model
 
 
-def load_and_run_onnx(onnx_filepath, _x, print_output=False):
-    logger.info("Loading and running ONNX model")
-    onnx_model = onnx.load(onnx_filepath)
-    onnx.checker.check_model(onnx_model)
-
-    ort_session = onnxruntime.InferenceSession(
-        onnx_filepath, providers=["CPUExecutionProvider"]
-    )
-
-    def to_numpy(tensor):
-        return (
-            tensor.detach().cpu().numpy()
-            if tensor.requires_grad
-            else tensor.cpu().numpy()
-        )
-
-    # compute ONNX Runtime output prediction
-    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(_x)}
-    ort_outs = ort_session.run(None, ort_inputs)
-
-    if print_output:
-        logger.info(f"[onnx] Output: {ort_outs}")
-
-    return ort_outs
-
-
 def main():
-    args = parse_config()
+    args = my_utils.parse_config()
 
     # Dataset config
     channels_num = args["dataset"]["channels_num"]
@@ -110,13 +54,14 @@ def main():
 
     model = get_model(model_config)
 
-    x = gen_data(data_shape=(2, channels_num, img_size, img_size))
+    x = my_utils.gen_data(data_shape=(2, channels_num, img_size, img_size))
     out_pytorch = run_model(x=x, model=model)
 
-    onnx_filepath = f"./models/onnx/{model.name}.onnx"
+    timestamp = datetime.now().strftime("%H-%M-%S")
+    onnx_filepath = f"./models/onnx/{model.name}_{timestamp}.onnx"
     export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
 
-    out_ort = load_and_run_onnx(onnx_filepath, x)
+    out_ort = my_utils.load_and_run_onnx(onnx_filepath, x)
 
     # Compare the outputs
     assert torch.allclose(

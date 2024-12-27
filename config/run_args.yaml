@@ -12,10 +12,11 @@ model:
   pool: 'cls'
   embed_depth: 1024
 
-  dropout: 0.0 # TODO: Change to meet LGViT details
-  emb_dropout: 0.0 # TODO: Change to meet LGViT details
-  dim_head: 64 # TODO: Change to meet LGViT details
-  heads: 16 # TODO: Change to meet LGViT details
-  mlp_dim: 204 # TODO: Change to meet LGViT details
-  patch_size: 32 # TODO: Change to meet LGViT details
-  transformer_layers: 2
+  # TODO: Change these to meet LGViT details
+  dropout_embedding: 0.0 
+  dropout_transformer: 0.0 
+  dim_head: 64 
+  num_attn_heads: 16 
+  mlp_dim: 204 
+  patch_size: 32 
+  num_layers_transformer: 2

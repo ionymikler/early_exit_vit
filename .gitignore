@@ -1,4 +1,5 @@
 # by-products
 *.pyc
+*.onnx
 onnx_export*
 models/
