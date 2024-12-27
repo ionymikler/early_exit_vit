@@ -43,12 +43,12 @@ class PatchEmbeddingSimple(nn.Module):
 def export_model(model: nn.Module, _x, onnx_filepath: str):
     print(f"Exporting model '{model.name}' to ONNX format")
 
-    model = torch.jit.script(model)
+    # model = torch.jit.script(model)
     torch.onnx.export(
         model=model,
         args=_x,
         f=onnx_filepath,
-        verbose=True,
+        verbose=False,
         opset_version=20,
         dynamo=False,
     )
@@ -81,7 +81,7 @@ def main():
             model_config["image_size"],
         )
     )
-    onnx_filepath = f"./models/onnx/{model.name}.onnx"
+    onnx_filepath = f"./{model.name}_dynamo.onnx"
     export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
 
 
