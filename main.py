@@ -12,8 +12,12 @@ from vit import ViT
 logger = get_logger_ready("main")
 
 
+def announce(msg: str):
+    logger.info(f"ℹ️  {msg}")
+
+
 def run_model(model, x, print_output=False):
-    logger.info("Running model")
+    announce("Running model")
     out = model(x)
     logger.info(f"model output shape: {out.shape}")
 
@@ -23,7 +27,7 @@ def run_model(model, x, print_output=False):
 
 
 def export_model(model: nn.Module, _x, onnx_filepath: str):
-    logger.info(f"Exporting model '{model.name}' to ONNX format")
+    announce(f"Exporting model '{model.name}' to ONNX format")
 
     onnx_program = torch.onnx.export(
         model=model,
@@ -36,10 +40,7 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
 
 
 def get_model(model_config: dict) -> nn.Module:
-    model = ViT(config=model_config)
-    # model = PatchEmbedding(config=model_config)
-
-    return model
+    return ViT(config=model_config)
 
 
 def main():

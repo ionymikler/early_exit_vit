@@ -278,6 +278,10 @@ class ViT(nn.Module):
             self.config["embed_depth"], self.config["num_classes"]
         )
 
+        self.mlp_head_2 = nn.Linear(
+            self.config["embed_depth"], self.config["num_classes"]
+        )
+
     def _set_config_params(self, config: dict):
         assert isinstance(config["image_size"], int) or isinstance(
             config["image_size"], tuple
@@ -316,5 +320,8 @@ class ViT(nn.Module):
         )  # take cls token or average all tokens (pooling)
 
         x = self.to_latent(x)  # identity, just for shape
-        x = self.mlp_head(x)
+
+        x = torch.cond(
+            x.mean() > 0, lambda: self.mlp_head(x), lambda: self.mlp_head_2(x)
+        )
         return x
