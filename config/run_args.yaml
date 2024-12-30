@@ -1,7 +1,7 @@
 dataset:
   channels_num: &channels_num 3
-  image_size: &image_size 256 # TODO: Change to CIFAR-100 image size
-  num_classes: &num_clases 100
+  image_size: &image_size 224 # CIFAR-100 image size
+  num_classes: &num_clases 100 # CIFAR-100 number of classes
 model:
   # values here are described in the Vit.__init__ method
   # Pairing some params from 'dataset' to 'vit' to avoid duplication
@@ -10,13 +10,11 @@ model:
   num_classes: *num_clases
   
   pool: 'cls'
-  embed_depth: 768
-
-  # TODO: Change these to meet LGViT details
+  embed_depth: 768 # 'hidden_size' in LGViT
+  patch_size: 16 
+  num_attn_heads: 12 # 'num_attention_heads' in LGViT
   dropout_embedding: 0.0 
   dropout_transformer: 0.0 
-  dim_head: 64 
-  num_attn_heads: 16 
-  mlp_dim: 204 
-  patch_size: 32 
-  num_layers_transformer: 2
+  mlp_dim: 3072 # 'intermediate_size' in LGVIT
+  dim_head: 64 # computed as config.hidden_size / config.num_attention_heads in LGVIT
+  num_layers_transformer: 12 # 'num_hidden_layers' in LGViT
