@@ -1,7 +1,7 @@
 dataset:
   channels_num: &channels_num 3
   image_size: &image_size 256 # TODO: Change to CIFAR-100 image size
-  num_classes: &num_clases 10 # TODO: Change to meet LGViT details
+  num_classes: &num_clases 100
 model:
   # values here are described in the Vit.__init__ method
   # Pairing some params from 'dataset' to 'vit' to avoid duplication
@@ -10,7 +10,7 @@ model:
   num_classes: *num_clases
   
   pool: 'cls'
-  embed_depth: 1024
+  embed_depth: 768
 
   # TODO: Change these to meet LGViT details
   dropout_embedding: 0.0 
