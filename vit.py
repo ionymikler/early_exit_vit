@@ -9,7 +9,7 @@ from einops.layers.torch import Rearrange
 from utils.logging_utils import get_logger_ready
 
 
-logger = get_logger_ready("ViT")
+logger = get_logger_ready("ViT.py")
 
 
 # helpers
@@ -31,39 +31,27 @@ class PoolType(Enum):
 
 
 class PatchEmbedding(nn.Module):
-    def __init__(
-        self,
-        config: dict,
-    ):
+    def __init__(self, config: dict, verbose: bool = False):
         super().__init__()
+        print("Initializing PatchEmbeddings...")
         self.name = "PatchEmbedding"
+        self.verbose = verbose
         self._set_config_params(config)
 
         image_height, image_width = ensure_tuple(self.config["image_size"])
         patch_height, patch_width = ensure_tuple(self.config["patch_size"])
-        print(f"image_height: {image_height}, image_width: {image_width}")
-        print(f"patch_height: {patch_height}, patch_width: {patch_width}")
 
         assert (
             image_height % patch_height == 0 and image_width % patch_width == 0
         ), "Image dimensions must be divisible by the patch size."
 
         num_patches = (image_height // patch_height) * (image_width // patch_width)
-        patch_dim = self.config["channels"] * patch_height * patch_width
-        assert self.config["pool"] in {
-            "cls",
-            "mean",
-        }, "pool type must be either cls (cls token) or mean (mean pooling)"
 
-        self.patch_embedding_layers = nn.Sequential(
-            Rearrange(
-                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
-                p1=patch_height,
-                p2=patch_width,
-            ),
-            nn.LayerNorm(patch_dim),
-            nn.Linear(patch_dim, self.config["embed_depth"]),
-            nn.LayerNorm(self.config["embed_depth"]),
+        self.projection = nn.Conv2d(
+            self.config["channels"],
+            self.config["embed_depth"],
+            kernel_size=self.config["patch_size"],
+            stride=self.config["patch_size"],
         )
 
         self.pos_embedding = nn.Parameter(
@@ -71,6 +59,8 @@ class PatchEmbedding(nn.Module):
         )
         self.cls_token = nn.Parameter(torch.randn(1, 1, self.config["embed_depth"]))
         self.dropout = nn.Dropout(self.config["dropout_embedding"])
+
+        print(f"PatchEmbedding initialized with {num_patches} patches")
 
     def _set_config_params(self, config: dict):
         assert isinstance(config["image_size"], int) or isinstance(
@@ -92,27 +82,42 @@ class PatchEmbedding(nn.Module):
         self.config["channels"] = config["channels_num"]
         self.config["dropout_embedding"] = config["dropout_embedding"]
 
+        assert self.config["pool"] in {
+            "cls",
+            "mean",
+        }, "pool type must be either cls (cls token) or mean (mean pooling)"
+
+        if self.verbose:
+            print(f'image_size: {self.config["image_size"]}')
+            print(f'patch_size: {self.config["patch_size"]}')
+            print(f'embed_depth: {self.config["embed_depth"]}')
+            print(f'pool: {self.config["pool"]}')
+            print(f'channels_num: {self.config["channels"]}')
+            print(f'dropout_embedding: {self.config["dropout_embedding"]}')
+
     def __call__(self, *args, **kwds) -> torch.Tensor:
         return super().__call__(*args, **kwds)
 
     def forward(self, image_batch: torch.Tensor):
         print(f"image_batch shape: {image_batch.shape}")
-        embedded_patches = self.patch_embedding_layers(image_batch)
+
+        # TODO: Understand this flattening and transpose
+        embedded_patches = self.projection(image_batch).flatten(2).transpose(1, 2)
         b, _, _ = embedded_patches.shape
 
         cls_tokens_batch = self.cls_token.repeat(b, 1, 1)
         embedded_patches = torch.cat((cls_tokens_batch, embedded_patches), dim=1)
         embedded_patches += self.pos_embedding
-
         embedded_patches = self.dropout(embedded_patches)
+
         return embedded_patches
 
 
-class AttentionFeedForward(nn.Module):
+class AttentionMLP(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout=0.0):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.LayerNorm(embed_depth),
+        self.norm = nn.LayerNorm(embed_depth)
+        self.mlp = nn.Sequential(
             nn.Linear(embed_depth, hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -121,14 +126,15 @@ class AttentionFeedForward(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x)
+        x = self.norm(x)
+        return self.mlp(x)
 
 
 class Attention(nn.Module):
-    def __init__(self, *, embed_depth, mlp_dim, num_heads=8, dim_head=64, dropout=0.0):
+    def __init__(self, *, embed_depth, mlp_dim, num_heads, dim_head, dropout):
         super().__init__()
 
-        inner_dim = dim_head * num_heads
+        all_heads_size = dim_head * num_heads
         project_out = not (
             num_heads == 1 and dim_head == embed_depth
         )  # if more than one head, project out
@@ -136,74 +142,67 @@ class Attention(nn.Module):
         self.num_heads = num_heads
         self.scale = dim_head**-0.5
 
-        self.norm = nn.LayerNorm(embed_depth)
+        self.norm = nn.LayerNorm(embed_depth)  # maps to LGVIT's 'layernorm_before'
 
         self.softmax = nn.Softmax(dim=-1)
         self.dropout = nn.Dropout(dropout)
 
-        self.to_qkv = nn.Linear(
-            embed_depth, inner_dim * 3, bias=False
-        )  # QUESTION: Why bias=False?
-        self.qkv_rearrage = Rearrange("b n (h d) -> b h n d", h=num_heads)
-        self.out_rearrange = Rearrange("b h n d -> b n (h d)", h=num_heads)
+        self.W_QKV = nn.Linear(embed_depth, all_heads_size * 3, bias=True)
 
-        self.to_ff = (
-            nn.Sequential(nn.Linear(inner_dim, embed_depth), nn.Dropout(dropout))
+        # b: batch size, p: number of patches, h: number of heads, d: depth of head's output
+        self.qkv_rearrage = Rearrange("b p (h d) -> b h p d", h=num_heads)
+        self.attn_rearrange = Rearrange("b h p d -> b p (h d)", h=num_heads)
+
+        self.attention_output = (
+            nn.Sequential(nn.Linear(all_heads_size, embed_depth), nn.Dropout(dropout))
             if project_out
             else nn.Identity()
         )
 
-        self.feed_forward = AttentionFeedForward(
+        self.norm_mlp = AttentionMLP(
             embed_depth=embed_depth, hidden_dim=mlp_dim, dropout=dropout
         )
 
     def forward(self, x):
-        x = self.norm(x)
-        embed_dim = x.shape[-1]
+        x_norm = self.norm(x)
+        embed_dim = x_norm.shape[-1]
 
-        # qkv = self.to_qkv(x).chunk(3, dim = -1)
-        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
-        qkv_i = [
-            self.to_qkv(x)[:, :, embed_dim * i : embed_dim * (i + 1)] for i in range(3)
+        qkv = [
+            self.W_QKV(x_norm)[:, :, embed_dim * i : embed_dim * (i + 1)]
+            for i in range(3)
         ]
-        print(f"Shapes after slicing: {[qkv.shape for qkv in qkv_i]}")
-        # q, k, v = map(self.qkv_rearrage, qkv_i)
+        print(f"qkv shape: {[qkv.shape for qkv in qkv]}")
 
-        # qkv_rearrage = Rearrange("b n (h d) -> b h n d", h=self.num_heads)
-        q = self.qkv_rearrage(qkv_i[0])
-        k = self.qkv_rearrage(qkv_i[1])
-        v = self.qkv_rearrage(qkv_i[2])
+        q = self.qkv_rearrage(qkv[0])
+        k = self.qkv_rearrage(qkv[1])
+        v = self.qkv_rearrage(qkv[2])
         print(f"Shapes after rearranging: q: {q.shape}, k: {k.shape}, v: {v.shape}")
 
         scaled_scores = torch.matmul(q, k.transpose(-1, -2)) * self.scale
-
         attn = self.softmax(scaled_scores)
         attn = self.dropout(attn)
+        attn_by_head = torch.matmul(attn, v)
 
-        attn_out = torch.matmul(attn, v)
+        # join all heads outputs into a single tensor of shape (batch, num_patches, embed_dim)
+        attn_heads_combined = self.attn_rearrange(attn_by_head)
 
-        # out = rearrange(
-        #     out, "b h n d -> b n (h d)"
-        # )
-        attn_out = self.out_rearrange(
-            attn_out
-        )  # TODO: Review this again. Understand the rearrange function
-        print(f"Shape after attention: {attn_out.shape}")
+        # counterpart of LGVIT's DeiTSelfOutput.
+        # QUESTION: This layer does not appear in ViT originally
+        # 1st residual connection
+        x = self.attention_output(attn_heads_combined) + x
 
-        x = self.to_ff(attn_out)
-
-        out = self.feed_forward(x)
+        # second part of TransformerEnconder (after 1st res. connection),
+        # added here for simplicity in iteration of its layers
+        out = self.norm_mlp(x) + x  # 2nd residual connection
 
         return out
 
 
-class Transformer(nn.Module):
+class TransformerEnconder(nn.Module):
     def __init__(
         self, *, embed_depth, num_layers, num_attn_heads, dim_head, mlp_dim, dropout=0.0
     ):
         super().__init__()
-        self.norm = nn.LayerNorm(embed_depth)
-
         self.layers = nn.ModuleList(
             [
                 Attention(
@@ -217,15 +216,16 @@ class Transformer(nn.Module):
             ]
         )
 
+        self.norm_post_layers = nn.LayerNorm(embed_depth)
+
     def forward(self, x):
         _l_idx = 0
         for attn in self.layers:
-            print(f"[forward]: Layer {_l_idx}")
+            print(f"[TransformerEnconder][forward]: Layer {_l_idx}")
+            x = attn(x)
             _l_idx += 1
 
-            x = attn(x) + x
-
-        return self.norm(x)
+        return self.norm_post_layers(x)
 
 
 class ViT(nn.Module):
@@ -233,11 +233,7 @@ class ViT(nn.Module):
         "pool": PoolType.CLS,
     }
 
-    def __init__(
-        self,
-        *,
-        config: dict,
-    ):
+    def __init__(self, *, config: dict, verbose: bool = False):
         # * to enforce only keyword arguments
         """
         Initializes the Vision Transformer (ViT) model.
@@ -261,9 +257,9 @@ class ViT(nn.Module):
         print("Initializing Vit model...")
         self._set_config_params(config)
 
-        self.patch_embedding = PatchEmbedding(config)
+        self.patch_embedding = PatchEmbedding(config, verbose=verbose)
 
-        self.transformer = Transformer(
+        self.transformer = TransformerEnconder(
             embed_depth=self.config["embed_depth"],
             num_layers=self.config["num_layers_transformer"],
             num_attn_heads=self.config["num_attn_heads"],
@@ -274,10 +270,6 @@ class ViT(nn.Module):
 
         self.pool = self.config["pool"]
         self.to_latent = nn.Identity()
-
-        self.mlp_head = nn.Linear(
-            self.config["embed_depth"], self.config["num_classes"]
-        )
 
         self.last_classifier = nn.Linear(
             self.config["embed_depth"], self.config["num_classes"]
@@ -323,8 +315,6 @@ class ViT(nn.Module):
         )  # take cls token or average all tokens (pooling)
 
         x = self.to_latent(x)  # identity, just for shape
-
-        x = torch.cond(
-            x.mean() > 0, lambda: self.mlp_head(x), lambda: self.last_classifier(x)
-        )
+        x = self.last_classifier(x)
+        # x = torch.cond(x.mean() > 0, lambda: self.mlp_head(x), lambda: self.last_classifier(x))
         return x
