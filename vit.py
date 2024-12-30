@@ -258,6 +258,7 @@ class ViT(nn.Module):
         """
         super().__init__()
         self.name = "ViT"
+        print("Initializing Vit model...")
         self._set_config_params(config)
 
         self.patch_embedding = PatchEmbedding(config)
@@ -278,9 +279,11 @@ class ViT(nn.Module):
             self.config["embed_depth"], self.config["num_classes"]
         )
 
-        self.mlp_head_2 = nn.Linear(
+        self.last_classifier = nn.Linear(
             self.config["embed_depth"], self.config["num_classes"]
         )
+
+        print("ViT model initialized")
 
     def _set_config_params(self, config: dict):
         assert isinstance(config["image_size"], int) or isinstance(
@@ -322,6 +325,6 @@ class ViT(nn.Module):
         x = self.to_latent(x)  # identity, just for shape
 
         x = torch.cond(
-            x.mean() > 0, lambda: self.mlp_head(x), lambda: self.mlp_head_2(x)
+            x.mean() > 0, lambda: self.mlp_head(x), lambda: self.last_classifier(x)
         )
         return x

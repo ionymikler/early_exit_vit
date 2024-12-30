@@ -7,7 +7,6 @@ from datetime import datetime
 # local imports
 import utils as my_utils
 from utils.logging_utils import get_logger_ready
-from vit import ViT
 
 logger = get_logger_ready("main")
 
@@ -39,23 +38,24 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
     logger.info(f"✅ Model exported to '{onnx_filepath}'")
 
 
-def get_model(model_config: dict) -> nn.Module:
-    return ViT(config=model_config)
-
-
 def main():
     args = my_utils.parse_config()
 
     # Dataset config
-    channels_num = args["dataset"]["channels_num"]
-    img_size = args["dataset"]["image_size"]
-
+    dataset_config = args["dataset"]
     # ViT config
     model_config = args["model"]
 
-    model = get_model(model_config)
+    model = my_utils.get_model(model_config)
 
-    x = my_utils.gen_data(data_shape=(2, channels_num, img_size, img_size))
+    x = my_utils.gen_data(
+        data_shape=(
+            2,
+            dataset_config["channels_num"],
+            dataset_config["image_size"],
+            dataset_config["image_size"],
+        )
+    )
     out_pytorch = run_model(x=x, model=model)
 
     timestamp = datetime.now().strftime("%H-%M-%S")
