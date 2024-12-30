@@ -48,8 +48,8 @@ def gen_data(data_shape: tuple):
     return torch.randn(data_shape)
 
 
-def get_model(model_config: dict) -> torch.nn.Module:
-    return ViT(config=model_config)
+def get_model(model_config: dict, verbose=False) -> torch.nn.Module:
+    return ViT(config=model_config, verbose=True)
 
 
 def load_and_run_onnx(onnx_filepath, _x, print_output=False):
