@@ -144,7 +144,7 @@ class Attention(nn.Module):
 
         self.norm = nn.LayerNorm(embed_depth)  # maps to LGVIT's 'layernorm_before'
 
-        self.softmax = nn.Softmax(dim=-1)
+        self.scores_softmax = nn.Softmax(dim=-1)
         self.dropout = nn.Dropout(dropout)
 
         self.W_QKV = nn.Linear(embed_depth, all_heads_size * 3, bias=True)
@@ -179,7 +179,7 @@ class Attention(nn.Module):
         print(f"Shapes after rearranging: q: {q.shape}, k: {k.shape}, v: {v.shape}")
 
         scaled_scores = torch.matmul(q, k.transpose(-1, -2)) * self.scale
-        attn = self.softmax(scaled_scores)
+        attn = self.scores_softmax(scaled_scores)
         attn = self.dropout(attn)
         attn_by_head = torch.matmul(attn, v)
 
@@ -271,7 +271,7 @@ class ViT(nn.Module):
         self.pool = self.config["pool"]
         self.to_latent = nn.Identity()
 
-        self.last_classifier = nn.Linear(
+        self.last_exit = nn.Linear(
             self.config["embed_depth"], self.config["num_classes"]
         )
 
@@ -315,6 +315,6 @@ class ViT(nn.Module):
         )  # take cls token or average all tokens (pooling)
 
         x = self.to_latent(x)  # identity, just for shape
-        x = self.last_classifier(x)
+        x = self.last_exit(x)
         # x = torch.cond(x.mean() > 0, lambda: self.mlp_head(x), lambda: self.last_classifier(x))
         return x
