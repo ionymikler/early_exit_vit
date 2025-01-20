@@ -232,6 +232,7 @@ class TransformerEnconder(nn.Module):
 
     def fast_pass(self, x_with_fastpass):
         # NOTE: Maybe break the graph trace here? tracing here qould be recursive and not sure how much it would pose a problem for dynamo
+        print(f"Fast pass at layer {self.layer_idx}")
         return x_with_fastpass
 
     def layer_forward(self, x_with_fastpass):

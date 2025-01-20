@@ -28,12 +28,12 @@ model:
 
     # Custom
     exits: # [position, type, kwargs]
-      - [4, 'dummy', {confidence_threshold: 2}]
+      - [4, 'dummy', {confidence_threshold: 0.5}]
       # - [4, 'conv1_1']
-      - [5, 'conv1_1', {}]
+      # - [5, 'conv1_1', {in_features: *model__embed_depth}]
       # - [6, 'conv2_1']
       # - [7, 'conv2_1']
-      - [8, 'attention_r2', {}]
+      # - [8, 'attention_r2', {}]
       # - [9, 'attention_r2']
       # - [10, 'attention_r3']
       # - [11, 'attention_r3']

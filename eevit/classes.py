@@ -23,7 +23,7 @@ from utils.arg_utils import EarlyExitsConfig
 #         return x_with_fastpass
 
 
-class DummyIntermediateClassifier(nn.Module):
+class DummyIntermediateHead(nn.Module):
     def __init__(self, config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
         self.mlp = nn.Sequential(
@@ -31,9 +31,6 @@ class DummyIntermediateClassifier(nn.Module):
             nn.Linear(config.embed_depth, config.num_classes),
         )
         self.confidence_threshold = kwargs["confidence_threshold"]
-
-    def do_nothing(x):
-        return x
 
     def forward(self, x_with_fastpass):
         _logits = self.mlp(x_with_fastpass[:, 0])  # Using CLS token only
@@ -83,17 +80,20 @@ class highway_conv_normal(nn.Module):
 
 # Local perception head
 class highway_conv1_1(nn.Module):
-    def __init__(
-        self,
-        in_features,
-        hidden_features=None,
-        out_features=None,
-        act_layer=nn.GELU,
-        drop=0.0,
-    ):
+    # def __init__(
+    #     self,
+    #     in_features,
+    #     hidden_features=None,
+    #     out_features=None,
+    #     act_layer=nn.GELU,
+    #     drop=0.0,
+    # ):
+    def __init__(self, config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
-        out_features = out_features or in_features
-        hidden_features = hidden_features or in_features
+        in_features = kwargs.get("in_features")
+        out_features = kwargs.get("out_feautes", in_features)
+        hidden_features = kwargs.get("hidden_features", in_features)
+
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_features, hidden_features, 1, 1, 0, bias=True),
             nn.GELU(),
@@ -109,7 +109,7 @@ class highway_conv1_1(nn.Module):
             nn.Conv2d(hidden_features, out_features, 1, 1, 0, bias=True),
             nn.BatchNorm2d(out_features, eps=1e-5),
         )
-        self.drop = nn.Dropout(drop)
+        self.drop = nn.Dropout(config.general_dropout)
 
     def forward(self, x, H, W):
         B, N, C = x.shape
@@ -287,9 +287,7 @@ class Highway(nn.Module):
     def __init__(self, type: str, config: EarlyExitsConfig, kwargs: dict) -> None:
         super().__init__()
         self.config = config
-        self.highway_type = (
-            type  # 'module.type' is a reserved attribute in PyTorch class
-        )
+        self.highway_type = type
 
         # Use factory to create highway network
         self.highway_head = IntermediateHeadFactory.create_head(type, config, kwargs)
@@ -332,7 +330,7 @@ def create_highway_network(
 
 
 HIGHWAY_CLASSES = {
-    "dummy": DummyIntermediateClassifier,
+    "dummy": DummyIntermediateHead,
     "conv_normal": highway_conv_normal,
     "conv1_1": highway_conv1_1,
     "conv2_1": highway_conv2_1,
