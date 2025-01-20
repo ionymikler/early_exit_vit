@@ -6,7 +6,15 @@ from torch import nn
 
 from einops.layers.torch import Rearrange
 
+from eevit.classes import create_highway_network
+from eevit.utils import add_fast_pass, remove_fast_pass
 from utils.logging_utils import get_logger_ready
+from utils.arg_utils import ModelConfig
+
+import torch._dynamo.config
+
+
+torch._dynamo.config.capture_scalar_outputs = True  # for debugging
 
 
 logger = get_logger_ready("ViT.py")
@@ -24,6 +32,10 @@ def print(f):
     logger.info(f)
 
 
+def real_print(f):
+    print(f)
+
+
 # classes
 class PoolType(Enum):
     CLS = "cls"
@@ -31,15 +43,15 @@ class PoolType(Enum):
 
 
 class PatchEmbedding(nn.Module):
-    def __init__(self, config: dict, verbose: bool = False):
+    def __init__(self, config: ModelConfig, verbose: bool = False):
         super().__init__()
         print("Initializing PatchEmbeddings...")
         self.name = "PatchEmbedding"
         self.verbose = verbose
-        self._set_config_params(config)
+        self.config = config
 
-        image_height, image_width = ensure_tuple(self.config["image_size"])
-        patch_height, patch_width = ensure_tuple(self.config["patch_size"])
+        image_height, image_width = ensure_tuple(self.config.image_size)
+        patch_height, patch_width = ensure_tuple(self.config.patch_size)
 
         assert (
             image_height % patch_height == 0 and image_width % patch_width == 0
@@ -48,55 +60,19 @@ class PatchEmbedding(nn.Module):
         num_patches = (image_height // patch_height) * (image_width // patch_width)
 
         self.projection = nn.Conv2d(
-            self.config["channels"],
-            self.config["embed_depth"],
-            kernel_size=self.config["patch_size"],
-            stride=self.config["patch_size"],
+            self.config.channels_num,
+            self.config.embed_depth,
+            kernel_size=self.config.patch_size,
+            stride=self.config.patch_size,
         )
 
         self.pos_embedding = nn.Parameter(
-            torch.randn(1, num_patches + 1, self.config["embed_depth"])
+            torch.randn(1, num_patches + 1, self.config.embed_depth)
         )
-        self.cls_token = nn.Parameter(torch.randn(1, 1, self.config["embed_depth"]))
-        self.dropout = nn.Dropout(self.config["dropout_embedding"])
+        self.cls_token = nn.Parameter(torch.randn(1, 1, self.config.embed_depth))
+        self.dropout = nn.Dropout(self.config.general_dropout)
 
         print(f"PatchEmbedding initialized with {num_patches} patches")
-
-    def _set_config_params(self, config: dict):
-        assert isinstance(config["image_size"], int) or isinstance(
-            config["image_size"], tuple
-        )
-        assert isinstance(config["patch_size"], int) or isinstance(
-            config["patch_size"], tuple
-        )
-        assert isinstance(config["embed_depth"], int)
-        assert isinstance(config["pool"], str)
-        assert isinstance(config["channels_num"], int)
-        assert isinstance(config["dropout_embedding"], float)
-
-        self.config = {}
-        self.config["image_size"] = config["image_size"]
-        self.config["patch_size"] = config["patch_size"]
-        self.config["embed_depth"] = config["embed_depth"]
-        self.config["pool"] = config["pool"]
-        self.config["channels"] = config["channels_num"]
-        self.config["dropout_embedding"] = config["dropout_embedding"]
-
-        assert self.config["pool"] in {
-            "cls",
-            "mean",
-        }, "pool type must be either cls (cls token) or mean (mean pooling)"
-
-        if self.verbose:
-            print(f'image_size: {self.config["image_size"]}')
-            print(f'patch_size: {self.config["patch_size"]}')
-            print(f'embed_depth: {self.config["embed_depth"]}')
-            print(f'pool: {self.config["pool"]}')
-            print(f'channels_num: {self.config["channels"]}')
-            print(f'dropout_embedding: {self.config["dropout_embedding"]}')
-
-    def __call__(self, *args, **kwds) -> torch.Tensor:
-        return super().__call__(*args, **kwds)
 
     def forward(self, image_batch: torch.Tensor):
         print(f"image_batch shape: {image_batch.shape}")
@@ -131,39 +107,47 @@ class AttentionMLP(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, *, embed_depth, mlp_dim, num_heads, dim_head, dropout):
+    def __init__(self, config: ModelConfig):
         super().__init__()
 
-        all_heads_size = dim_head * num_heads
+        all_heads_size = config.dim_head * config.num_attn_heads
         project_out = not (
-            num_heads == 1 and dim_head == embed_depth
+            config.num_attn_heads == 1 and config.dim_head == config.embed_depth
         )  # if more than one head, project out
 
-        self.num_heads = num_heads
-        self.scale = dim_head**-0.5
+        self.num_heads = config.num_attn_heads
+        self.scale = config.dim_head**-0.5
 
-        self.norm = nn.LayerNorm(embed_depth)  # maps to LGVIT's 'layernorm_before'
+        self.norm = nn.LayerNorm(
+            config.embed_depth
+        )  # maps to LGVIT's 'layernorm_before'
 
         self.scores_softmax = nn.Softmax(dim=-1)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(config.transformer_dropout)
 
-        self.W_QKV = nn.Linear(embed_depth, all_heads_size * 3, bias=True)
+        self.W_QKV = nn.Linear(config.embed_depth, all_heads_size * 3, bias=True)
 
         # b: batch size, p: number of patches, h: number of heads, d: depth of head's output
-        self.qkv_rearrage = Rearrange("b p (h d) -> b h p d", h=num_heads)
-        self.attn_rearrange = Rearrange("b h p d -> b p (h d)", h=num_heads)
+        self.qkv_rearrage = Rearrange("b p (h d) -> b h p d", h=config.num_attn_heads)
+        self.attn_rearrange = Rearrange("b h p d -> b p (h d)", h=config.num_attn_heads)
 
         self.attention_output = (
-            nn.Sequential(nn.Linear(all_heads_size, embed_depth), nn.Dropout(dropout))
+            nn.Sequential(
+                nn.Linear(all_heads_size, config.embed_depth),
+                nn.Dropout(config.transformer_dropout),
+            )
             if project_out
             else nn.Identity()
         )
 
         self.norm_mlp = AttentionMLP(
-            embed_depth=embed_depth, hidden_dim=mlp_dim, dropout=dropout
+            embed_depth=config.embed_depth,
+            hidden_dim=config.mlp_dim,
+            dropout=config.transformer_dropout,
         )
 
-    def forward(self, x):
+    def forward(self, x_with_fastpass):
+        x = remove_fast_pass(x_with_fastpass)  # remove the fast-pass token
         x_norm = self.norm(x)
         embed_dim = x_norm.shape[-1]
 
@@ -195,37 +179,66 @@ class Attention(nn.Module):
         # added here for simplicity in iteration of its layers
         out = self.norm_mlp(x) + x  # 2nd residual connection
 
+        out = add_fast_pass(out)  # add the fast-pass token
         return out
 
 
 class TransformerEnconder(nn.Module):
-    def __init__(
-        self, *, embed_depth, num_layers, num_attn_heads, dim_head, mlp_dim, dropout=0.0
-    ):
+    def __init__(self, config: ModelConfig):
         super().__init__()
-        self.layers = nn.ModuleList(
-            [
-                Attention(
-                    embed_depth=embed_depth,
-                    num_heads=num_attn_heads,
-                    dim_head=dim_head,
-                    dropout=dropout,
-                    mlp_dim=mlp_dim,
-                )
-                for _ in range(num_layers)
-            ]
-        )
 
-        self.norm_post_layers = nn.LayerNorm(embed_depth)
+        self._create_layers(config)
+
+        self.norm_post_layers = nn.LayerNorm(config.embed_depth)
+
+    def _create_layers(self, config: ModelConfig):
+        self.layers = nn.ModuleList()
+        ee_params_by_idx = {
+            ee[0]: ee[1:] for ee in config.early_exits.exits
+        }  # params := [type, kwargs]
+
+        for idx in range(config.num_layers_transformer):
+            self.layers.append(Attention(config))
+
+            if idx in ee_params_by_idx.keys():
+                ee_type = ee_params_by_idx[idx][0]
+                ee_kwargs = ee_params_by_idx[idx][1]
+                hw = create_highway_network(ee_type, config.early_exits, ee_kwargs)
+                self.layers.append(hw)
 
     def forward(self, x):
-        _l_idx = 0
-        for attn in self.layers:
-            print(f"[TransformerEnconder][forward]: Layer {_l_idx}")
-            x = attn(x)
-            _l_idx += 1
+        x_with_fastpass = add_fast_pass(x)
 
-        return self.norm_post_layers(x)
+        for layer_idx in range(len(self.layers)):
+            self.layer_idx = layer_idx
+            print(f"[TransformerEnconder][forward]: Layer {layer_idx}")
+            fast_pass_layer = x_with_fastpass[..., -1]
+
+            x_with_fastpass = (
+                self.fast_pass(x_with_fastpass)
+                if fast_pass_layer.any()
+                else self.layer_forward(x_with_fastpass)
+            )
+            # x_with_fastpass = torch.cond(
+            #     fast_pass_layer.any(),  # if the fast pass layer has ones in it
+            #     self.fast_pass,
+            #     self.layer_forward,
+            #     (x_with_fastpass,),
+            # )
+
+        return self.norm_post_layers(
+            remove_fast_pass(x_with_fastpass)
+        )  # Remove the fast-pass token before normalization
+
+    def fast_pass(self, x_with_fastpass):
+        # NOTE: Maybe break the graph trace here? tracing here qould be recursive and not sure how much it would pose a problem for dynamo
+        return x_with_fastpass
+
+    def layer_forward(self, x_with_fastpass):
+        module_i = self.layers[self.layer_idx]  # (attn or IC)
+        x_with_fastpass = module_i(x_with_fastpass)
+
+        return x_with_fastpass
 
 
 class ViT(nn.Module):
@@ -233,7 +246,7 @@ class ViT(nn.Module):
         "pool": PoolType.CLS,
     }
 
-    def __init__(self, *, config: dict, verbose: bool = False):
+    def __init__(self, *, config: ModelConfig, verbose: bool = False):
         # * to enforce only keyword arguments
         """
         Initializes the Vision Transformer (ViT) model.
@@ -255,55 +268,16 @@ class ViT(nn.Module):
         super().__init__()
         self.name = "ViT"
         print("Initializing Vit model...")
-        self._set_config_params(config)
-
         self.patch_embedding = PatchEmbedding(config, verbose=verbose)
 
-        self.transformer = TransformerEnconder(
-            embed_depth=self.config["embed_depth"],
-            num_layers=self.config["num_layers_transformer"],
-            num_attn_heads=self.config["num_attn_heads"],
-            dim_head=self.config["dim_head"],
-            mlp_dim=self.config["mlp_dim"],
-            dropout=self.config["dropout_transformer"],
-        )
+        self.transformer = TransformerEnconder(config)
 
-        self.pool = self.config["pool"]
+        self.pool = config.pool
         self.to_latent = nn.Identity()
 
-        self.last_exit = nn.Linear(
-            self.config["embed_depth"], self.config["num_classes"]
-        )
+        self.last_exit = nn.Linear(config.embed_depth, config.num_classes)
 
         print("ViT model initialized")
-
-    def _set_config_params(self, config: dict):
-        assert isinstance(config["image_size"], int) or isinstance(
-            config["image_size"], tuple
-        ), "image_size must be an int or a tuple"
-        assert isinstance(config["patch_size"], int) or isinstance(
-            config["patch_size"], tuple
-        ), "patch_size must be an int or a tuple"
-
-        assert isinstance(config["embed_depth"], int), "embed_depth must be an int"
-        assert isinstance(config["pool"], str), "pool must be a string"
-        assert isinstance(config["channels_num"], int)
-        assert isinstance(config["dropout_embedding"], float)
-
-        self.config = {}
-        self.config["image_size"] = config["image_size"]
-        self.config["patch_size"] = config["patch_size"]
-        self.config["embed_depth"] = config["embed_depth"]
-        self.config["pool"] = config.get("pool", ViT.default_config["pool"])
-        self.config["channels"] = config["channels_num"]
-        self.config["dropout_embedding"] = config["dropout_embedding"]
-
-        self.config["num_layers_transformer"] = config["num_layers_transformer"]
-        self.config["num_attn_heads"] = config["num_attn_heads"]
-        self.config["dim_head"] = config["dim_head"]
-        self.config["mlp_dim"] = config["mlp_dim"]
-        self.config["dropout_transformer"] = config["dropout_transformer"]
-        self.config["num_classes"] = config["num_classes"]
 
     def forward(self, x):
         x = self.patch_embedding(x)
@@ -316,5 +290,4 @@ class ViT(nn.Module):
 
         x = self.to_latent(x)  # identity, just for shape
         x = self.last_exit(x)
-        # x = torch.cond(x.mean() > 0, lambda: self.mlp_head(x), lambda: self.last_classifier(x))
         return x

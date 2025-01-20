@@ -4,8 +4,9 @@ import yaml
 import onnx
 import onnxruntime
 
-from .logging_utils import get_logger_ready
 from vit import ViT
+from utils.arg_utils import ModelConfig
+from .logging_utils import get_logger_ready
 
 logger = get_logger_ready("utils")
 
@@ -48,7 +49,7 @@ def gen_data(data_shape: tuple):
     return torch.randn(data_shape)
 
 
-def get_model(model_config: dict, verbose=False) -> torch.nn.Module:
+def get_model(model_config: ModelConfig, verbose=False) -> torch.nn.Module:
     return ViT(config=model_config, verbose=True)
 
 
@@ -76,3 +77,11 @@ def load_and_run_onnx(onnx_filepath, _x, print_output=False):
         logger.info(f"[onnx] Output: {ort_outs}")
 
     return ort_outs
+
+
+__all__ = [
+    "parse_config",
+    "gen_data",
+    "get_model",
+    "load_and_run_onnx",
+]

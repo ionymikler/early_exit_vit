@@ -1,20 +1,39 @@
 dataset:
-  channels_num: &channels_num 3
-  image_size: &image_size 224 # CIFAR-100 image size
-  num_classes: &num_clases 100 # CIFAR-100 number of classes
+  channels_num: &dataset__channels_num 3
+  image_size: &dataset__image_size 224 # CIFAR-100 image size
+  num_classes: &dataset__num_clases 100 # CIFAR-100 number of classes
+
 model:
   # values here are described in the Vit.__init__ method
   # Pairing some params from 'dataset' to 'vit' to avoid duplication
-  channels_num: *channels_num
-  image_size: *image_size
-  num_classes: *num_clases
+  channels_num: *dataset__channels_num
+  image_size: *dataset__image_size
+  num_classes: *dataset__num_clases
   
   pool: 'cls'
-  embed_depth: 768 # 'hidden_size' in LGViT
+  embed_depth: &model__embed_depth 768 # 'hidden_size' in LGViT
   patch_size: 16 
   num_attn_heads: 12 # 'num_attention_heads' in LGViT
-  dropout_embedding: 0.0 
-  dropout_transformer: 0.0 
+  general_dropout: 0.0 
+  transformer_dropout: 0.0 
   mlp_dim: 3072 # 'intermediate_size' in LGVIT
   dim_head: 64 # computed as config.hidden_size / config.num_attention_heads in LGVIT
   num_layers_transformer: 12 # 'num_hidden_layers' in LGViT
+
+  early_exits:
+    # Same as the pre-trained model
+    exit_strategy: confidence
+    embed_depth: *model__embed_depth
+    num_classes: *dataset__num_clases
+
+    # Custom
+    exits: # [position, type, kwargs]
+      - [4, 'dummy', {confidence_threshold: 2}]
+      # - [4, 'conv1_1']
+      - [5, 'conv1_1', {}]
+      # - [6, 'conv2_1']
+      # - [7, 'conv2_1']
+      - [8, 'attention_r2', {}]
+      # - [9, 'attention_r2']
+      # - [10, 'attention_r3']
+      # - [11, 'attention_r3']
