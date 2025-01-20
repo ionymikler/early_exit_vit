@@ -6,6 +6,7 @@ from datetime import datetime
 
 # local imports
 import utils as my_utils
+from utils.arg_utils import parse_config_dict
 from utils.logging_utils import get_logger_ready
 
 logger = get_logger_ready("main")
@@ -38,13 +39,29 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
     logger.info(f"✅ Model exported to '{onnx_filepath}'")
 
 
+def check_conda_env(conda_env_required):
+    import os
+
+    active_env = os.environ.get("CONDA_DEFAULT_ENV")
+    if active_env != conda_env_required:
+        logger.warning(
+            f"⚠️  Conda environment '{conda_env_required}' is required. Please activate it."
+        )
+        return False
+    return True
+
+
 def main():
+    # Check conda environment
+    if not check_conda_env("eevit"):
+        return
+
     args = my_utils.parse_config()
 
     # Dataset config
     dataset_config = args["dataset"]
     # ViT config
-    model_config = args["model"]
+    model_config = parse_config_dict(args["model"].copy())
 
     model = my_utils.get_model(model_config)
 
