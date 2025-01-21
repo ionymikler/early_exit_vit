@@ -76,7 +76,7 @@ class PatchEmbedding(nn.Module):
         print(f"PatchEmbedding initialized with {num_patches} patches")
 
     def forward(self, image_batch: torch.Tensor):
-        print(f"image_batch shape: {image_batch.shape}")
+        # print(f"image_batch shape: {image_batch.shape}")
 
         # TODO: Understand this flattening and transpose
         embedded_patches = self.projection(image_batch).flatten(2).transpose(1, 2)
@@ -220,7 +220,7 @@ class TransformerEnconder(nn.Module):
 
         for layer_idx in range(len(self.layers)):
             self.layer_idx = layer_idx
-            print(f"[TransformerEnconder][forward]: Layer {layer_idx}")
+            # print(f"[TransformerEnconder][forward]: Layer {layer_idx}")
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
             # x_with_fastpass = (
@@ -255,7 +255,7 @@ class TransformerEnconder(nn.Module):
         return x_with_fastpass
 
 
-class ViT(nn.Module):
+class EEVIT(nn.Module):
     default_config: dict = {
         "pool": PoolType.CLS,
     }

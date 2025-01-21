@@ -193,8 +193,13 @@ class Highway(nn.Module):
         # for ease of implementing more complex strategies. For now here.
         self.exit_evaluator = ExitEvaluator(config, kwargs)
 
-    def do_nothing(self, x):
-        return x
+    def flip_token(self, x_with_fastpass):
+        """Named function for true branch of cond"""
+        return flip_fast_pass_token(x_with_fastpass)
+
+    def keep_token(self, x_with_fastpass):
+        """Named function for false branch of cond"""
+        return x_with_fastpass
 
     def forward(self, x_with_fastpass):
         hidden_states = remove_fast_pass(x_with_fastpass)
@@ -221,8 +226,8 @@ class Highway(nn.Module):
         x_with_fastpass = torch.cond(
             # torch.SymBool(self.exit_evaluator.should_exit(logits)),
             self.exit_evaluator.should_exit(logits),
-            flip_fast_pass_token,
-            self.do_nothing,
+            self.flip_token,
+            self.keep_token,
             (x_with_fastpass,),
         )
 

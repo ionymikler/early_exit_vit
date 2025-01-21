@@ -9,7 +9,14 @@ import onnxruntime
 from torch.onnx import ONNXProgram
 import logging
 from datetime import datetime
-import functorch.experimental.control_flow as fc
+
+import utils as my_utils
+from eevit.utils import (
+    add_fast_pass,
+    get_fast_pass,
+    remove_fast_pass,
+    flip_fast_pass_token,
+)
 
 FILENAME = str(__file__).split("/")[-1].split(".")[0]  # get the name of the script
 
@@ -43,31 +50,69 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class TwoLayerNetDynamic(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self):
         super(TwoLayerNetDynamic, self).__init__()
         self.model_name = "TwoLayerNetDynamic"
-
-        self.true_module = SubBranch(1)
-        self.false_module = SubBranch(2)
-
-        self.threshold = torch.tensor([0.0], dtype=torch.float32).to(DEVICE)
+        THRESHOLD = 3.0
+        self.layers = nn.ModuleList(
+            [
+                SubBranch(1, THRESHOLD),
+                SubBranch(1, THRESHOLD),
+                SubBranch(1, THRESHOLD),
+                SubBranch(1, THRESHOLD),
+            ]
+        )
 
         self.training_exits = False
 
         print("TwoLayerNetDynamic initialized")
 
+    def fast_pass(self, x_with_fastpass: torch.Tensor):
+        return x_with_fastpass
+
+    def layer_forward(self, x_with_fastpass: torch.Tensor):
+        module_i = self.layers[self.layer_idx]  # (attn or IC)
+        x_with_fastpass = module_i(x_with_fastpass)
+
+        return x_with_fastpass
+
     def forward(self, x: torch.Tensor):
-        x = fc.cond(x.any(), self.true_module, self.false_module, (x,))
-        return x
+        x_with_fastpass = add_fast_pass(x)
+        for layer_idx in range(len(self.layers)):
+            self.layer_idx = layer_idx
+            fast_pass = get_fast_pass(x_with_fastpass).to(torch.bool)
+
+            x_with_fastpass = torch.cond(
+                fast_pass.any(), self.fast_pass, self.layer_forward, (x_with_fastpass,)
+            )
+        return x_with_fastpass
 
 
 class SubBranch(nn.Module):
-    def __init__(self, k):
+    def __init__(self, k, threshold):
         super(SubBranch, self).__init__()
         self.k = k
+        self.threshold = threshold
 
-    def forward(self, x: torch.Tensor):
-        return x * self.k
+    def decision(self, x: torch.Tensor):
+        return x > self.threshold
+
+    def forward(self, x_with_fastpass: torch.Tensor):
+        x = remove_fast_pass(x_with_fastpass)
+        x = x + self.k
+
+        x_with_fastpass = torch.cond(
+            self.decision(x), self.flip_token, self.do_nothing, (x_with_fastpass,)
+        )
+
+        return x_with_fastpass
+
+    def do_nothing(self, x_with_fastpass):
+        return x_with_fastpass
+
+    def flip_token(self, x_with_fastpass):
+        """Named function for true branch of cond"""
+        return flip_fast_pass_token(x_with_fastpass)
 
 
 def run_model(x, model):
@@ -81,8 +126,8 @@ def export_model(model: nn.Module, _x):
 
     ### Using TorchDynamo ###
     filename = FILENAME
-    timestamp = datetime.now().strftime("%d_%m_%Y")
-    onnx_filepath = f"./models/onnx/{filename}_{timestamp}.onnx"
+    timestamp = datetime.now().strftime("%d_%m_%y_%H_%M_%S")
+    onnx_filepath = f"./models/onnx/dynamic_dynamo_simple/{filename}_{timestamp}.onnx"
     onnx_program: ONNXProgram = torch.onnx.export(
         model=model, args=(_x,), dynamo=True, report=True
     )
@@ -117,11 +162,11 @@ def load_and_run_onnx(onnx_filepath, _x):
 
 
 def main():
-    model = TwoLayerNetDynamic(input_size=1, hidden_size=3, output_size=1)
+    model = TwoLayerNetDynamic()
     model.to(DEVICE)
 
-    # _x = torch.normal(mean=0.0, std=2.0, size=(1, 1), dtype=torch.float32).to(DEVICE)
-    _x = torch.tensor([1.0])
+    # _x = torch.tensor([1.0])
+    _x = my_utils.gen_data(data_shape=(1, 1, 1))
     logger.info(f"Input: {_x}")
 
     # run the model for sanity check

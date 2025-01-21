@@ -4,7 +4,7 @@ import yaml
 import onnx
 import onnxruntime
 
-from vit import ViT
+from vit import EEVIT
 from utils.arg_utils import ModelConfig
 from .logging_utils import get_logger_ready
 
@@ -58,7 +58,7 @@ def gen_data(data_shape: tuple):
 
 
 def get_model(model_config: ModelConfig, verbose=False) -> torch.nn.Module:
-    return ViT(config=model_config, verbose=True)
+    return EEVIT(config=model_config, verbose=True)
 
 
 def load_and_run_onnx(onnx_filepath, _x, print_output=False):

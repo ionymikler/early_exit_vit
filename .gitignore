@@ -3,3 +3,4 @@
 *.onnx
 onnx_export*
 models/
+scratch/
