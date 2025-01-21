@@ -7,17 +7,18 @@ from torch import nn
 from einops.layers.torch import Rearrange
 
 from eevit.classes import create_highway_network
-from eevit.utils import add_fast_pass, remove_fast_pass
+from eevit.utils import add_fast_pass, remove_fast_pass, get_fast_pass
 from utils.logging_utils import get_logger_ready
 from utils.arg_utils import ModelConfig
 
 import torch._dynamo.config
 
 
-torch._dynamo.config.capture_scalar_outputs = True  # for debugging
+torch._dynamo.config.capture_scalar_outputs = True  # Not sure if needed
 
 
 logger = get_logger_ready("ViT.py")
+debug = False
 
 
 # helpers
@@ -25,11 +26,11 @@ def ensure_tuple(t) -> tuple:
     return t if isinstance(t, tuple) else (t, t)
 
 
-def print(f):
-    """
-    workaround for the lookup of the print function when exporting to ONNX
-    """
-    logger.info(f)
+# def print(f):
+#     """
+#     workaround for the lookup of the print function when exporting to ONNX
+#     """
+#     logger.info(f)
 
 
 def real_print(f):
@@ -155,12 +156,12 @@ class Attention(nn.Module):
             self.W_QKV(x_norm)[:, :, embed_dim * i : embed_dim * (i + 1)]
             for i in range(3)
         ]
-        print(f"qkv shape: {[qkv.shape for qkv in qkv]}")
+        # print(f"qkv shape: {[qkv.shape for qkv in qkv]}")
 
         q = self.qkv_rearrage(qkv[0])
         k = self.qkv_rearrage(qkv[1])
         v = self.qkv_rearrage(qkv[2])
-        print(f"Shapes after rearranging: q: {q.shape}, k: {k.shape}, v: {v.shape}")
+        # print(f"Shapes after rearranging: q: {q.shape}, k: {k.shape}, v: {v.shape}")
 
         scaled_scores = torch.matmul(q, k.transpose(-1, -2)) * self.scale
         attn = self.scores_softmax(scaled_scores)
@@ -191,6 +192,8 @@ class TransformerEnconder(nn.Module):
 
         self.norm_post_layers = nn.LayerNorm(config.embed_depth)
 
+        print(f"TransformerEnconder initialized with {len(self.layers)} layers")
+
     def _create_layers(self, config: ModelConfig):
         self.layers = nn.ModuleList()
         ee_params_by_idx = {
@@ -201,9 +204,15 @@ class TransformerEnconder(nn.Module):
             self.layers.append(Attention(config))
 
             if idx in ee_params_by_idx.keys():
+                assert (
+                    len(ee_params_by_idx[idx]) == 2
+                ), "Early exit parameters must be a tuple with two elements, besides the ee position index"
                 ee_type = ee_params_by_idx[idx][0]
                 ee_kwargs = ee_params_by_idx[idx][1]
                 hw = create_highway_network(ee_type, config.early_exits, ee_kwargs)
+                print(
+                    f"Highway of type '{hw.highway_type}({ee_kwargs})' appended to location '{idx}'"
+                )
                 self.layers.append(hw)
 
     def forward(self, x):
@@ -212,19 +221,21 @@ class TransformerEnconder(nn.Module):
         for layer_idx in range(len(self.layers)):
             self.layer_idx = layer_idx
             print(f"[TransformerEnconder][forward]: Layer {layer_idx}")
-            fast_pass_layer = x_with_fastpass[..., -1]
+            fast_pass_layer = get_fast_pass(x_with_fastpass)
 
-            x_with_fastpass = (
-                self.fast_pass(x_with_fastpass)
-                if fast_pass_layer.any()
-                else self.layer_forward(x_with_fastpass)
-            )
-            # x_with_fastpass = torch.cond(
-            #     fast_pass_layer.any(),  # if the fast pass layer has ones in it
-            #     self.fast_pass,
-            #     self.layer_forward,
-            #     (x_with_fastpass,),
+            # x_with_fastpass = (
+            #     self.fast_pass(x_with_fastpass)
+            #     if fast_pass_layer.any()
+            #     else self.layer_forward(x_with_fastpass)
             # )
+
+            x_with_fastpass = torch.cond(
+                # torch.SymBool(fast_pass_layer.any()),
+                fast_pass_layer.any(),
+                self.fast_pass,
+                self.layer_forward,
+                (x_with_fastpass,),
+            )
 
         return self.norm_post_layers(
             remove_fast_pass(x_with_fastpass)
@@ -232,10 +243,12 @@ class TransformerEnconder(nn.Module):
 
     def fast_pass(self, x_with_fastpass):
         # NOTE: Maybe break the graph trace here? tracing here qould be recursive and not sure how much it would pose a problem for dynamo
-        print(f"Fast pass at layer {self.layer_idx}")
+        # print(f"🟢 Fast pass at layer {self.layer_idx}")
         return x_with_fastpass
 
     def layer_forward(self, x_with_fastpass):
+        if debug:
+            print("test")
         module_i = self.layers[self.layer_idx]  # (attn or IC)
         x_with_fastpass = module_i(x_with_fastpass)
 

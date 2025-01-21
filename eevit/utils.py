@@ -23,5 +23,6 @@ def flip_fast_pass_token(x_with_fastpass):
 def confidence(x):
     # x: torch.Tensor, logits BEFORE softmax
     softmax = torch.softmax(x, dim=-1)
-    return 0.6
+    # print("WARNING: confidence is giving a dummy value")
+    # return 0.6
     return torch.max(softmax)

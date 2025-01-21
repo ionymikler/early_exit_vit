@@ -34,14 +34,22 @@ def parse_config(from_argparse=True, **kwargs):
         default=False,
         help="Perform a dry run without making any changes",
     )
+
+    parser.add_argument(
+        "--export-onnx",
+        "-e",
+        action="store_true",
+        default=False,
+        help="Export model to ONNX format",
+    )
     args = parser.parse_args()
 
-    with open(args.config_path, "r") as f:
-        config = yaml.safe_load(f)
+    return args
 
-    if args.dry_run:
-        logger.info(f"🔍 Dry run. Config: {config}")
-        exit(0)
+
+def get_config(config_path: str) -> dict:
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
     return config
 
 

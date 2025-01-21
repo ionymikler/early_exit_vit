@@ -142,7 +142,7 @@ def eval_model(model, x_test, y_test):
         print(f"Evaluation accuracy: {accuracy * 100:.2f}%")
 
 
-def run_model(x, model):
+def run_model(x, model: TwoLayerNetDynamic):
     model.eval()
     y_pred = model(x)
     return y_pred

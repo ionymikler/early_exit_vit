@@ -1,96 +1,25 @@
 # Made by: Jonathan Mikler on 2025-01-15
-
+import torch
 import torch.nn as nn
 import math
 
-from .utils import confidence, flip_fast_pass_token
+from .utils import confidence, flip_fast_pass_token, remove_fast_pass
 from utils.arg_utils import EarlyExitsConfig
-# class ConfidenceExitStrategy(nn.Module):
-#     def __init__(self, confidence_threshold:float):
-#         super().__init__()
-#         self.confidence_threshold = confidence_threshold
-
-#     def forward(self, logits):
-#         pred_confidence = confidence(logits)
-
-#         x_with_fastpass = torch.cond(
-#             pred_confidence > self.confidence_threshold,
-#             flip_fast_pass_token,
-#             self.do_nothing,
-#             (x_with_fastpass,)
-#         )
-
-#         return x_with_fastpass
 
 
-class DummyIntermediateHead(nn.Module):
+class ExitEvaluator:
     def __init__(self, config: EarlyExitsConfig, kwargs: dict):
-        super().__init__()
-        self.mlp = nn.Sequential(
-            nn.LayerNorm(config.embed_depth),
-            nn.Linear(config.embed_depth, config.num_classes),
-        )
-        self.confidence_threshold = kwargs["confidence_threshold"]
+        self.confidence_theshold = config.confidence_threshold
 
-    def forward(self, x_with_fastpass):
-        _logits = self.mlp(x_with_fastpass[:, 0])  # Using CLS token only
-
-        # NOTE: This explicit addition of the confidence strategy is too rigid, but works for now.
-        # Should be a class or something that gets configures at creation time
-        pred_confidence = confidence(_logits)
-
-        x_with_fastpass = (
-            flip_fast_pass_token(x_with_fastpass)
-            if pred_confidence > self.confidence_threshold
-            else x_with_fastpass
-        )
-        # x_with_fastpass = torch.cond(
-        #     pred_confidence > self.confidence_threshold,
-        #     flip_fast_pass_token,
-        #     self.do_nothing,
-        #     (x_with_fastpass,)
-        # )
-
-        return x_with_fastpass
+    def should_exit(self, logits):
+        return confidence(logits) > self.confidence_theshold
 
 
-class highway_conv_normal(nn.Module):
-    def __init__(
-        self,
-        in_features,
-        hidden_features=None,
-        out_features=None,
-        act_layer=nn.GELU,
-        drop=0.0,
-    ):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_features, in_features, 3, 1, 1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_features, eps=1e-5),
-        )
-
-    def forward(self, x, H, W):
-        B, N, C = x.shape
-        x = x.permute(0, 2, 1).reshape(B, C, H, W)
-        x = self.conv(x)
-        x = x.flatten(2).permute(0, 2, 1)
-        return x
-
-
-# Local perception head
+## Local Perception Heads
 class highway_conv1_1(nn.Module):
-    # def __init__(
-    #     self,
-    #     in_features,
-    #     hidden_features=None,
-    #     out_features=None,
-    #     act_layer=nn.GELU,
-    #     drop=0.0,
-    # ):
-    def __init__(self, config: EarlyExitsConfig, kwargs: dict):
+    def __init__(self, ee_config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
-        in_features = kwargs.get("in_features")
+        in_features = ee_config.embed_depth
         out_features = kwargs.get("out_feautes", in_features)
         hidden_features = kwargs.get("hidden_features", in_features)
 
@@ -109,7 +38,7 @@ class highway_conv1_1(nn.Module):
             nn.Conv2d(hidden_features, out_features, 1, 1, 0, bias=True),
             nn.BatchNorm2d(out_features, eps=1e-5),
         )
-        self.drop = nn.Dropout(config.general_dropout)
+        self.drop = nn.Dropout(ee_config.general_dropout)
 
     def forward(self, x, H, W):
         B, N, C = x.shape
@@ -126,19 +55,13 @@ class highway_conv1_1(nn.Module):
         return x
 
 
-# Local perception head
 class highway_conv2_1(nn.Module):
-    def __init__(
-        self,
-        in_features,
-        hidden_features=None,
-        out_features=None,
-        act_layer=nn.GELU,
-        drop=0.0,
-    ):
+    def __init__(self, ee_config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
-        out_features = out_features or in_features
-        hidden_features = hidden_features or in_features
+        in_features = ee_config.embed_depth
+        out_features = kwargs.get("out_feautes", in_features)
+        hidden_features = kwargs.get("hidden_features", in_features)
+
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_features, hidden_features, 1, 1, 0, bias=True),
             nn.GELU(),
@@ -148,7 +71,7 @@ class highway_conv2_1(nn.Module):
             nn.Conv2d(hidden_features, out_features, 1, 1, 0, bias=True),
             nn.BatchNorm2d(out_features, eps=1e-5),
         )
-        self.drop = nn.Dropout(drop)
+        self.drop = nn.Dropout(ee_config.general_dropout)
 
     def forward(self, x, H, W):
         B, N, C = x.shape
@@ -162,22 +85,21 @@ class highway_conv2_1(nn.Module):
         return x
 
 
-# Global aggregation head
+# Global Aggregation Heads
 class GlobalSparseAttn(nn.Module):
-    def __init__(
-        self,
-        dim,
-        num_heads=8,
-        qkv_bias=False,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        sr_ratio=1,
-    ):
+    # def __init__( self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0.0, proj_drop=0.0, sr_ratio=1):
+    def __init__(self, config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
-        self.num_heads = num_heads
-        head_dim = dim // num_heads
+        dim = config.embed_depth
+        qk_scale = kwargs.get("qk_scale", None)
+        qkv_bias = kwargs.get("qkv_bias", False)
+        attn_drop = kwargs.get("attn_drop", 0.0)
+        proj_drop = kwargs.get("proj_drop", 0.0)
+        sr_ratio = kwargs.get("sr_ratio", 1)
 
+        self.num_heads = config.num_attn_heads
+
+        head_dim = dim // config.num_attn_heads
         self.scale = qk_scale or head_dim**-0.5
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
@@ -218,6 +140,128 @@ class GlobalSparseAttn(nn.Module):
         return x
 
 
+# Classifier
+class HighwayClassifier(nn.Module):
+    """Handles the classification part of the highway network"""
+
+    def __init__(self, config: EarlyExitsConfig):
+        super().__init__()
+        self.config = config
+        self.pooler = nn.AdaptiveAvgPool1d(1)
+        self.dropout = nn.Dropout(config.general_dropout)
+
+        self.classifier = (
+            nn.Linear(config.embed_depth, config.num_classes)
+            if config.num_classes > 0
+            else nn.Identity()
+        )
+
+    def forward(self, processed_embeddings, cls_embeddings):
+        pooled_output = (
+            self.pooler(processed_embeddings.transpose(1, 2)).transpose(1, 2).squeeze(1)
+        )
+        logits = self.classifier(pooled_output + cls_embeddings)
+        return logits
+
+
+# Helping classes
+class IntermediateHeadFactory:
+    """Factory class for creating different types of highway networks"""
+
+    @staticmethod
+    def create_head(
+        highway_type: str, config: EarlyExitsConfig, kwargs: dict
+    ) -> nn.Module:
+        return INTERMEDIATE_CLASSES[highway_type](config, kwargs)
+
+
+# Wrapping class for (IntermediateHeads + Classifier)
+class Highway(nn.Module):
+    def __init__(self, type: str, config: EarlyExitsConfig, kwargs: dict) -> None:
+        super().__init__()
+        self.config = config
+        self.highway_type = type
+
+        # Use factory to create highway network
+        self.highway_head = IntermediateHeadFactory.create_head(type, config, kwargs)
+
+        # Create classifier
+        self.classifier = HighwayClassifier(config)
+
+        # Exit Strsategy Evaluation
+        # NOTE: Maybe the Evaluator does not need to be here but at TransformerEnconder level,
+        # for ease of implementing more complex strategies. For now here.
+        self.exit_evaluator = ExitEvaluator(config, kwargs)
+
+    def do_nothing(self, x):
+        return x
+
+    def forward(self, x_with_fastpass):
+        hidden_states = remove_fast_pass(x_with_fastpass)
+        cls_embeddings = hidden_states[:, 0, :]
+
+        patch_embeddings = hidden_states[:, 1:, :]
+
+        # Process patch embeddings through highway network
+        if self.highway_type == "self_attention":
+            processed_embeddings = self.highway_head(patch_embeddings)[0]
+        else:
+            h = w = int(math.sqrt(patch_embeddings.size()[1]))
+            processed_embeddings = self.highway_head(patch_embeddings, h, w)
+
+        # Get logits through classifier
+        logits = self.classifier(processed_embeddings, cls_embeddings)
+
+        # Check if we should exit early
+        # x_with_fastpass = (
+        #     flip_fast_pass_token(x_with_fastpass)
+        #     if self.exit_evaluator.should_exit(logits)
+        #     else x_with_fastpass
+        # )
+        x_with_fastpass = torch.cond(
+            # torch.SymBool(self.exit_evaluator.should_exit(logits)),
+            self.exit_evaluator.should_exit(logits),
+            flip_fast_pass_token,
+            self.do_nothing,
+            (x_with_fastpass,),
+        )
+
+        return x_with_fastpass
+
+
+# Usage example:
+def create_highway_network(
+    type: str, config: EarlyExitsConfig, kwargs: dict
+) -> Highway:
+    """Helper function to create a highway network"""
+    return Highway(type, config, kwargs)
+
+
+# unmodifyied classes
+class highway_conv_normal(nn.Module):
+    def __init__(
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        drop=0.0,
+    ):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_features, in_features, 3, 1, 1),
+            nn.GELU(),
+            nn.BatchNorm2d(in_features, eps=1e-5),
+        )
+
+    def forward(self, x, H, W):
+        B, N, C = x.shape
+        x = x.permute(0, 2, 1).reshape(B, C, H, W)
+        x = self.conv(x)
+        x = x.flatten(2).permute(0, 2, 1)
+        return x
+
+
 class SelfAttention(nn.Module):
     def __init__(
         self,
@@ -249,88 +293,7 @@ class SelfAttention(nn.Module):
         return x
 
 
-# Classifier
-class HighwayClassifier(nn.Module):
-    """Handles the classification part of the highway network"""
-
-    def __init__(self, config: EarlyExitsConfig):
-        super().__init__()
-        self.config = config
-        self.pooler = nn.AdaptiveAvgPool1d(1)
-        self.dropout = nn.Dropout(config.general_dropout)
-
-        self.classifier = (
-            nn.Linear(config.embed_depth, config.num_classes)
-            if config.num_classes > 0
-            else nn.Identity()
-        )
-
-    def forward(self, processed_embeddings, cls_embeddings):
-        pooled_output = (
-            self.pooler(processed_embeddings.transpose(1, 2)).transpose(1, 2).squeeze(1)
-        )
-        logits = self.classifier(pooled_output + cls_embeddings)
-        return logits
-
-
-class IntermediateHeadFactory:
-    """Factory class for creating different types of highway networks"""
-
-    @staticmethod
-    def create_head(
-        highway_type: str, config: EarlyExitsConfig, kwargs: dict
-    ) -> nn.Module:
-        return HIGHWAY_CLASSES[highway_type](config, kwargs)
-
-
-class Highway(nn.Module):
-    def __init__(self, type: str, config: EarlyExitsConfig, kwargs: dict) -> None:
-        super().__init__()
-        self.config = config
-        self.highway_type = type
-
-        # Use factory to create highway network
-        self.highway_head = IntermediateHeadFactory.create_head(type, config, kwargs)
-
-        # Create classifier
-        self.classifier = HighwayClassifier(config)
-
-    def forward(self, encoder_outputs):
-        hidden_states = encoder_outputs[0]
-        cls_embeddings = hidden_states[:, 0, :]
-
-        if self.config.backbone == "DeiT":
-            distillation_embeddings = hidden_states[:, 1, :]
-            patch_embeddings = hidden_states[:, 2:, :]
-        elif self.config.backbone == "ViT":
-            distillation_embeddings = None
-            patch_embeddings = hidden_states[:, 1:, :]
-
-        # Process patch embeddings through highway network
-        if self.highway_type == "self_attention":
-            processed_embeddings = self.highway_head(patch_embeddings)[0]
-        else:
-            h = w = int(math.sqrt(patch_embeddings.size()[1]))
-            processed_embeddings = self.highway_head(patch_embeddings, h, w)
-
-        # Get logits through classifier
-        logits = self.classifier(
-            processed_embeddings, cls_embeddings, distillation_embeddings
-        )
-
-        return logits, processed_embeddings
-
-
-# Usage example:
-def create_highway_network(
-    type: str, config: EarlyExitsConfig, kwargs: dict
-) -> Highway:
-    """Helper function to create a highway network"""
-    return Highway(type, config, kwargs)
-
-
-HIGHWAY_CLASSES = {
-    "dummy": DummyIntermediateHead,
+INTERMEDIATE_CLASSES = {
     "conv_normal": highway_conv_normal,
     "conv1_1": highway_conv1_1,
     "conv2_1": highway_conv2_1,

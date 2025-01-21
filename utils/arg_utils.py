@@ -9,17 +9,30 @@ class EarlyExitsConfig:
     # Required parameters (no defaults)
     embed_depth: int
     num_classes: int
+    num_attn_heads: int
+    confidence_threshold: float
 
     # Optional parameters with defaults
     general_dropout: float = 0.0
     exit_strategy: Literal["confidence"] = "confidence"  # Default strategy
-    exits: List[Tuple[int, str]] = (
-        None  # Will be set to [(4, 'dummy')] in __post_init__
+    exits: List[Tuple[int, str, dict]] = (
+        None  # Will be set to [(4, 'dummy', {})] in __post_init__
     )
 
     def __post_init__(self):
         if self.exits is None:
-            self.exits = [(4, "dummy")]
+            self.exits = [(4, "dummy", {})]
+        # Ensure all exits have 3 elements with the correct type
+        validated_exits = []
+        for exit in self.exits:
+            if len(exit) == 2:
+                validated_exits.append((exit[0], exit[1], {}))
+            elif len(exit) == 3:
+                assert isinstance(exit[2], dict), "Third entry must be a dictionary"
+                validated_exits.append(exit)
+            else:
+                raise ValueError("Each exit must have either 2 or 3 elements")
+        self.exits = validated_exits
 
 
 @dataclass

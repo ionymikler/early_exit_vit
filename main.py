@@ -57,11 +57,16 @@ def main():
         return
 
     args = my_utils.parse_config()
+    config = my_utils.get_config(args.config_path)
+
+    if args.dry_run:
+        logger.info(f"🔍 Dry run. Config: {config}")
+        return
 
     # Dataset config
-    dataset_config = args["dataset"]
+    dataset_config = config["dataset"]
     # ViT config
-    model_config = parse_config_dict(args["model"].copy())
+    model_config = parse_config_dict(config["model"].copy())
 
     model = my_utils.get_model(model_config)
 
@@ -73,20 +78,22 @@ def main():
             dataset_config["image_size"],
         )
     )
+
     out_pytorch = run_model(x=x, model=model)
 
-    timestamp = datetime.now().strftime("%H-%M-%S")
-    onnx_filepath = f"./models/onnx/{model.name}_{timestamp}.onnx"
-    export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
+    if args.export_onnx:
+        timestamp = datetime.now().strftime("%H-%M-%S")
+        onnx_filepath = f"./models/onnx/{model.name}_{timestamp}.onnx"
+        export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
 
-    out_ort = my_utils.load_and_run_onnx(onnx_filepath, x)
+        out_ort = my_utils.load_and_run_onnx(onnx_filepath, x)
 
-    # Compare the outputs
-    assert torch.allclose(
-        out_pytorch, torch.tensor(out_ort[0]), atol=1e-5
-    ), "Outputs are not equal"
+        # Compare the outputs
+        assert torch.allclose(
+            out_pytorch, torch.tensor(out_ort[0]), atol=1e-5
+        ), "Outputs are not equal"
 
-    logger.info("✅ Outputs are equal")
+        logger.info("✅ Outputs are equal")
 
 
 if __name__ == "__main__":
