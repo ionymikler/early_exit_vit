@@ -21,7 +21,7 @@ class EarlyExitsConfig:
 
     def __post_init__(self):
         if self.exits is None:
-            self.exits = [(4, "dummy", {})]
+            self.exits = []
         # Ensure all exits have 3 elements with the correct type
         validated_exits = []
         for exit in self.exits:

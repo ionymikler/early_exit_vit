@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import math
 
-from .utils import confidence, flip_fast_pass_token, remove_fast_pass
+from .utils import confidence, set_fast_pass_token, remove_fast_pass
 from utils.arg_utils import EarlyExitsConfig
 
 
@@ -193,15 +193,15 @@ class Highway(nn.Module):
         # for ease of implementing more complex strategies. For now here.
         self.exit_evaluator = ExitEvaluator(config, kwargs)
 
-    def flip_token(self, x_with_fastpass):
-        """Named function for true branch of cond"""
-        return flip_fast_pass_token(x_with_fastpass)
+    # def flip_token(self, x_with_fastpass):
+    #     """Named function for true branch of cond"""
+    #     return flip_fast_pass_token(x_with_fastpass)
 
-    def keep_token(self, x_with_fastpass):
-        """Named function for false branch of cond"""
-        return x_with_fastpass
+    # def keep_token(self, x_with_fastpass):
+    #     """Named function for false branch of cond"""
+    #     return x_with_fastpass
 
-    def forward(self, x_with_fastpass):
+    def forward(self, x_with_fastpass: torch.Tensor):
         hidden_states = remove_fast_pass(x_with_fastpass)
         cls_embeddings = hidden_states[:, 0, :]
 
@@ -223,12 +223,18 @@ class Highway(nn.Module):
         #     if self.exit_evaluator.should_exit(logits)
         #     else x_with_fastpass
         # )
-        x_with_fastpass = torch.cond(
-            # torch.SymBool(self.exit_evaluator.should_exit(logits)),
-            self.exit_evaluator.should_exit(logits),
-            self.flip_token,
-            self.keep_token,
-            (x_with_fastpass,),
+
+        # x_with_fastpass = torch.cond(
+        #     self.exit_evaluator.should_exit(logits),
+        #     self.flip_token,
+        #     self.keep_token,
+        #     (x_with_fastpass,),
+        # )
+        x_with_fastpass = set_fast_pass_token(
+            x_with_fastpass,
+            value=self.exit_evaluator.should_exit(logits).to(
+                dtype=x_with_fastpass.dtype
+            ),
         )
 
         return x_with_fastpass

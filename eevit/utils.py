@@ -15,9 +15,9 @@ def get_fast_pass(x_with_fastpass: torch.Tensor):
     return x_with_fastpass.clone()[:, -1, :]
 
 
-def flip_fast_pass_token(x_with_fastpass: torch.Tensor):
+def set_fast_pass_token(x_with_fastpass: torch.Tensor, value: float):
     output = x_with_fastpass.clone()
-    output[:, -1, :] = 1.0
+    output[:, -1, :] = value
     return output
 
 

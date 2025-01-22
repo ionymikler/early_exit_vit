@@ -215,7 +215,7 @@ class TransformerEnconder(nn.Module):
                 )
                 self.layers.append(hw)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         x_with_fastpass = add_fast_pass(x)
 
         for layer_idx in range(len(self.layers)):
@@ -241,11 +241,11 @@ class TransformerEnconder(nn.Module):
             remove_fast_pass(x_with_fastpass)
         )  # Remove the fast-pass token before normalization
 
-    def fast_pass(self, x_with_fastpass):
+    def fast_pass(self, x_with_fastpass: torch.Tensor):
         # print(f"🟢 Fast pass at layer {self.layer_idx}")
-        return x_with_fastpass
+        return x_with_fastpass.clone()
 
-    def layer_forward(self, x_with_fastpass):
+    def layer_forward(self, x_with_fastpass: torch.Tensor):
         module_i = self.layers[self.layer_idx]  # (attn or IC)
         x_with_fastpass = module_i(x_with_fastpass)
 
@@ -277,7 +277,7 @@ class EEVIT(nn.Module):
             dropout_embedding (float, optional): Dropout rate for the embedding layer. Default is 0.
         """
         super().__init__()
-        self.name = "ViT"
+        self.name = "EEVIT"
         print("Initializing Vit model...")
         self.patch_embedding = PatchEmbedding(config, verbose=verbose)
 
