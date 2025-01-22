@@ -1,6 +1,7 @@
 # by-products
 *.pyc
 *.onnx
+**/*.onnx*
 onnx_export*
 models/
 scratch/
