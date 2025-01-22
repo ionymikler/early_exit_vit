@@ -54,15 +54,15 @@ class ModelConfig:
     mlp_dim: int = 3072  # 'intermediate_size' in LGVIT
     dim_head: int = 64  # hardcoded here, computed as config.hidden_size / config.num_attention_heads in LGVIT
     num_layers_transformer: int = 12  # 'num_hidden_layers' in LGViT
-    early_exits: EarlyExitsConfig = (
+    early_exit_config: EarlyExitsConfig = (
         None  # Will be set to default EarlyExitsConfig in __post_init__
     )
 
     def __post_init__(self):
         """Validate configuration parameters."""
         # Set default EarlyExitsConfig if none provided
-        if self.early_exits is None:
-            self.early_exits = EarlyExitsConfig()
+        if self.early_exit_config is None:
+            self.early_exit_config = EarlyExitsConfig()
 
         # Validate numeric ranges
         if self.channels_num <= 0:
@@ -91,7 +91,7 @@ class ModelConfig:
             raise ValueError("num_layers_transformer must be positive")
 
         # Validate early exits
-        for entry in self.early_exits.exits:
+        for entry in self.early_exit_config.exits:
             layer = entry[0]
             if not 0 <= layer < self.num_layers_transformer:
                 raise ValueError(
@@ -114,10 +114,10 @@ def parse_config_dict(model_dict: dict) -> ModelConfig:
     """
     try:
         # Handle early_exits separately if present
-        if "early_exits" in model_dict:
-            early_exits_dict = model_dict.pop("early_exits")
+        if "early_exit_config" in model_dict:
+            early_exits_dict = model_dict.pop("early_exit_config")
             # Create the EarlyExitsConfig and assign it back to model_dict
-            model_dict["early_exits"] = EarlyExitsConfig(**early_exits_dict)
+            model_dict["early_exit_config"] = EarlyExitsConfig(**early_exits_dict)
 
         # Create ModelConfig with all parameters
         return ModelConfig(**model_dict)

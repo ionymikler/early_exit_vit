@@ -4,7 +4,12 @@ from torch import nn
 from einops.layers.torch import Rearrange
 
 from .ee_classes import create_highway_network
-from eevit.utils import add_fast_pass, remove_fast_pass, get_fast_pass
+from eevit.utils import (
+    add_fast_pass,
+    remove_fast_pass,
+    get_fast_pass,
+    get_ee_indexed_params,
+)
 from utils.logging_utils import get_logger_ready
 from utils.arg_utils import ModelConfig
 
@@ -178,9 +183,7 @@ class TransformerEnconder(nn.Module):
 
     def _create_layers(self, config: ModelConfig):
         self.layers = nn.ModuleList()
-        ee_params_by_idx = {
-            ee[0]: ee[1:] for ee in config.early_exits.exits
-        }  # params := [type, kwargs]
+        ee_params_by_idx = get_ee_indexed_params(config)
 
         for idx in range(config.num_layers_transformer):
             self.layers.append(Attention(config))
@@ -191,7 +194,9 @@ class TransformerEnconder(nn.Module):
                 ), "Early exit parameters must be a tuple with two elements, besides the ee position index"
                 ee_type = ee_params_by_idx[idx][0]
                 ee_kwargs = ee_params_by_idx[idx][1]
-                hw = create_highway_network(ee_type, config.early_exits, ee_kwargs)
+                hw = create_highway_network(
+                    ee_type, config.early_exit_config, ee_kwargs
+                )
                 print(
                     f"Highway of type '{hw.highway_type}({ee_kwargs})' appended to location '{idx}'"
                 )

@@ -219,7 +219,6 @@ class Highway(nn.Module):
         return x_with_fastpass
 
 
-# Usage example:
 def create_highway_network(
     type: str, config: EarlyExitsConfig, kwargs: dict
 ) -> Highway:
