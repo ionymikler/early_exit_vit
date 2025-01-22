@@ -34,6 +34,7 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
         args=(_x),
         dynamo=True,
         report=True,
+        verbose=True,
     )
     onnx_program.save(onnx_filepath)
     logger.info(f"✅ Model exported to '{onnx_filepath}'")
@@ -45,7 +46,7 @@ def check_conda_env(conda_env_required):
     active_env = os.environ.get("CONDA_DEFAULT_ENV")
     if active_env != conda_env_required:
         logger.warning(
-            f"⚠️  Conda environment '{conda_env_required}' is required. Please activate it."
+            f"ERROR: Conda environment '{conda_env_required}' is required. Please activate it."
         )
         return False
     return True

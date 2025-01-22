@@ -188,7 +188,7 @@ class Highway(nn.Module):
         # Create classifier
         self.classifier = HighwayClassifier(config)
 
-        # Exit Strsategy Evaluation
+        # Exit strategy Evaluation
         # NOTE: Maybe the Evaluator does not need to be here but at TransformerEnconder level,
         # for ease of implementing more complex strategies. For now here.
         self.exit_evaluator = ExitEvaluator(config, kwargs)

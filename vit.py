@@ -242,13 +242,10 @@ class TransformerEnconder(nn.Module):
         )  # Remove the fast-pass token before normalization
 
     def fast_pass(self, x_with_fastpass):
-        # NOTE: Maybe break the graph trace here? tracing here qould be recursive and not sure how much it would pose a problem for dynamo
         # print(f"🟢 Fast pass at layer {self.layer_idx}")
         return x_with_fastpass
 
     def layer_forward(self, x_with_fastpass):
-        if debug:
-            print("test")
         module_i = self.layers[self.layer_idx]  # (attn or IC)
         x_with_fastpass = module_i(x_with_fastpass)
 
