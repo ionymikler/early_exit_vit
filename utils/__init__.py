@@ -4,9 +4,10 @@ import yaml
 import onnx
 import onnxruntime
 
-from eevit.eevit import EEVIT
-from utils.arg_utils import ModelConfig
-from .logging_utils import get_logger_ready
+from eevit.eevit import EEVIT  # noqa F401
+from eevit.ee_classes import HighwayWrapper  # noqa F401
+from .arg_utils import ModelConfig
+from .logging_utils import get_logger_ready, announce
 
 logger = get_logger_ready("utils")
 
@@ -58,11 +59,12 @@ def gen_data(data_shape: tuple):
 
 
 def get_model(model_config: ModelConfig, verbose=True) -> torch.nn.Module:
+    # return HighwayWrapper(model_config)
     return EEVIT(config=model_config, verbose=verbose)
 
 
 def load_and_run_onnx(onnx_filepath, _x, print_output=False):
-    logger.info("Loading and running ONNX model")
+    announce(logger, "Loading and running ONNX model")
     onnx_model = onnx.load(onnx_filepath)
     onnx.checker.check_model(onnx_model)
 
@@ -85,6 +87,18 @@ def load_and_run_onnx(onnx_filepath, _x, print_output=False):
         logger.info(f"[onnx] Output: {ort_outs}")
 
     return ort_outs
+
+
+def check_conda_env(conda_env_required):
+    import os
+
+    active_env = os.environ.get("CONDA_DEFAULT_ENV")
+    if active_env != conda_env_required:
+        logger.warning(
+            f"ERROR: Conda environment '{conda_env_required}' is required. Please activate it."
+        )
+        return False
+    return True
 
 
 __all__ = [

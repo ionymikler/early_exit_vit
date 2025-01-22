@@ -8,11 +8,27 @@ from utils.arg_utils import EarlyExitsConfig, ModelConfig
 
 
 class ExitEvaluator:
-    def __init__(self, config: EarlyExitsConfig, kwargs: dict):
-        self.confidence_theshold = config.confidence_threshold
+    def __init__(self, ee_config: EarlyExitsConfig, kwargs: dict):
+        self.confidence_theshold = ee_config.confidence_threshold
 
-    def should_exit(self, logits):
+    def decision_tensor(self, logits) -> torch.Tensor:
         return confidence(logits) > self.confidence_theshold
+
+
+class Highway_DummyMLP(torch.nn.Module):
+    def __init__(self, ee_config: ModelConfig, kwargs: dict):
+        super(Highway_DummyMLP, self).__init__()
+        attention_size = ee_config.embed_depth
+        hidden_size = 10
+
+        self.layer1 = torch.nn.Linear(attention_size, hidden_size)
+        self.relu = torch.nn.ReLU()
+        self.layer2 = torch.nn.Linear(hidden_size, attention_size)
+
+    def forward(self, patch_embeddings, H: int, W: int):
+        x = self.relu(self.layer1(patch_embeddings))
+        x = self.layer2(x)
+        return x
 
 
 ## Local Perception Heads
@@ -88,18 +104,18 @@ class highway_conv2_1(nn.Module):
 # Global Aggregation Heads
 class GlobalSparseAttn(nn.Module):
     # def __init__( self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0.0, proj_drop=0.0, sr_ratio=1):
-    def __init__(self, config: EarlyExitsConfig, kwargs: dict):
+    def __init__(self, ee_config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
-        dim = config.embed_depth
+        dim = ee_config.embed_depth
         qk_scale = kwargs.get("qk_scale", None)
         qkv_bias = kwargs.get("qkv_bias", False)
         attn_drop = kwargs.get("attn_drop", 0.0)
         proj_drop = kwargs.get("proj_drop", 0.0)
         sr_ratio = kwargs.get("sr_ratio", 1)
 
-        self.num_heads = config.num_attn_heads
+        self.num_heads = ee_config.num_attn_heads
 
-        head_dim = dim // config.num_attn_heads
+        head_dim = dim // ee_config.num_attn_heads
         self.scale = qk_scale or head_dim**-0.5
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
@@ -144,15 +160,13 @@ class GlobalSparseAttn(nn.Module):
 class HighwayClassifier(nn.Module):
     """Handles the classification part of the highway network"""
 
-    def __init__(self, config: EarlyExitsConfig):
+    def __init__(self, ee_config: EarlyExitsConfig):
         super().__init__()
-        self.config = config
         self.pooler = nn.AdaptiveAvgPool1d(1)
-        self.dropout = nn.Dropout(config.general_dropout)
 
         self.classifier = (
-            nn.Linear(config.embed_depth, config.num_classes)
-            if config.num_classes > 0
+            nn.Linear(ee_config.embed_depth, ee_config.num_classes)
+            if ee_config.num_classes > 0
             else nn.Identity()
         )
 
@@ -177,27 +191,28 @@ class IntermediateHeadFactory:
 
 # Wrapping class for (IntermediateHeads + Classifier)
 class Highway(nn.Module):
-    def __init__(self, type: str, config: EarlyExitsConfig, kwargs: dict) -> None:
+    def __init__(self, type: str, ee_config: EarlyExitsConfig, kwargs: dict) -> None:
         super().__init__()
-        self.config = config
+        self.config = ee_config
         self.highway_type = type
 
         # Use factory to create highway network
-        self.highway_head = IntermediateHeadFactory.create_head(type, config, kwargs)
+        self.highway_head = IntermediateHeadFactory.create_head(type, ee_config, kwargs)
 
         # Create classifier
-        self.classifier = HighwayClassifier(config)
+        self.classifier = HighwayClassifier(ee_config)
 
         # Exit strategy Evaluation
         # NOTE: Maybe the Evaluator does not need to be here but at TransformerEnconder level,
         # for ease of implementing more complex strategies. For now here.
-        self.exit_evaluator = ExitEvaluator(config, kwargs)
+        self.exit_evaluator = ExitEvaluator(ee_config, kwargs)
 
     def forward(self, x_with_fastpass: torch.Tensor):
         hidden_states = remove_fast_pass(x_with_fastpass)
-        cls_embeddings = hidden_states[:, 0, :]
 
-        patch_embeddings = hidden_states[:, 1:, :]
+        cls_embeddings = hidden_states.clone()[:, 0, :]
+
+        patch_embeddings = hidden_states.clone()[:, 1:, :]
 
         # Process patch embeddings through highway network
         h = w = int(math.sqrt(patch_embeddings.size()[1]))
@@ -208,7 +223,7 @@ class Highway(nn.Module):
 
         x_with_fastpass = set_fast_pass_token(
             x_with_fastpass,
-            value=self.exit_evaluator.should_exit(logits).to(
+            value=self.exit_evaluator.decision_tensor(logits).to(
                 dtype=x_with_fastpass.dtype
             ),
         )
@@ -239,8 +254,8 @@ class HighwayWrapper(nn.Module):
 
         # Create Highway module
         self.highway = Highway(
-            type="conv1_1",  # You can change this to any supported type
-            config=ee_config,
+            type="dummy_mlp",  # You can change this to any supported type
+            ee_config=ee_config,
             kwargs={},
         )
 
@@ -249,6 +264,7 @@ class HighwayWrapper(nn.Module):
 
 
 INTERMEDIATE_CLASSES = {
+    "dummy_mlp": Highway_DummyMLP,
     "conv1_1": highway_conv1_1,
     "conv2_1": highway_conv2_1,
     "attention": GlobalSparseAttn,

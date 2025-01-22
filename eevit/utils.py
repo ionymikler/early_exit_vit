@@ -24,6 +24,7 @@ def get_fast_pass(x_with_fastpass: torch.Tensor) -> torch.Tensor:
 
 
 def set_fast_pass_token(x_with_fastpass: torch.Tensor, value: float) -> torch.Tensor:
+    # assert contains([0, 1],value), "Value must be either 0 or 1"
     output = x_with_fastpass.clone()
     output[:, -1, :] = value
     return output

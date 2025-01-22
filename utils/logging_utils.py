@@ -22,3 +22,7 @@ def get_logger_ready(name: str) -> logging.Logger:
     logger.addHandler(stream_handler)
 
     return logger
+
+
+def announce(logger, msg: str):
+    logger.info(f"ℹ️  {msg}")

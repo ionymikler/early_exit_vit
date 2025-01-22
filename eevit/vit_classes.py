@@ -73,7 +73,7 @@ class PatchEmbedding(nn.Module):
 
         cls_tokens_batch = self.cls_token.repeat(b, 1, 1)
         embedded_patches = torch.cat((cls_tokens_batch, embedded_patches), dim=1)
-        embedded_patches += self.pos_embedding
+        embedded_patches = embedded_patches + self.pos_embedding
         embedded_patches = self.dropout(embedded_patches)
 
         return embedded_patches
@@ -209,14 +209,23 @@ class TransformerEnconder(nn.Module):
             self.layer_idx = layer_idx
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
+            # self.conditional_forward(x_with_fastpass, fast_pass_layer)
             x_with_fastpass = torch.cond(
                 fast_pass_layer.any(),
                 self.fast_pass,
                 self.layer_forward,
                 (x_with_fastpass,),
             )
+            # x_with_fastpass = self.layer_forward(x_with_fastpass) if not fast_pass_layer.any() else self.fast_pass(x_with_fastpass)
 
         return self.norm_post_layers(remove_fast_pass(x_with_fastpass))
+
+    def conditional_forward(
+        self, x_with_fastpass: torch.Tensor, fast_pass_layer: torch.Tensor
+    ):
+        if fast_pass_layer.any():
+            return self.fast_pass(x_with_fastpass)
+        return self.layer_forward(x_with_fastpass)
 
     def fast_pass(self, x_with_fastpass: torch.Tensor):
         return x_with_fastpass.clone()

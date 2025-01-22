@@ -55,6 +55,6 @@ class EEVIT(nn.Module):
             x.mean(dim=1) if self.pool == "mean" else x[:, 0]
         )  # take cls token or average all tokens (pooling)
 
-        x = self.to_latent(x)  # identity, just for shape
+        x = self.to_latent(x)  # TODO: Review why this is done in LGVIT
         x = self.last_exit(x)
         return x

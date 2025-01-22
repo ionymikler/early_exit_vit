@@ -5,19 +5,22 @@ import torch.nn as nn
 from datetime import datetime
 
 # local imports
-from utils import parse_args, get_config, get_model, gen_data, load_and_run_onnx
+from utils import (
+    parse_args,
+    get_config,
+    get_model,
+    gen_data,
+    load_and_run_onnx,
+    check_conda_env,
+)
 from utils.arg_utils import parse_config_dict
-from utils.logging_utils import get_logger_ready
+from utils.logging_utils import get_logger_ready, announce
 
 logger = get_logger_ready("main")
 
 
-def announce(msg: str):
-    logger.info(f"ℹ️  {msg}")
-
-
 def run_model(model, x, print_output=False):
-    announce("Running model")
+    announce(logger, "Running model")
     out = model(x)
     logger.info(f"model output shape: {out.shape}")
 
@@ -27,8 +30,9 @@ def run_model(model, x, print_output=False):
 
 
 def export_model(model: nn.Module, _x, onnx_filepath: str):
-    announce(f"Exporting model '{model.name}' to ONNX format")
+    announce(logger, f"Exporting model '{model.name}' to ONNX format")
 
+    model.eval()
     onnx_program = torch.onnx.export(
         model=model,
         args=(_x),
@@ -37,19 +41,7 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
         verbose=True,
     )
     onnx_program.save(onnx_filepath)
-    logger.info(f"✅ Model exported to '{onnx_filepath}'")
-
-
-def check_conda_env(conda_env_required):
-    import os
-
-    active_env = os.environ.get("CONDA_DEFAULT_ENV")
-    if active_env != conda_env_required:
-        logger.warning(
-            f"ERROR: Conda environment '{conda_env_required}' is required. Please activate it."
-        )
-        return False
-    return True
+    logger.info(f"Model exported to '{onnx_filepath}' ✅")
 
 
 def main():
@@ -65,7 +57,7 @@ def main():
         return
 
     # Dataset config
-    dataset_config = config["dataset"]
+    dataset_config = config["dataset"]  # noqa F841
     # ViT config
     model_config = parse_config_dict(config["model"].copy())
 
@@ -73,12 +65,13 @@ def main():
 
     x = gen_data(
         data_shape=(
-            2,
+            1,
             dataset_config["channels_num"],
             dataset_config["image_size"],
             dataset_config["image_size"],
         )
     )
+    # x = add_fast_pass(gen_data(data_shape=(1, 197, 768)))
 
     out_pytorch = run_model(x=x, model=model)
 
@@ -94,7 +87,7 @@ def main():
             out_pytorch, torch.tensor(out_ort[0]), atol=1e-5
         ), "Outputs are not equal"
 
-        logger.info("✅ Outputs are equal")
+        logger.info("Outputs are equal ✅")
 
 
 if __name__ == "__main__":
