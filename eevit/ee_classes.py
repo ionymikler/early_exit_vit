@@ -4,7 +4,7 @@ import torch.nn as nn
 import math
 
 from .utils import confidence, set_fast_pass_token, remove_fast_pass
-from utils.arg_utils import EarlyExitsConfig
+from utils.arg_utils import EarlyExitsConfig, ModelConfig
 
 
 class ExitEvaluator:
@@ -200,11 +200,8 @@ class Highway(nn.Module):
         patch_embeddings = hidden_states[:, 1:, :]
 
         # Process patch embeddings through highway network
-        if self.highway_type == "self_attention":
-            processed_embeddings = self.highway_head(patch_embeddings)[0]
-        else:
-            h = w = int(math.sqrt(patch_embeddings.size()[1]))
-            processed_embeddings = self.highway_head(patch_embeddings, h, w)
+        h = w = int(math.sqrt(patch_embeddings.size()[1]))
+        processed_embeddings = self.highway_head(patch_embeddings, h, w)
 
         # Get logits through classifier
         logits = self.classifier(processed_embeddings, cls_embeddings)
@@ -226,65 +223,33 @@ def create_highway_network(
     return Highway(type, config, kwargs)
 
 
-# unmodifyied classes
-class highway_conv_normal(nn.Module):
-    def __init__(
-        self,
-        in_features,
-        hidden_features=None,
-        out_features=None,
-        act_layer=nn.GELU,
-        drop=0.0,
-    ):
+class HighwayWrapper(nn.Module):
+    def __init__(self, config: ModelConfig):
         super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_features, in_features, 3, 1, 1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_features, eps=1e-5),
+        self.name = "HighwayWrapper"
+
+        # Create EarlyExitsConfig from ModelConfig
+        ee_config = EarlyExitsConfig(
+            embed_depth=config.embed_depth,
+            num_classes=config.num_classes,
+            confidence_threshold=0.8,  # Default value
+            general_dropout=config.general_dropout,
+            num_attn_heads=config.num_attn_heads,
         )
 
-    def forward(self, x, H, W):
-        B, N, C = x.shape
-        x = x.permute(0, 2, 1).reshape(B, C, H, W)
-        x = self.conv(x)
-        x = x.flatten(2).permute(0, 2, 1)
-        return x
-
-
-class SelfAttention(nn.Module):
-    def __init__(
-        self,
-        dim,
-        num_heads=8,
-        qkv_bias=False,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        sr_ratio=1,
-    ):
-        super().__init__()
-        self.num_heads = num_heads
-        # head_dim = dim // num_heads
-
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        # Create Highway module
+        self.highway = Highway(
+            type="conv1_1",  # You can change this to any supported type
+            config=ee_config,
+            kwargs={},
+        )
 
     def forward(self, x):
-        B, N, C = x.shape
-
-        qkv = (
-            self.qkv(x)
-            .reshape(B, -1, 3, self.num_heads, C // self.num_heads)
-            .permute(2, 0, 3, 1, 4)
-        )
-        q, k, v = qkv[0], qkv[1], qkv[2]
-        attn = q @ k.transpose(-2, -1)
-        x = (attn @ v).transpose(1, 2).reshape(B, -1, C)
-        return x
+        return self.highway(x)
 
 
 INTERMEDIATE_CLASSES = {
-    "conv_normal": highway_conv_normal,
     "conv1_1": highway_conv1_1,
     "conv2_1": highway_conv2_1,
-    "attention": GlobalSparseAttn,  # TODO: Not sure how to retrieve this ones from the config entries which are not 'attention' but 'attention_r{x}'
+    "attention": GlobalSparseAttn,
 }
