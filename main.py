@@ -5,7 +5,7 @@ import torch.nn as nn
 from datetime import datetime
 
 # local imports
-import utils as my_utils
+from utils import parse_args, get_config, get_model, gen_data, load_and_run_onnx
 from utils.arg_utils import parse_config_dict
 from utils.logging_utils import get_logger_ready
 
@@ -57,8 +57,8 @@ def main():
     if not check_conda_env("eevit"):
         return
 
-    args = my_utils.parse_config()
-    config = my_utils.get_config(args.config_path)
+    args = parse_args()
+    config = get_config(args.config_path)
 
     if args.dry_run:
         logger.info(f"🔍 Dry run. Config: {config}")
@@ -69,9 +69,9 @@ def main():
     # ViT config
     model_config = parse_config_dict(config["model"].copy())
 
-    model = my_utils.get_model(model_config)
+    model = get_model(model_config)
 
-    x = my_utils.gen_data(
+    x = gen_data(
         data_shape=(
             2,
             dataset_config["channels_num"],
@@ -87,7 +87,7 @@ def main():
         onnx_filepath = f"./models/onnx/{model.name}_{timestamp}.onnx"
         export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
 
-        out_ort = my_utils.load_and_run_onnx(onnx_filepath, x)
+        out_ort = load_and_run_onnx(onnx_filepath, x)
 
         # Compare the outputs
         assert torch.allclose(

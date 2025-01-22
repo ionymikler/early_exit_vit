@@ -4,14 +4,14 @@ import yaml
 import onnx
 import onnxruntime
 
-from eevit import EEVIT
+from eevit.eevit import EEVIT
 from utils.arg_utils import ModelConfig
 from .logging_utils import get_logger_ready
 
 logger = get_logger_ready("utils")
 
 
-def parse_config(from_argparse=True, **kwargs):
+def parse_args(from_argparse=True, **kwargs):
     default_config_path = kwargs.get("default_config_path", "./config/run_args.yaml")
 
     if not from_argparse:
@@ -88,7 +88,7 @@ def load_and_run_onnx(onnx_filepath, _x, print_output=False):
 
 
 __all__ = [
-    "parse_config",
+    "parse_args",
     "gen_data",
     "get_model",
     "load_and_run_onnx",

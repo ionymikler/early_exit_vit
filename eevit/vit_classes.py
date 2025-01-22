@@ -1,23 +1,14 @@
-# Adapted from Github's lucidrains/vit-pytorch/vit_pytorch/vit.py (3.Dec.24)
-
-from enum import Enum
 import torch
 from torch import nn
 
 from einops.layers.torch import Rearrange
 
-from eevit.classes import create_highway_network
+from .ee_classes import create_highway_network
 from eevit.utils import add_fast_pass, remove_fast_pass, get_fast_pass
 from utils.logging_utils import get_logger_ready
 from utils.arg_utils import ModelConfig
 
-import torch._dynamo.config
-
-
-torch._dynamo.config.capture_scalar_outputs = True  # Not sure if needed
-
-
-logger = get_logger_ready("ViT.py")
+logger = get_logger_ready("vit_classes.py")
 debug = False
 
 
@@ -38,11 +29,6 @@ def real_print(f):
 
 
 # classes
-class PoolType(Enum):
-    CLS = "cls"
-    MEAN = "mean"
-
-
 class PatchEmbedding(nn.Module):
     def __init__(self, config: ModelConfig, verbose: bool = False):
         super().__init__()
@@ -76,8 +62,6 @@ class PatchEmbedding(nn.Module):
         print(f"PatchEmbedding initialized with {num_patches} patches")
 
     def forward(self, image_batch: torch.Tensor):
-        # print(f"image_batch shape: {image_batch.shape}")
-
         # TODO: Understand this flattening and transpose
         embedded_patches = self.projection(image_batch).flatten(2).transpose(1, 2)
         b, _, _ = embedded_patches.shape
@@ -156,12 +140,10 @@ class Attention(nn.Module):
             self.W_QKV(x_norm)[:, :, embed_dim * i : embed_dim * (i + 1)]
             for i in range(3)
         ]
-        # print(f"qkv shape: {[qkv.shape for qkv in qkv]}")
 
         q = self.qkv_rearrage(qkv[0])
         k = self.qkv_rearrage(qkv[1])
         v = self.qkv_rearrage(qkv[2])
-        # print(f"Shapes after rearranging: q: {q.shape}, k: {k.shape}, v: {v.shape}")
 
         scaled_scores = torch.matmul(q, k.transpose(-1, -2)) * self.scale
         attn = self.scores_softmax(scaled_scores)
@@ -176,8 +158,8 @@ class Attention(nn.Module):
         # 1st residual connection
         x = self.attention_output(attn_heads_combined) + x
 
-        # second part of TransformerEnconder (after 1st res. connection),
-        # added here for simplicity in iteration of its layers
+        # second part of TransformerEnconder (after 1st res. connection).
+        # Added here for simplicity in iteration of its layers
         out = self.norm_mlp(x) + x  # 2nd residual connection
 
         out = add_fast_pass(out)  # add the fast-pass token
@@ -220,29 +202,18 @@ class TransformerEnconder(nn.Module):
 
         for layer_idx in range(len(self.layers)):
             self.layer_idx = layer_idx
-            # print(f"[TransformerEnconder][forward]: Layer {layer_idx}")
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
-            # x_with_fastpass = (
-            #     self.fast_pass(x_with_fastpass)
-            #     if fast_pass_layer.any()
-            #     else self.layer_forward(x_with_fastpass)
-            # )
-
             x_with_fastpass = torch.cond(
-                # torch.SymBool(fast_pass_layer.any()),
                 fast_pass_layer.any(),
                 self.fast_pass,
                 self.layer_forward,
                 (x_with_fastpass,),
             )
 
-        return self.norm_post_layers(
-            remove_fast_pass(x_with_fastpass)
-        )  # Remove the fast-pass token before normalization
+        return self.norm_post_layers(remove_fast_pass(x_with_fastpass))
 
     def fast_pass(self, x_with_fastpass: torch.Tensor):
-        # print(f"🟢 Fast pass at layer {self.layer_idx}")
         return x_with_fastpass.clone()
 
     def layer_forward(self, x_with_fastpass: torch.Tensor):
@@ -250,55 +221,3 @@ class TransformerEnconder(nn.Module):
         x_with_fastpass = module_i(x_with_fastpass)
 
         return x_with_fastpass
-
-
-class EEVIT(nn.Module):
-    default_config: dict = {
-        "pool": PoolType.CLS,
-    }
-
-    def __init__(self, *, config: ModelConfig, verbose: bool = False):
-        # * to enforce only keyword arguments
-        """
-        Initializes the Vision Transformer (ViT) model.
-
-        Args:
-            image_size (int or tuple): Size of the input image. If an int is provided, it is assumed to be the size of both dimensions.
-            patch_size (int or tuple): Size of the patches to be extracted from the input image. If an int is provided, it is assumed to be the size of both dimensions.
-            num_classes (int): Number of output classes.
-            embed_depth (int): Dimension of the embeddings.
-            transformer_layers (int): Number of transformer layers.
-            heads (int): Number of attention heads.
-            mlp_dim (int): Dimension of the MLP (Feed-Forward) layer.
-            pool (str, optional): Pooling type, either 'cls' (class token) or 'mean' (mean pooling). Default is 'cls'.
-            channels (int, optional): Number of input channels. Default is 3.
-            dim_head (int, optional): Depth dimension of the attention matrices in each head. Default is 64.
-            dropout (float, optional): Dropout rate for the transformer. Default is 0.
-            dropout_embedding (float, optional): Dropout rate for the embedding layer. Default is 0.
-        """
-        super().__init__()
-        self.name = "EEVIT"
-        print("Initializing Vit model...")
-        self.patch_embedding = PatchEmbedding(config, verbose=verbose)
-
-        self.transformer = TransformerEnconder(config)
-
-        self.pool = config.pool
-        self.to_latent = nn.Identity()
-
-        self.last_exit = nn.Linear(config.embed_depth, config.num_classes)
-
-        print("ViT model initialized")
-
-    def forward(self, x):
-        x = self.patch_embedding(x)
-
-        x = self.transformer(x)
-
-        x = (
-            x.mean(dim=1) if self.pool == "mean" else x[:, 0]
-        )  # take cls token or average all tokens (pooling)
-
-        x = self.to_latent(x)  # identity, just for shape
-        x = self.last_exit(x)
-        return x

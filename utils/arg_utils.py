@@ -95,7 +95,7 @@ class ModelConfig:
             layer = entry[0]
             if not 0 <= layer < self.num_layers_transformer:
                 raise ValueError(
-                    f"Exit layer {layer} must be between 0 and {self.num_layers_transformer-1}"
+                    f"Error: Not possible to assign Exit after layer '{layer}'. Index be between 0 and {self.num_layers_transformer-1}"
                 )
 
 
