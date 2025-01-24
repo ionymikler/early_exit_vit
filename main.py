@@ -14,7 +14,7 @@ from utils import (
     check_conda_env,
 )
 from utils.arg_utils import parse_config_dict
-from utils.logging_utils import get_logger_ready, announce
+from utils.logging_utils import get_logger_ready, announce, print_dict
 
 logger = get_logger_ready("main")
 
@@ -44,12 +44,26 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
     logger.info(f"Model exported to '{onnx_filepath}' ✅")
 
 
-def main():
-    # Check conda environment
-    if not check_conda_env("eevit"):
-        return
+def init_checks(args):
+    if not args.skip_conda_env_check:
+        if not check_conda_env("eevit"):
+            exit()
+    else:
+        logger.info("Skipping conda environment check")
 
+    config = get_config(args.config_path)
+
+    if args.dry_run:
+        logger.info("🔍 Dry run. Config:")
+        print_dict(config)
+        exit()
+
+
+def main():
     args = parse_args()
+
+    init_checks(args)
+
     config = get_config(args.config_path)
 
     if args.dry_run:
@@ -58,6 +72,7 @@ def main():
 
     # Dataset config
     dataset_config = config["dataset"]  # noqa F841
+
     # ViT config
     model_config = parse_config_dict(config["model"].copy())
 

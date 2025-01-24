@@ -26,3 +26,14 @@ def get_logger_ready(name: str) -> logging.Logger:
 
 def announce(logger, msg: str):
     logger.info(f"ℹ️  {msg}")
+
+
+def print_dict(dictionary, ident="", braces=1):
+    """Recursively prints nested dictionaries."""
+
+    for key, value in dictionary.items():
+        if isinstance(value, dict):
+            print(f'{ident}{braces*"["}{key}{braces*"]"}')
+            print_dict(value, ident + "  ", braces + 1)
+        else:
+            print(f"{ident}{key} = {value}")

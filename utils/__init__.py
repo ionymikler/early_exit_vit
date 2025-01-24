@@ -20,14 +20,17 @@ def parse_args(from_argparse=True, **kwargs):
             config = yaml.safe_load(f)
         return config
 
-    parser = argparse.ArgumentParser(description="Process config file path.")
+    parser = argparse.ArgumentParser(
+        description="Build and run an EEVIT model, as specified in the configuration file"
+    )
     parser.add_argument(
         "--config-path",
         type=str,
         default="./config/run_args.yaml",
         # required=True,
-        help="Path to the configuration JSON file",
+        help="Path to the configuration JSON file. Default: './config/run_args.yaml'",
     )
+
     parser.add_argument(
         "-d",
         "--dry-run",
@@ -43,9 +46,15 @@ def parse_args(from_argparse=True, **kwargs):
         default=False,
         help="Export model to ONNX format",
     )
-    args = parser.parse_args()
 
-    return args
+    parser.add_argument(
+        "--skip-conda-env-check",
+        action="store_true",
+        default=False,
+        help="Skip the check for the required conda environment",
+    )
+
+    return parser.parse_args()
 
 
 def get_config(config_path: str) -> dict:
