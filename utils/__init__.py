@@ -54,6 +54,13 @@ def parse_args(from_argparse=True, **kwargs):
         help="Skip the check for the required conda environment",
     )
 
+    parser.add_argument(
+        "--onnx-filename-suffix",
+        type=str,
+        default="",
+        help="Suffix to append to the ONNX filename",
+    )
+
     return parser.parse_args()
 
 

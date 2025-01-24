@@ -32,14 +32,15 @@ def run_model(model, x, print_output=False):
 def export_model(model: nn.Module, _x, onnx_filepath: str):
     announce(logger, f"Exporting model '{model.name}' to ONNX format")
 
-    model.eval()
-    onnx_program = torch.onnx.export(
-        model=model,
-        args=(_x),
-        dynamo=True,
-        report=True,
-        verbose=True,
-    )
+    with torch.no_grad():
+        model.eval()
+        onnx_program = torch.onnx.export(
+            model=model,
+            args=(_x),
+            dynamo=True,
+            report=True,
+            verbose=True,
+        )
     onnx_program.save(onnx_filepath)
     logger.info(f"Model exported to '{onnx_filepath}' ✅")
 
@@ -91,8 +92,13 @@ def main():
     out_pytorch = run_model(x=x, model=model)
 
     if args.export_onnx:
-        timestamp = datetime.now().strftime("%H-%M-%S")
-        onnx_filepath = f"./models/onnx/{model.name}_{timestamp}.onnx"
+        model_name = (
+            f"{model.name}_{args.onnx_filename_suffix}"
+            if args.onnx_filename_suffix
+            else model.name
+        )
+        timestamp = datetime.now().strftime("%H-%M")
+        onnx_filepath = f"./models/onnx/{model_name}_{timestamp}.onnx"
         export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
 
         out_ort = load_and_run_onnx(onnx_filepath, x)
