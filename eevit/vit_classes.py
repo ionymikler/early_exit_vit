@@ -79,21 +79,22 @@ class PatchEmbedding(nn.Module):
         return embedded_patches
 
 
-class AttentionMLP(nn.Module):
+class AttentionMLPs(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout=0.0):
         super().__init__()
-        self.norm = nn.LayerNorm(embed_depth)
-        self.mlp = nn.Sequential(
-            nn.Linear(embed_depth, hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
+        self.mlp_intermediate = nn.Sequential(
+            nn.Linear(embed_depth, hidden_dim), nn.GELU()
+        )
+
+        self.mlp_output = nn.Sequential(
             nn.Linear(hidden_dim, embed_depth),
             nn.Dropout(dropout),
         )
 
     def forward(self, x):
-        x = self.norm(x)
-        return self.mlp(x)
+        x_int = self.mlp_intermediate(x)
+        x = self.mlp_output(x_int) + x  # 2nd residual connection
+        return x
 
 
 class Attention(nn.Module):
@@ -108,7 +109,7 @@ class Attention(nn.Module):
         self.num_heads = config.num_attn_heads
         self.scale = config.dim_head**-0.5
 
-        self.norm = nn.LayerNorm(
+        self.norm_1 = nn.LayerNorm(
             config.embed_depth
         )  # maps to LGVIT's 'layernorm_before'
 
@@ -130,7 +131,10 @@ class Attention(nn.Module):
             else nn.Identity()
         )
 
-        self.norm_mlp = AttentionMLP(
+        self.norm_2 = nn.LayerNorm(config.embed_depth)
+
+        # This contains inside the MLP of LGVIT's 'DeiTIntermediate' and 'DeiTSelfOutput'
+        self.mlps = AttentionMLPs(
             embed_depth=config.embed_depth,
             hidden_dim=config.mlp_dim,
             dropout=config.transformer_dropout,
@@ -138,7 +142,7 @@ class Attention(nn.Module):
 
     def forward(self, x_with_fastpass):
         x = remove_fast_pass(x_with_fastpass)  # remove the fast-pass token
-        x_norm = self.norm(x)
+        x_norm = self.norm_1(x)
         embed_dim = x_norm.shape[-1]
 
         qkv = [
@@ -165,7 +169,9 @@ class Attention(nn.Module):
 
         # second part of TransformerEnconder (after 1st res. connection).
         # Added here for simplicity in iteration of its layers
-        out = self.norm_mlp(x) + x  # 2nd residual connection
+        # NOTE: 2nd residual connection happens inside self.mlps
+        x = self.norm_2(x)  # norm after attention
+        out = self.mlps(x)
 
         out = add_fast_pass(out)  # add the fast-pass token
         return out
@@ -209,14 +215,13 @@ class TransformerEnconder(nn.Module):
             self.layer_idx = layer_idx
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
-            # self.conditional_forward(x_with_fastpass, fast_pass_layer)
+            # x_with_fastpass = self.conditional_forward(x_with_fastpass, fast_pass_layer)
             x_with_fastpass = torch.cond(
                 fast_pass_layer.any(),
                 self.fast_pass,
                 self.layer_forward,
                 (x_with_fastpass,),
             )
-            # x_with_fastpass = self.layer_forward(x_with_fastpass) if not fast_pass_layer.any() else self.fast_pass(x_with_fastpass)
 
         return self.norm_post_layers(remove_fast_pass(x_with_fastpass))
 
