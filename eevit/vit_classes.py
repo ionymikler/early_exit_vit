@@ -220,13 +220,6 @@ class TransformerEnconder(nn.Module):
 
         return self.norm_post_layers(remove_fast_pass(x_with_fastpass))
 
-    def conditional_forward(
-        self, x_with_fastpass: torch.Tensor, fast_pass_layer: torch.Tensor
-    ):
-        if fast_pass_layer.any():
-            return self.fast_pass(x_with_fastpass)
-        return self.layer_forward(x_with_fastpass)
-
     def fast_pass(self, x_with_fastpass: torch.Tensor):
         return x_with_fastpass.clone()
 
@@ -235,3 +228,10 @@ class TransformerEnconder(nn.Module):
         x_with_fastpass = module_i(x_with_fastpass)
 
         return x_with_fastpass
+
+    def conditional_forward(
+        self, x_with_fastpass: torch.Tensor, fast_pass_layer: torch.Tensor
+    ):
+        if fast_pass_layer.any():
+            return self.fast_pass(x_with_fastpass)
+        return self.layer_forward(x_with_fastpass)
