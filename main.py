@@ -79,7 +79,10 @@ def main():
 
     model = get_model(model_config)
 
-    x = gen_data(
+    # Generate random data
+    # input_tensor = gen_data(model.patch_embedding.output_shape)
+
+    input_tensor = gen_data(  # TODO: Currently shape is (1,c,w,h). I'm I sure the shape is not (1, w,h,c)? Check CIFAR10
         data_shape=(
             1,
             dataset_config["channels_num"],
@@ -87,9 +90,9 @@ def main():
             dataset_config["image_size"],
         )
     )
-    # x = add_fast_pass(gen_data(data_shape=(1, 197, 768)))
+    # input_tensor = add_fast_pass(gen_data(data_shape=(1, 197, 768)))
 
-    out_pytorch = run_model(x=x, model=model)
+    out_pytorch = run_model(x=input_tensor, model=model)
 
     if args.export_onnx:
         model_name = (
@@ -99,9 +102,9 @@ def main():
         )
         timestamp = datetime.now().strftime("%H-%M")
         onnx_filepath = f"./models/onnx/{model_name}_{timestamp}.onnx"
-        export_model(model=model, _x=x, onnx_filepath=onnx_filepath)
+        export_model(model=model, _x=input_tensor, onnx_filepath=onnx_filepath)
 
-        out_ort = load_and_run_onnx(onnx_filepath, x)
+        out_ort = load_and_run_onnx(onnx_filepath, input_tensor)
 
         # Compare the outputs
         assert torch.allclose(

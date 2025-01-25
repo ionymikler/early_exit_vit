@@ -3,7 +3,7 @@ from torch import nn
 
 from einops.layers.torch import Rearrange
 
-from .ee_classes import create_highway_network
+from .ee_classes import create_highway_network, Highway
 from eevit.utils import (
     add_fast_pass,
     remove_fast_pass,
@@ -50,7 +50,7 @@ class PatchEmbedding(nn.Module):
         ), "Image dimensions must be divisible by the patch size."
 
         num_patches = (image_height // patch_height) * (image_width // patch_width)
-
+        self.num_patches = num_patches
         self.projection = nn.Conv2d(
             self.config.channels_num,
             self.config.embed_depth,
@@ -64,9 +64,33 @@ class PatchEmbedding(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1, 1, self.config.embed_depth))
         self.dropout = nn.Dropout(self.config.general_dropout)
 
-        print(f"PatchEmbedding initialized with {num_patches} patches")
+        print(
+            f"PatchEmbedding initialized with {num_patches + 1} patches (including the cls token)"
+        )
 
-    def forward(self, image_batch: torch.Tensor):
+    @property
+    def input_shape(self):
+        """
+        Returns a sample input tensor for the PatchEmbedding layer.
+        The sample input tensor has shape (batch_size, channels_num, image_height, image_width).
+        """
+        return (
+            1,
+            self.config.channels_num,
+            self.config.image_size,
+            self.config.image_size,
+        )
+
+    @property
+    def output_shape(self):
+        """
+        Returns the output shape of the PatchEmbedding layer.
+        The patch embedding layer outputs a tensor of shape (batch_size, num_patches + 1, embed_dim).
+        """
+        inpt = torch.randn(self.input_shape)
+        return self.forward(inpt).shape
+
+    def forward(self, image_batch: torch.Tensor) -> torch.Tensor:
         # TODO: Understand this flattening and transpose
         embedded_patches = self.projection(image_batch).flatten(2).transpose(1, 2)
         b, _, _ = embedded_patches.shape
@@ -98,7 +122,7 @@ class AttentionMLPs(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, config: ModelConfig):
+    def __init__(self, config: ModelConfig, highway: Highway = nn.Identity()):
         super().__init__()
 
         all_heads_size = config.dim_head * config.num_attn_heads
@@ -140,6 +164,8 @@ class Attention(nn.Module):
             dropout=config.transformer_dropout,
         )
 
+        self.highway = highway
+
     def forward(self, x_with_fastpass):
         x = remove_fast_pass(x_with_fastpass)  # remove the fast-pass token
         x_norm = self.norm_1(x)
@@ -169,12 +195,27 @@ class Attention(nn.Module):
 
         # second part of TransformerEnconder (after 1st res. connection).
         # Added here for simplicity in iteration of its layers
-        # NOTE: 2nd residual connection happens inside self.mlps
         x = self.norm_2(x)  # norm after attention
-        out = self.mlps(x)
 
-        out = add_fast_pass(out)  # add the fast-pass token
-        return out
+        # NOTE: 2nd residual connection happens inside self.mlps
+        x = self.mlps(x)
+
+        x_with_fastpass = add_fast_pass(x)
+        x_with_fastpass = self.highway(x_with_fastpass)
+
+        return x_with_fastpass
+
+
+def get_highway(config: ModelConfig, idx: int) -> Highway:
+    ee_params_by_idx = get_ee_indexed_params(config)
+    assert (
+        len(ee_params_by_idx[idx]) == 2
+    ), "Early exit parameters must be a tuple with two elements, besides the ee position index"
+    ee_type = ee_params_by_idx[idx][0]
+    ee_kwargs = ee_params_by_idx[idx][1]
+
+    hw = create_highway_network(ee_type, config.early_exit_config, ee_kwargs)
+    return hw
 
 
 class TransformerEnconder(nn.Module):
@@ -192,36 +233,45 @@ class TransformerEnconder(nn.Module):
         ee_params_by_idx = get_ee_indexed_params(config)
 
         for idx in range(config.num_layers_transformer):
-            self.layers.append(Attention(config))
-
             if idx in ee_params_by_idx.keys():
-                assert (
-                    len(ee_params_by_idx[idx]) == 2
-                ), "Early exit parameters must be a tuple with two elements, besides the ee position index"
-                ee_type = ee_params_by_idx[idx][0]
-                ee_kwargs = ee_params_by_idx[idx][1]
-                hw = create_highway_network(
-                    ee_type, config.early_exit_config, ee_kwargs
-                )
+                hw = get_highway(config, idx)
                 print(
-                    f"Highway of type '{hw.highway_type}({ee_kwargs})' appended to location '{idx}'"
+                    f"Highway of type '{hw.highway_type}({hw.init_kwargs})' appended to location '{idx}'"
                 )
-                self.layers.append(hw)
+                # self.layers.append(hw)
+
+                self.layers.append(Attention(config, hw))
+            else:
+                self.layers.append(Attention(config))
 
     def forward(self, x: torch.Tensor):
         x_with_fastpass = add_fast_pass(x)
 
-        for layer_idx in range(len(self.layers)):
-            self.layer_idx = layer_idx
+        for layer in self.layers:
+            # x_with_fastpass = layer(x_with_fastpass)
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
-            # x_with_fastpass = self.conditional_forward(x_with_fastpass, fast_pass_layer)
+            # x_with_fastpass = self.fast_pass(x_with_fastpass) if fast_pass_layer.any() else layer(x_with_fastpass)
             x_with_fastpass = torch.cond(
                 fast_pass_layer.any(),
                 self.fast_pass,
-                self.layer_forward,
+                layer,
                 (x_with_fastpass,),
             )
+
+        # for layer_idx in range(len(self.layers)):
+        #     self.layer_idx = layer_idx
+        #     # self.layer_forward(x_with_fastpass)
+        #     # # ----
+        #     fast_pass_layer = get_fast_pass(x_with_fastpass)
+
+        #     x_with_fastpass = self.conditional_forward(x_with_fastpass, fast_pass_layer)
+        #     # x_with_fastpass = torch.cond(
+        #     #     fast_pass_layer.any(),
+        #     #     self.fast_pass,
+        #     #     self.layer_forward,
+        #     #     (x_with_fastpass,),
+        #     # )
 
         return self.norm_post_layers(remove_fast_pass(x_with_fastpass))
 
@@ -229,6 +279,8 @@ class TransformerEnconder(nn.Module):
         return x_with_fastpass.clone()
 
     def layer_forward(self, x_with_fastpass: torch.Tensor):
+        # Deprecated. To be removed
+        print("layer_forward Deprecated. To be removed")
         module_i = self.layers[self.layer_idx]  # (attn or IC)
         x_with_fastpass = module_i(x_with_fastpass)
 
@@ -237,6 +289,9 @@ class TransformerEnconder(nn.Module):
     def conditional_forward(
         self, x_with_fastpass: torch.Tensor, fast_pass_layer: torch.Tensor
     ):
+        # Deprecated. To be removed
+        print("conditional_forward Deprecated. To be removed")
         if fast_pass_layer.any():
             return self.fast_pass(x_with_fastpass)
-        return self.layer_forward(x_with_fastpass)
+        else:
+            return self.layer_forward(x_with_fastpass)
