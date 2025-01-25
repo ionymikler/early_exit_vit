@@ -24,7 +24,7 @@ model:
   early_exit_config:
     # Same as the pre-trained model
     exit_strategy: confidence
-    confidence_threshold: 0.5
+    confidence_threshold: 0.8 # overrides the threshold for all early exits
 
     embed_depth: *model__embed_depth
     num_classes: *dataset__num_clases

@@ -89,7 +89,7 @@ class highway_conv2_1(nn.Module):
         )
         self.drop = nn.Dropout(ee_config.general_dropout)
 
-    def forward(self, x, H, W):
+    def forward(self, x: torch.Tensor, H, W):
         B, N, C = x.shape
         x0 = x
         x = x.permute(0, 2, 1).reshape(B, C, H, W)
@@ -195,6 +195,7 @@ class Highway(nn.Module):
         super().__init__()
         self.config = ee_config
         self.highway_type = type
+        self.init_kwargs = kwargs
 
         # Use factory to create highway network
         self.highway_head = IntermediateHeadFactory.create_head(type, ee_config, kwargs)

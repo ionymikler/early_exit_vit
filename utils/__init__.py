@@ -74,7 +74,7 @@ def gen_data(data_shape: tuple):
     return torch.randn(data_shape)
 
 
-def get_model(model_config: ModelConfig, verbose=True) -> torch.nn.Module:
+def get_model(model_config: ModelConfig, verbose=True) -> EEVIT:
     # return HighwayWrapper(model_config)
     return EEVIT(config=model_config, verbose=verbose)
 
