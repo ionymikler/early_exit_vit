@@ -19,9 +19,9 @@ from utils.logging_utils import get_logger_ready, announce, print_dict
 logger = get_logger_ready("main")
 
 
-def run_model(model, x, print_output=False):
+def run_model(model, data, print_output=False):
     announce(logger, "Running model")
-    out = model(x)
+    out = model(data)
     logger.info(f"model output shape: {out.shape}")
 
     if print_output:
@@ -37,6 +37,8 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
         onnx_program = torch.onnx.export(
             model=model,
             args=(_x),
+            input_names=["image", "predictions_placeholder"],
+            output_names=["predictions"],
             dynamo=True,
             report=True,
             verbose=True,
@@ -60,6 +62,21 @@ def init_checks(args):
         exit()
 
 
+def gen_dummy_input_data(dataset_config: dict):
+    image_tensor = gen_data(  # TODO: Currently shape is (1,c,w,h). I'm I sure the shape is not (1, w,h,c)? Check CIFAR10
+        data_shape=(
+            1,
+            dataset_config["channels_num"],
+            dataset_config["image_size"],
+            dataset_config["image_size"],
+        )
+    )
+    # image_tensor = gen_data(model.patch_embedding.output_shape)
+    # image_tensor = add_fast_pass(gen_data(data_shape=(1, 197, 768)))
+
+    return image_tensor
+
+
 def main():
     args = parse_args()
 
@@ -80,19 +97,9 @@ def main():
     model = get_model(model_config)
 
     # Generate random data
-    # input_tensor = gen_data(model.patch_embedding.output_shape)
+    dummy_image_tensor = gen_dummy_input_data(dataset_config)
 
-    input_tensor = gen_data(  # TODO: Currently shape is (1,c,w,h). I'm I sure the shape is not (1, w,h,c)? Check CIFAR10
-        data_shape=(
-            1,
-            dataset_config["channels_num"],
-            dataset_config["image_size"],
-            dataset_config["image_size"],
-        )
-    )
-    # input_tensor = add_fast_pass(gen_data(data_shape=(1, 197, 768)))
-
-    out_pytorch = run_model(x=input_tensor, model=model)
+    out_pytorch = run_model(data=dummy_image_tensor, model=model)
 
     if args.export_onnx:
         model_name = (
@@ -102,9 +109,9 @@ def main():
         )
         timestamp = datetime.now().strftime("%H-%M")
         onnx_filepath = f"./models/onnx/{model_name}_{timestamp}.onnx"
-        export_model(model=model, _x=input_tensor, onnx_filepath=onnx_filepath)
+        export_model(model=model, _x=dummy_image_tensor, onnx_filepath=onnx_filepath)
 
-        out_ort = load_and_run_onnx(onnx_filepath, input_tensor)
+        out_ort = load_and_run_onnx(onnx_filepath, dummy_image_tensor)
 
         # Compare the outputs
         assert torch.allclose(

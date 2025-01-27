@@ -46,10 +46,10 @@ class EEVIT(nn.Module):
 
         print("ViT model initialized")
 
-    def forward(self, x):
-        x = self.patch_embedding(x)
+    def forward(self, image_tensor: torch.Tensor) -> torch.Tensor:
+        x = self.patch_embedding(image_tensor)
 
-        x = self.transformer(x)
+        x, predictions = self.transformer(x)
 
         x = (
             x.mean(dim=1) if self.pool == "mean" else x[:, 0]

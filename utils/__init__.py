@@ -110,7 +110,7 @@ def check_conda_env(conda_env_required):
 
     active_env = os.environ.get("CONDA_DEFAULT_ENV")
     if active_env != conda_env_required:
-        logger.warning(
+        logger.error(
             f"ERROR: Conda environment '{conda_env_required}' is required. Please activate it."
         )
         return False
