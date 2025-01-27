@@ -19,7 +19,8 @@ model:
   mlp_dim: 3072 # 'intermediate_size' in LGVIT
   dim_head: 64 # computed as config.hidden_size / config.num_attention_heads in LGVIT
   
-  num_layers_transformer: 12 # 'num_hidden_layers' in LGViT 
+  # num_layers_transformer: 12 # 'num_hidden_layers' in LGViT 
+  num_layers_transformer: 2 # 'num_hidden_layers' in LGViT 
 
   early_exit_config:
     # Same as the pre-trained model
@@ -32,12 +33,13 @@ model:
 
     exits: # [position, type, [kwargs] ]
       # - [0, 'dummy_mlp']
+      - [0, 'conv1_1']
 
-      - [4, 'conv1_1']
-      - [5, 'conv1_1']
-      - [6, 'conv2_1']
-      - [7, 'conv2_1']
-      - [8, 'attention', {sr_ratio: 2}] # in LGVIT 'attention_r2'
-      - [9, 'attention', {sr_ratio: 2}]
-      - [10, 'attention', {sr_ratio: 3}]
-      - [11, 'attention', {sr_ratio: 3}]
+      # - [4, 'conv1_1']
+      # - [5, 'conv1_1']
+      # - [6, 'conv2_1']
+      # - [7, 'conv2_1']
+      # - [8, 'attention', {sr_ratio: 2}] # in LGVIT 'attention_r2'
+      # - [9, 'attention', {sr_ratio: 2}]
+      # - [10, 'attention', {sr_ratio: 3}]
+      # - [11, 'attention', {sr_ratio: 3}]

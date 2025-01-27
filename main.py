@@ -37,8 +37,8 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
         onnx_program = torch.onnx.export(
             model=model,
             args=(_x),
-            input_names=["image", "predictions_placeholder"],
-            output_names=["predictions"],
+            input_names=["image"],
+            # output_names=["predictions"],
             dynamo=True,
             report=True,
             verbose=True,

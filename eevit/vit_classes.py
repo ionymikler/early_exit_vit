@@ -3,12 +3,13 @@ from torch import nn
 
 from einops.layers.torch import Rearrange
 
-from .ee_classes import create_highway_network, Highway
+from .ee_classes import Highway, IdentityHighway
 from eevit.utils import (
     add_fast_pass,
     remove_fast_pass,
     get_fast_pass,
     get_ee_indexed_params,
+    set_fast_pass_token,
 )
 from utils.logging_utils import get_logger_ready
 from utils.arg_utils import ModelConfig
@@ -122,7 +123,7 @@ class AttentionMLPs(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, config: ModelConfig, highway: Highway = nn.Identity()):
+    def __init__(self, config: ModelConfig, highway: Highway = IdentityHighway()):
         super().__init__()
 
         all_heads_size = config.dim_head * config.num_attn_heads
@@ -166,7 +167,11 @@ class Attention(nn.Module):
 
         self.highway = highway
 
-    def forward(self, x_with_fastpass):
+    def forward(
+        self,
+        x_with_fastpass: torch.Tensor,
+        predictions_placeholder_tensor: torch.Tensor,
+    ):
         x = remove_fast_pass(x_with_fastpass)  # remove the fast-pass token
         x_norm = self.norm_1(x)
         embed_dim = x_norm.shape[-1]
@@ -200,22 +205,13 @@ class Attention(nn.Module):
         # NOTE: 2nd residual connection happens inside self.mlps
         x = self.mlps(x)
 
+        #
         x_with_fastpass = add_fast_pass(x)
-        x_with_fastpass = self.highway(x_with_fastpass)
+        x_with_fastpass, predictions_placeholder_tensor = self.highway(
+            x_with_fastpass, predictions_placeholder_tensor
+        )
 
-        return x_with_fastpass
-
-
-def get_highway(config: ModelConfig, idx: int) -> Highway:
-    ee_params_by_idx = get_ee_indexed_params(config)
-    assert (
-        len(ee_params_by_idx[idx]) == 2
-    ), "Early exit parameters must be a tuple with two elements, besides the ee position index"
-    ee_type = ee_params_by_idx[idx][0]
-    ee_kwargs = ee_params_by_idx[idx][1]
-
-    hw = create_highway_network(ee_type, config.early_exit_config, ee_kwargs)
-    return hw
+        return x_with_fastpass, predictions_placeholder_tensor
 
 
 class TransformerEnconder(nn.Module):
@@ -223,6 +219,7 @@ class TransformerEnconder(nn.Module):
         super().__init__()
 
         self._create_layers(config)
+        self.num_classes = config.num_classes
 
         self.norm_post_layers = nn.LayerNorm(config.embed_depth)
 
@@ -234,64 +231,46 @@ class TransformerEnconder(nn.Module):
 
         for idx in range(config.num_layers_transformer):
             if idx in ee_params_by_idx.keys():
-                hw = get_highway(config, idx)
+                hw = Highway.from_model_config(config, idx)
                 print(
                     f"Highway of type '{hw.highway_type}({hw.init_kwargs})' appended to location '{idx}'"
                 )
-                # self.layers.append(hw)
 
                 self.layers.append(Attention(config, hw))
             else:
                 self.layers.append(Attention(config))
 
+    def fast_pass(
+        self,
+        x_with_fastpass: torch.Tensor,
+        predictions_placeholder_tensor: torch.Tensor,
+    ):
+        return x_with_fastpass.clone(), predictions_placeholder_tensor.clone()
+
     def forward(self, x: torch.Tensor):
         x_with_fastpass = add_fast_pass(x)
+        predictions_placeholder_tensor = torch.zeros(1, self.num_classes + 1)
 
         for layer in self.layers:
             # x_with_fastpass = layer(x_with_fastpass)
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
-            # x_with_fastpass = self.fast_pass(x_with_fastpass) if fast_pass_layer.any() else layer(x_with_fastpass)
-            x_with_fastpass = torch.cond(
+            #### CONDITIONAL ####
+            # x_with_fastpass, predictions_placeholder_tensor = (
+            #     self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
+            #     if fast_pass_layer.any()
+            #     else layer(x_with_fastpass, predictions_placeholder_tensor)
+            # )
+            x_with_fastpass, predictions_placeholder_tensor = torch.cond(
                 fast_pass_layer.any(),
                 self.fast_pass,
                 layer,
-                (x_with_fastpass,),
+                (x_with_fastpass, predictions_placeholder_tensor),
             )
 
-        # for layer_idx in range(len(self.layers)):
-        #     self.layer_idx = layer_idx
-        #     # self.layer_forward(x_with_fastpass)
-        #     # # ----
-        #     fast_pass_layer = get_fast_pass(x_with_fastpass)
+        fp = get_fast_pass(x_with_fastpass)
+        x_norm = self.norm_post_layers(remove_fast_pass(x_with_fastpass))
+        x_with_fastpass = set_fast_pass_token(add_fast_pass(x_norm), fp)
+        # x_with_fastpass = set_fast_pass_token(x_norm, fp)
 
-        #     x_with_fastpass = self.conditional_forward(x_with_fastpass, fast_pass_layer)
-        #     # x_with_fastpass = torch.cond(
-        #     #     fast_pass_layer.any(),
-        #     #     self.fast_pass,
-        #     #     self.layer_forward,
-        #     #     (x_with_fastpass,),
-        #     # )
-
-        return self.norm_post_layers(remove_fast_pass(x_with_fastpass))
-
-    def fast_pass(self, x_with_fastpass: torch.Tensor):
-        return x_with_fastpass.clone()
-
-    def layer_forward(self, x_with_fastpass: torch.Tensor):
-        # Deprecated. To be removed
-        print("layer_forward Deprecated. To be removed")
-        module_i = self.layers[self.layer_idx]  # (attn or IC)
-        x_with_fastpass = module_i(x_with_fastpass)
-
-        return x_with_fastpass
-
-    def conditional_forward(
-        self, x_with_fastpass: torch.Tensor, fast_pass_layer: torch.Tensor
-    ):
-        # Deprecated. To be removed
-        print("conditional_forward Deprecated. To be removed")
-        if fast_pass_layer.any():
-            return self.fast_pass(x_with_fastpass)
-        else:
-            return self.layer_forward(x_with_fastpass)
+        return x_with_fastpass, predictions_placeholder_tensor

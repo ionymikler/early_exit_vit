@@ -30,6 +30,21 @@ def set_fast_pass_token(x_with_fastpass: torch.Tensor, value: float) -> torch.Te
     return output
 
 
+def set_fast_pass(x: torch.Tensor, value: float = 0.0) -> torch.Tensor:
+    """
+    Adds a fast-pass token to the input tensor with the specified value.
+
+    Args:
+        x (torch.Tensor): Input tensor of shape [batch_size, seq_len, hidden_dim]
+        value (float, optional): Value for the fast-pass token. Defaults to 0.0
+
+    Returns:
+        torch.Tensor: Tensor with fast-pass token
+    """
+    # NOTE: Does not work yey
+    return torch.cat([x, torch.full((x.shape[0], 1, x.shape[-1]), value)], dim=1)
+
+
 def confidence(x: torch.Tensor) -> float:
     softmax = torch.softmax(x, dim=-1)
     # return 0.6

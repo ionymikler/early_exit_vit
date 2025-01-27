@@ -3,7 +3,9 @@
 import torch
 from torch import nn
 
+
 from .vit_classes import PatchEmbedding, TransformerEnconder
+from .utils import get_fast_pass, remove_fast_pass
 from utils.arg_utils import ModelConfig
 
 import torch._dynamo.config
@@ -46,15 +48,44 @@ class EEVIT(nn.Module):
 
         print("ViT model initialized")
 
-    def forward(self, image_tensor: torch.Tensor) -> torch.Tensor:
-        x = self.patch_embedding(image_tensor)
-
-        x, predictions = self.transformer(x)
-
+    def last_classifier_fw(self, x, predictions):
+        _ = predictions  # Need to consume it but will not use it
         x = (
             x.mean(dim=1) if self.pool == "mean" else x[:, 0]
         )  # take cls token or average all tokens (pooling)
 
         x = self.to_latent(x)  # TODO: Review why this is done in LGVIT
-        x = self.last_exit(x)
-        return x
+        last_layer_predictions = self.last_exit(x)
+
+        # Adding -1.0 to indicate the model did not exit early
+        last_layer_predictions = torch.cat(
+            (
+                last_layer_predictions,
+                torch.full((1, 1), -1.0).to(last_layer_predictions.device),
+            ),
+            dim=1,
+        )
+
+        return last_layer_predictions
+
+    def fast_pass(self, x, predictions: torch.Tensor):
+        return predictions.clone()
+
+    def forward(self, image_tensor: torch.Tensor) -> torch.Tensor:
+        embeddings = self.patch_embedding(image_tensor)
+
+        x_fp, predictions = self.transformer(embeddings)
+        # predictions = torch.rand((1, 101))
+        # fp = predictions > 0.5
+
+        #### CONDITIONAL ####
+        x = remove_fast_pass(x_fp)
+        fp = get_fast_pass(x_fp)
+        # predictions = (
+        #     self.fast_pass(x, predictions) if fp.any() else self.last_classifier_fw(x, predictions)
+        # )
+        predictions = torch.cond(
+            fp.any(), self.fast_pass, self.last_classifier_fw, (x, predictions)
+        )
+
+        return predictions

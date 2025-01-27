@@ -3,7 +3,12 @@ import torch
 import torch.nn as nn
 import math
 
-from .utils import confidence, set_fast_pass_token, remove_fast_pass
+from .utils import (
+    confidence,
+    set_fast_pass_token,
+    remove_fast_pass,
+    get_ee_indexed_params,
+)
 from utils.arg_utils import EarlyExitsConfig, ModelConfig
 
 
@@ -32,7 +37,7 @@ class Highway_DummyMLP(torch.nn.Module):
 
 
 ## Local Perception Heads
-class highway_conv1_1(nn.Module):
+class HighwayConv1_1(nn.Module):
     def __init__(self, ee_config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
         in_features = ee_config.embed_depth
@@ -71,7 +76,7 @@ class highway_conv1_1(nn.Module):
         return x
 
 
-class highway_conv2_1(nn.Module):
+class HighwayConv2_1(nn.Module):
     def __init__(self, ee_config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
         in_features = ee_config.embed_depth
@@ -191,11 +196,14 @@ class IntermediateHeadFactory:
 
 # Wrapping class for (IntermediateHeads + Classifier)
 class Highway(nn.Module):
-    def __init__(self, type: str, ee_config: EarlyExitsConfig, kwargs: dict) -> None:
+    def __init__(
+        self, type: str, ee_config: EarlyExitsConfig, kwargs: dict, layer_idx: int
+    ) -> None:
         super().__init__()
         self.config = ee_config
         self.highway_type = type
         self.init_kwargs = kwargs
+        self.layer_idx = layer_idx
 
         # Use factory to create highway network
         self.highway_head = IntermediateHeadFactory.create_head(type, ee_config, kwargs)
@@ -203,12 +211,31 @@ class Highway(nn.Module):
         # Create classifier
         self.classifier = HighwayClassifier(ee_config)
 
+        # softmax early prediction
+        self.softmax = nn.Softmax(dim=1)
+
         # Exit strategy Evaluation
         # NOTE: Maybe the Evaluator does not need to be here but at TransformerEnconder level,
         # for ease of implementing more complex strategies. For now here.
         self.exit_evaluator = ExitEvaluator(ee_config, kwargs)
 
-    def forward(self, x_with_fastpass: torch.Tensor):
+    @staticmethod
+    def from_model_config(config: ModelConfig, idx: int):
+        ee_params_by_idx = get_ee_indexed_params(config)
+        assert (
+            len(ee_params_by_idx[idx]) == 2
+        ), "Early exit parameters must be a tuple with two elements, besides the ee position index"
+        ee_type = ee_params_by_idx[idx][0]
+        ee_kwargs = ee_params_by_idx[idx][1]
+
+        hw = Highway(ee_type, config.early_exit_config, ee_kwargs, idx)
+        return hw
+
+    def forward(
+        self,
+        x_with_fastpass: torch.Tensor,
+        predictions_placeholder_tensor: torch.Tensor,
+    ):
         hidden_states = remove_fast_pass(x_with_fastpass)
 
         cls_embeddings = hidden_states.clone()[:, 0, :]
@@ -222,6 +249,18 @@ class Highway(nn.Module):
         # Get logits through classifier
         logits = self.classifier(processed_embeddings, cls_embeddings)
 
+        predictions = self.softmax(logits)
+        # predictions_placeholder_tensor = self.softmax(logits).clone()
+
+        # Update predictions tensor with both predictions and layer index
+        batch_size = predictions.shape[0]
+        layer_idx_tensor = torch.full(
+            (batch_size, 1), self.layer_idx, dtype=predictions.dtype
+        )
+
+        # Concatenate predictions with layer index
+        predictions_with_idx = torch.cat([predictions, layer_idx_tensor], dim=1)
+
         x_with_fastpass = set_fast_pass_token(
             x_with_fastpass,
             value=self.exit_evaluator.decision_tensor(logits).to(
@@ -229,14 +268,24 @@ class Highway(nn.Module):
             ),
         )
 
-        return x_with_fastpass
+        # predictions_placeholder_tensor = set_layer_idx(predictions_placeholder_tensor)
+
+        return x_with_fastpass, predictions_with_idx
 
 
-def create_highway_network(
-    type: str, config: EarlyExitsConfig, kwargs: dict
-) -> Highway:
-    """Helper function to create a highway network"""
-    return Highway(type, config, kwargs)
+class IdentityHighway(nn.Module):
+    """A pass-through highway layer that maintains tensor shapes and types."""
+
+    def __init__(self, layer_idx: int = -1):
+        super().__init__()
+        self.layer_idx = layer_idx
+
+    def forward(
+        self,
+        x_with_fastpass: torch.Tensor,
+        predictions_placeholder_tensor: torch.Tensor,
+    ):
+        return x_with_fastpass.clone(), predictions_placeholder_tensor.clone()
 
 
 class HighwayWrapper(nn.Module):
@@ -266,7 +315,7 @@ class HighwayWrapper(nn.Module):
 
 INTERMEDIATE_CLASSES = {
     "dummy_mlp": Highway_DummyMLP,
-    "conv1_1": highway_conv1_1,
-    "conv2_1": highway_conv2_1,
+    "conv1_1": HighwayConv1_1,
+    "conv2_1": HighwayConv2_1,
     "attention": GlobalSparseAttn,
 }
