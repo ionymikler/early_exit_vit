@@ -33,7 +33,7 @@ model:
 
     exits: # [position, type, [kwargs] ]
       # - [0, 'dummy_mlp']
-      - [0, 'conv1_1']
+      # - [0, 'conv1_1']
 
       # - [4, 'conv1_1']
       # - [5, 'conv1_1']

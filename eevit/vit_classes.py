@@ -223,7 +223,9 @@ class TransformerEnconder(nn.Module):
 
         self.norm_post_layers = nn.LayerNorm(config.embed_depth)
 
-        print(f"TransformerEnconder initialized with {len(self.layers)} layers")
+        print(
+            f"TransformerEnconder initialized with {len(self.layers)} layers and {len(config.early_exit_config.exits)} exits"
+        )
 
     def _create_layers(self, config: ModelConfig):
         self.layers = nn.ModuleList()
