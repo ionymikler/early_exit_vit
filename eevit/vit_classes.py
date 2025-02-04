@@ -38,7 +38,8 @@ def real_print(f):
 class PatchEmbedding(nn.Module):
     def __init__(self, config: ModelConfig, verbose: bool = False):
         super().__init__()
-        print("Initializing PatchEmbeddings...")
+        # print("Initializing PatchEmbeddings...")
+        logger.info("Initializing PatchEmbeddings...")
         self.name = "PatchEmbedding"
         self.verbose = verbose
         self.config = config
@@ -65,7 +66,8 @@ class PatchEmbedding(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1, 1, self.config.embed_depth))
         self.dropout = nn.Dropout(self.config.general_dropout)
 
-        print(
+        # print(
+        logger.info(
             f"PatchEmbedding initialized with {num_patches + 1} patches (including the cls token)"
         )
 
@@ -205,7 +207,7 @@ class Attention(nn.Module):
         # NOTE: 2nd residual connection happens inside self.mlps
         x = self.mlps(x)
 
-        #
+        # Highway
         x_with_fastpass = add_fast_pass(x)
         x_with_fastpass, predictions_placeholder_tensor = self.highway(
             x_with_fastpass, predictions_placeholder_tensor
@@ -223,7 +225,8 @@ class TransformerEnconder(nn.Module):
 
         self.norm_post_layers = nn.LayerNorm(config.embed_depth)
 
-        print(
+        # print(
+        logger.info(
             f"TransformerEnconder initialized with {len(self.layers)} layers and {len(config.early_exit_config.exits)} exits"
         )
 
@@ -234,7 +237,8 @@ class TransformerEnconder(nn.Module):
         for idx in range(config.num_layers_transformer):
             if idx in ee_params_by_idx.keys():
                 hw = Highway.from_model_config(config, idx)
-                print(
+                # print(
+                logger.info(
                     f"Highway of type '{hw.highway_type}({hw.init_kwargs})' appended to location '{idx}'"
                 )
 

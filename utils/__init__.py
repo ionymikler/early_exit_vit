@@ -48,6 +48,16 @@ def parse_args(from_argparse=True, **kwargs):
     )
 
     parser.add_argument(
+        "--keep-onnx",
+        "-k",
+        dest="keep_onnx",
+        action="store_true",
+        help="Keep the ONNX model file after running it",
+    )
+
+    parser.set_defaults(keep_onnx=False)  # Default is True
+
+    parser.add_argument(
         "--skip-conda-env-check",
         action="store_true",
         default=False,

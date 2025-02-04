@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # Made by: Jonathan Mikler on 2024-12-03
+import os
 import torch
 import torch.nn as nn
 from datetime import datetime
@@ -16,7 +17,7 @@ from utils import (
 from utils.arg_utils import parse_config_dict
 from utils.logging_utils import get_logger_ready, announce, print_dict
 
-logger = get_logger_ready("main")
+logger = get_logger_ready("main.py")
 
 
 def run_model(model, data, print_output=False):
@@ -29,7 +30,7 @@ def run_model(model, data, print_output=False):
     return out
 
 
-def export_model(model: nn.Module, _x, onnx_filepath: str):
+def export_model(model: nn.Module, _x) -> torch.onnx.ONNXProgram:
     announce(logger, f"Exporting model '{model.name}' to ONNX format")
 
     with torch.no_grad():
@@ -43,8 +44,8 @@ def export_model(model: nn.Module, _x, onnx_filepath: str):
             report=True,
             verbose=True,
         )
-    onnx_program.save(onnx_filepath)
-    logger.info(f"Model exported to '{onnx_filepath}' ✅")
+
+    return onnx_program
 
 
 def init_checks(args):
@@ -62,7 +63,7 @@ def init_checks(args):
         exit()
 
 
-def gen_dummy_input_data(dataset_config: dict):
+def gen_random_input_data(dataset_config: dict):
     image_tensor = gen_data(  # TODO: Currently shape is (1,c,w,h). I'm I sure the shape is not (1, w,h,c)? Check CIFAR10
         data_shape=(
             1,
@@ -96,10 +97,13 @@ def main():
 
     model = get_model(model_config)
 
+    _ = input("Press Enter to continue...")
+
     # Generate random data
-    dummy_image_tensor = gen_dummy_input_data(dataset_config)
+    dummy_image_tensor = gen_random_input_data(dataset_config)
 
     out_pytorch = run_model(data=dummy_image_tensor, model=model)
+    _ = input("Press Enter to continue...")
 
     if args.export_onnx:
         model_name = (
@@ -109,9 +113,16 @@ def main():
         )
         timestamp = datetime.now().strftime("%H-%M")
         onnx_filepath = f"./models/onnx/{model_name}_{timestamp}.onnx"
-        export_model(model=model, _x=dummy_image_tensor, onnx_filepath=onnx_filepath)
+        onnx_program = export_model(model=model, _x=dummy_image_tensor)
 
+        onnx_program.save(onnx_filepath)
+        logger.info(f"ONNX model saved at: {onnx_filepath}")
+
+        announce(logger, "Loading and running the ONNX model...")
         out_ort = load_and_run_onnx(onnx_filepath, dummy_image_tensor)
+
+        if not args.keep_onnx:
+            os.remove(onnx_filepath)
 
         # Compare the outputs
         assert torch.allclose(

@@ -1,5 +1,4 @@
 # Adapted from Github's lucidrains/vit-pytorch/vit_pytorch/vit.py (3.Dec.24)
-
 import torch
 from torch import nn
 
@@ -7,11 +6,14 @@ from torch import nn
 from .vit_classes import PatchEmbedding, TransformerEnconder
 from .utils import get_fast_pass, remove_fast_pass
 from utils.arg_utils import ModelConfig
+from utils.logging_utils import get_logger_ready
+
 
 import torch._dynamo.config
 
-
 torch._dynamo.config.capture_scalar_outputs = True  # Not sure if needed
+
+logger = get_logger_ready("eevit.py")
 
 
 class EEVIT(nn.Module):
@@ -36,7 +38,8 @@ class EEVIT(nn.Module):
         """
         super().__init__()
         self.name = "EEVIT"
-        print("Initializing Vit model...")
+        # print("Initializing Vit model...")
+        logger.info("Initializing Vit model...")
         self.patch_embedding = PatchEmbedding(config, verbose=verbose)
 
         self.transformer = TransformerEnconder(config)
@@ -46,10 +49,11 @@ class EEVIT(nn.Module):
 
         self.last_exit = nn.Linear(config.embed_depth, config.num_classes)
 
-        print("ViT model initialized")
+        logger.info("ViT model initialized")
 
-    def last_classifier_fw(self, x, predictions):
-        _ = predictions  # Need to consume it but will not use it
+    def last_classifier_fw(self, x, intermediate_predictions):
+        _ = intermediate_predictions  # No need for them, but need to consume it
+
         x = (
             x.mean(dim=1) if self.pool == "mean" else x[:, 0]
         )  # take cls token or average all tokens (pooling)
@@ -75,8 +79,6 @@ class EEVIT(nn.Module):
         embeddings = self.patch_embedding(image_tensor)
 
         x_fp, predictions = self.transformer(embeddings)
-        # predictions = torch.rand((1, 101))
-        # fp = predictions > 0.5
 
         #### CONDITIONAL ####
         x = remove_fast_pass(x_fp)
