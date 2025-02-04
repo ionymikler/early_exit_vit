@@ -34,6 +34,10 @@ class EarlyExitsConfig:
                 raise ValueError("Each exit must have either 2 or 3 elements")
         self.exits = validated_exits
 
+    @property
+    def exit_list(self):
+        return [exit[0] for exit in self.exits]
+
 
 @dataclass
 class ModelConfig:

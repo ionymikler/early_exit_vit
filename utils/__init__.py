@@ -75,7 +75,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_config(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
+def get_config_dict(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config

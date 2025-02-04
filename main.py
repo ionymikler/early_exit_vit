@@ -8,7 +8,7 @@ from datetime import datetime
 # local imports
 from utils import (
     parse_args,
-    get_config,
+    get_config_dict,
     get_model,
     gen_data,
     load_and_run_onnx,
@@ -56,7 +56,7 @@ def init_checks(args):
     else:
         logger.info("Skipping conda environment check")
 
-    config = get_config(args.config_path)
+    config = get_config_dict(args.config_path)
 
     if args.dry_run:
         logger.info("🔍 Dry run. Config:")
@@ -84,7 +84,7 @@ def main():
 
     init_checks(args)
 
-    config = get_config(args.config_path)
+    config = get_config_dict(args.config_path)
 
     if args.dry_run:
         logger.info(f"🔍 Dry run. Config: {config}")
