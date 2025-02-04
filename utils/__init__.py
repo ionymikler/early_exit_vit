@@ -5,21 +5,14 @@ import onnx
 import onnxruntime
 
 from eevit.eevit import EEVIT  # noqa F401
-from eevit.ee_classes import HighwayWrapper  # noqa F401
 from .arg_utils import ModelConfig
-from .logging_utils import get_logger_ready, announce
+from .logging_utils import get_logger_ready, announce, print_dict
 
 logger = get_logger_ready("utils")
+DEFAULT_CONFIG_PATH = "./config/run_args.yaml"
 
 
-def parse_args(from_argparse=True, **kwargs):
-    default_config_path = kwargs.get("default_config_path", "./config/run_args.yaml")
-
-    if not from_argparse:
-        with open(default_config_path, "r") as f:
-            config = yaml.safe_load(f)
-        return config
-
+def parse_args():
     parser = argparse.ArgumentParser(
         description="Build and run an EEVIT model, as specified in the configuration file"
     )
@@ -45,6 +38,14 @@ def parse_args(from_argparse=True, **kwargs):
         action="store_true",
         default=False,
         help="Export model to ONNX format",
+    )
+
+    parser.add_argument(
+        "--report",
+        "-r",
+        action="store_true",
+        default=False,
+        help="Print torch's report on exported ONNX model",
     )
 
     parser.add_argument(
@@ -74,7 +75,7 @@ def parse_args(from_argparse=True, **kwargs):
     return parser.parse_args()
 
 
-def get_config(config_path: str) -> dict:
+def get_config(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config
@@ -85,7 +86,6 @@ def gen_data(data_shape: tuple):
 
 
 def get_model(model_config: ModelConfig, verbose=True) -> EEVIT:
-    # return HighwayWrapper(model_config)
     return EEVIT(config=model_config, verbose=verbose)
 
 
@@ -132,4 +132,5 @@ __all__ = [
     "gen_data",
     "get_model",
     "load_and_run_onnx",
+    "print_dict",
 ]

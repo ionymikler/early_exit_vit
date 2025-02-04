@@ -15,9 +15,10 @@ from utils import (
     check_conda_env,
 )
 from utils.arg_utils import parse_config_dict
-from utils.logging_utils import get_logger_ready, announce, print_dict
+from utils.logging_utils import get_logger_ready, announce, print_dict, yellow_txt
 
 logger = get_logger_ready("main.py")
+PRESS_ENTER_MSG = yellow_txt("Press Enter to continue...")
 
 
 def run_model(model, data, print_output=False):
@@ -30,7 +31,7 @@ def run_model(model, data, print_output=False):
     return out
 
 
-def export_model(model: nn.Module, _x) -> torch.onnx.ONNXProgram:
+def export_model(model: nn.Module, _x, report=False) -> torch.onnx.ONNXProgram:
     announce(logger, f"Exporting model '{model.name}' to ONNX format")
 
     with torch.no_grad():
@@ -40,8 +41,8 @@ def export_model(model: nn.Module, _x) -> torch.onnx.ONNXProgram:
             args=(_x),
             input_names=["image"],
             # output_names=["predictions"],
+            report=report,
             dynamo=True,
-            report=True,
             verbose=True,
         )
 
@@ -97,13 +98,13 @@ def main():
 
     model = get_model(model_config)
 
-    _ = input("Press Enter to continue...")
+    _ = input(PRESS_ENTER_MSG)
 
     # Generate random data
     dummy_image_tensor = gen_random_input_data(dataset_config)
 
     out_pytorch = run_model(data=dummy_image_tensor, model=model)
-    _ = input("Press Enter to continue...")
+    _ = input(PRESS_ENTER_MSG)
 
     if args.export_onnx:
         model_name = (
@@ -113,7 +114,9 @@ def main():
         )
         timestamp = datetime.now().strftime("%H-%M")
         onnx_filepath = f"./models/onnx/{model_name}_{timestamp}.onnx"
-        onnx_program = export_model(model=model, _x=dummy_image_tensor)
+        onnx_program = export_model(
+            model=model, _x=dummy_image_tensor, report=args.report
+        )
 
         onnx_program.save(onnx_filepath)
         logger.info(f"ONNX model saved at: {onnx_filepath}")

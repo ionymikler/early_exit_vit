@@ -1,4 +1,9 @@
 import logging
+from colorama import Fore, Style
+
+
+def yellow_txt(txt: str) -> str:
+    return f"{Fore.YELLOW}{txt}{Style.RESET_ALL}"
 
 
 def get_logger_ready(name: str) -> logging.Logger:

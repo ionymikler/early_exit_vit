@@ -48,18 +48,19 @@ class EEVIT(nn.Module):
         self.to_latent = nn.Identity()
 
         self.last_exit = nn.Linear(config.embed_depth, config.num_classes)
+        self.softmax = nn.Softmax(dim=-1)
 
         logger.info("ViT model initialized")
 
     def last_classifier_fw(self, x, intermediate_predictions):
-        _ = intermediate_predictions  # No need for them, but need to consume it
-
         x = (
             x.mean(dim=1) if self.pool == "mean" else x[:, 0]
         )  # take cls token or average all tokens (pooling)
 
         x = self.to_latent(x)  # TODO: Review why this is done in LGVIT
-        last_layer_predictions = self.last_exit(x)
+        logits = self.last_exit(x)
+
+        last_layer_predictions = self.softmax(logits)
 
         # Adding -1.0 to indicate the model did not exit early
         last_layer_predictions = torch.cat(
@@ -80,14 +81,15 @@ class EEVIT(nn.Module):
 
         x_fp, predictions = self.transformer(embeddings)
 
-        #### CONDITIONAL ####
         x = remove_fast_pass(x_fp)
         fp = get_fast_pass(x_fp)
+        #### CONDITIONAL ####
         # predictions = (
         #     self.fast_pass(x, predictions) if fp.any() else self.last_classifier_fw(x, predictions)
         # )
         predictions = torch.cond(
             fp.any(), self.fast_pass, self.last_classifier_fw, (x, predictions)
         )
+        #### //CONDITIONAL ####
 
         return predictions

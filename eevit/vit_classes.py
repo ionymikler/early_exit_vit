@@ -197,7 +197,7 @@ class Attention(nn.Module):
 
         # counterpart of LGVIT's DeiTSelfOutput.
         # QUESTION: This layer does not appear in ViT originally
-        # 1st residual connection
+        # NOTE: 1st residual connection
         x = self.attention_output(attn_heads_combined) + x
 
         # second part of TransformerEnconder (after 1st res. connection).
@@ -227,7 +227,7 @@ class TransformerEnconder(nn.Module):
 
         # print(
         logger.info(
-            f"TransformerEnconder initialized with {len(self.layers)} layers and {len(config.early_exit_config.exits)} exits"
+            f"TransformerEnconder initialized with {len(self.layers)} layers and {len(config.early_exit_config.exits)} early exits"
         )
 
     def _create_layers(self, config: ModelConfig):
@@ -273,6 +273,9 @@ class TransformerEnconder(nn.Module):
                 layer,
                 (x_with_fastpass, predictions_placeholder_tensor),
             )
+            assert torch.allclose(
+                predictions_placeholder_tensor[0, :-1].sum(), torch.tensor(1.0)
+            ), "Sum of predictions is not 1.0"
 
         fp = get_fast_pass(x_with_fastpass)
         x_norm = self.norm_post_layers(remove_fast_pass(x_with_fastpass))

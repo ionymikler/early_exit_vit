@@ -268,8 +268,6 @@ class Highway(nn.Module):
             ),
         )
 
-        # predictions_placeholder_tensor = set_layer_idx(predictions_placeholder_tensor)
-
         return x_with_fastpass, predictions_with_idx
 
 
