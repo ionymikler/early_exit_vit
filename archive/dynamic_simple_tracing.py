@@ -115,9 +115,9 @@ def export_model(model: nn.Module, _x, onnx_filepath):
     print("Exporting model to ONNX format")
     filepath = f"./models/onnx/{model.model_name}.onnx"
 
-    script_module = torch.jit.script(model)
+    traced_module = torch.jit.trace(model)
 
-    torch.onnx.export(model=script_module, args=_x, f=onnx_filepath)
+    torch.onnx.export(model=traced_module, args=_x, f=onnx_filepath)
 
     print(f"Model exported to {filepath}")
 

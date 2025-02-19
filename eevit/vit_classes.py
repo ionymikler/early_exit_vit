@@ -11,9 +11,10 @@ from eevit.utils import (
     get_ee_indexed_params,
     set_fast_pass_token,
 )
-from utils.logging_utils import get_logger_ready
+from utils.logging_utils import get_logger_ready, get_tensor_stats, print_dict
 from utils.arg_utils import ModelConfig
 
+gts = lambda t: print_dict(get_tensor_stats(t))  # noqa E731
 logger = get_logger_ready("vit_classes.py")
 debug = False
 
@@ -109,6 +110,8 @@ class PatchEmbedding(nn.Module):
 class AttentionMLPs(nn.Module):
     def __init__(self, embed_depth, hidden_dim, dropout=0.0):
         super().__init__()
+        self.norm_2 = nn.LayerNorm(embed_depth)
+
         self.mlp_intermediate = nn.Sequential(
             nn.Linear(embed_depth, hidden_dim), nn.GELU()
         )
@@ -119,7 +122,9 @@ class AttentionMLPs(nn.Module):
         )
 
     def forward(self, x):
-        x_int = self.mlp_intermediate(x)
+        x_norm = self.norm_2(x)  # norm after attention
+
+        x_int = self.mlp_intermediate(x_norm)
         x = self.mlp_output(x_int) + x  # 2nd residual connection
         return x
 
@@ -158,8 +163,6 @@ class Attention(nn.Module):
             else nn.Identity()
         )
 
-        self.norm_2 = nn.LayerNorm(config.embed_depth)
-
         # This contains inside the MLP of LGVIT's 'DeiTIntermediate' and 'DeiTSelfOutput'
         self.mlps = AttentionMLPs(
             embed_depth=config.embed_depth,
@@ -194,16 +197,12 @@ class Attention(nn.Module):
 
         # join all heads outputs into a single tensor of shape (batch, num_patches, embed_dim)
         attn_heads_combined = self.attn_rearrange(attn_by_head)
-
         # counterpart of LGVIT's DeiTSelfOutput.
         # QUESTION: This layer does not appear in ViT originally
         # NOTE: 1st residual connection
         x = self.attention_output(attn_heads_combined) + x
 
         # second part of TransformerEnconder (after 1st res. connection).
-        # Added here for simplicity in iteration of its layers
-        x = self.norm_2(x)  # norm after attention
-
         # NOTE: 2nd residual connection happens inside self.mlps
         x = self.mlps(x)
 
@@ -232,10 +231,10 @@ class TransformerEnconder(nn.Module):
 
     def _create_layers(self, config: ModelConfig):
         self.layers = nn.ModuleList()
-        ee_params_by_idx = get_ee_indexed_params(config)
+        self.ee_params_by_idx = get_ee_indexed_params(config)
 
         for idx in range(config.num_layers_transformer):
-            if idx in ee_params_by_idx.keys():
+            if idx in self.ee_params_by_idx.keys():
                 hw = Highway.from_model_config(config, idx)
                 # print(
                 logger.info(
@@ -255,28 +254,37 @@ class TransformerEnconder(nn.Module):
 
     def forward(self, x: torch.Tensor):
         x_with_fastpass = add_fast_pass(x)
-        predictions_placeholder_tensor = torch.zeros(1, self.num_classes + 1)
 
+        # initial predictions tensor with a uniform distribution
+        predictions_placeholder_tensor = torch.cat(
+            [
+                torch.full((1, self.num_classes), 1.0 / self.num_classes),
+                torch.zeros(1, 1),
+            ],
+            dim=1,
+        )
+
+        i = 0
         for layer in self.layers:
             # x_with_fastpass = layer(x_with_fastpass)
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
             #### CONDITIONAL ####
-            # x_with_fastpass, predictions_placeholder_tensor = (
-            #     self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
-            #     if fast_pass_layer.any()
-            #     else layer(x_with_fastpass, predictions_placeholder_tensor)
-            # )
-            x_with_fastpass, predictions_placeholder_tensor = torch.cond(
-                fast_pass_layer.any(),
-                self.fast_pass,
-                layer,
-                (x_with_fastpass, predictions_placeholder_tensor),
+            x_with_fastpass, predictions_placeholder_tensor = (
+                self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
+                if fast_pass_layer.any()
+                else layer(x_with_fastpass, predictions_placeholder_tensor)
             )
+            # x_with_fastpass, predictions_placeholder_tensor = torch.cond(
+            #     fast_pass_layer.any(),
+            #     self.fast_pass,
+            #     layer,
+            #     (x_with_fastpass, predictions_placeholder_tensor),
+            # )
             assert torch.allclose(
                 predictions_placeholder_tensor[0, :-1].sum(), torch.tensor(1.0)
             ), "Sum of predictions is not 1.0"
-
+            i += 1
         fp = get_fast_pass(x_with_fastpass)
         x_norm = self.norm_post_layers(remove_fast_pass(x_with_fastpass))
         x_with_fastpass = set_fast_pass_token(add_fast_pass(x_norm), fp)

@@ -1,92 +1,16 @@
+# utils/__init__.py
 import torch
-import argparse
-import yaml
 import onnx
 import onnxruntime
 
 from eevit.eevit import EEVIT  # noqa F401
-from .arg_utils import ModelConfig
-from .logging_utils import get_logger_ready, announce, print_dict
+from .logging_utils import get_logger_ready, announce, print_dict, yellow_txt
 
 logger = get_logger_ready("utils")
-DEFAULT_CONFIG_PATH = "./config/run_args.yaml"
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Build and run an EEVIT model, as specified in the configuration file"
-    )
-    parser.add_argument(
-        "--config-path",
-        type=str,
-        default="./config/run_args.yaml",
-        # required=True,
-        help="Path to the configuration JSON file. Default: './config/run_args.yaml'",
-    )
-
-    parser.add_argument(
-        "-d",
-        "--dry-run",
-        action="store_true",
-        default=False,
-        help="Perform a dry run without making any changes",
-    )
-
-    parser.add_argument(
-        "--export-onnx",
-        "-e",
-        action="store_true",
-        default=False,
-        help="Export model to ONNX format",
-    )
-
-    parser.add_argument(
-        "--report",
-        "-r",
-        action="store_true",
-        default=False,
-        help="Print torch's report on exported ONNX model",
-    )
-
-    parser.add_argument(
-        "--keep-onnx",
-        "-k",
-        dest="keep_onnx",
-        action="store_true",
-        help="Keep the ONNX model file after running it",
-    )
-
-    parser.set_defaults(keep_onnx=False)  # Default is True
-
-    parser.add_argument(
-        "--skip-conda-env-check",
-        action="store_true",
-        default=False,
-        help="Skip the check for the required conda environment",
-    )
-
-    parser.add_argument(
-        "--onnx-filename-suffix",
-        type=str,
-        default="",
-        help="Suffix to append to the ONNX filename",
-    )
-
-    return parser.parse_args()
-
-
-def get_config_dict(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
 
 
 def gen_data(data_shape: tuple):
     return torch.randn(data_shape)
-
-
-def get_model(model_config: ModelConfig, verbose=True) -> EEVIT:
-    return EEVIT(config=model_config, verbose=verbose)
 
 
 def load_and_run_onnx(onnx_filepath, _x, print_output=False):
@@ -121,16 +45,17 @@ def check_conda_env(conda_env_required):
     active_env = os.environ.get("CONDA_DEFAULT_ENV")
     if active_env != conda_env_required:
         logger.error(
-            f"ERROR: Conda environment '{conda_env_required}' is required. Please activate it."
+            yellow_txt(
+                f"ERROR: Conda environment '{conda_env_required}' is required. Please activate it."
+            )
         )
         return False
     return True
 
 
 __all__ = [
-    "parse_args",
     "gen_data",
-    "get_model",
     "load_and_run_onnx",
     "print_dict",
+    "check_conda_env",
 ]

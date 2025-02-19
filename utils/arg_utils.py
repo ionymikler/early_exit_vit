@@ -1,5 +1,13 @@
+import argparse
+import yaml
 from dataclasses import dataclass
 from typing import List, Tuple, Literal
+
+from .logging_utils import get_logger_ready
+
+logger = get_logger_ready(__name__)
+
+DEFAULT_CONFIG_PATH = "./config/run_args.yaml"
 
 
 @dataclass
@@ -103,6 +111,12 @@ class ModelConfig:
                 )
 
 
+def get_config_dict(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    return config
+
+
 def parse_config_dict(model_dict: dict) -> ModelConfig:
     """
     Parses a dictionary (loaded from YAML) into a ModelConfig object.
@@ -130,24 +144,107 @@ def parse_config_dict(model_dict: dict) -> ModelConfig:
         raise KeyError(f"Missing required configuration key: {e}")
 
 
-# Example usage:
-"""
-# Minimal configuration (only required parameters)
-minimal_config = ModelConfig(
-    channels_num=3,
-    image_size=224,
-    num_classes=1000
-)
-
-# Custom configuration
-custom_config = ModelConfig(
-    channels_num=3,
-    image_size=224,
-    num_classes=1000,
-    embed_depth=512,  # Override default
-    num_attn_heads=8,  # Override default
-    early_exits=EarlyExitsConfig(
-        exits=[(4, 'conv1_1'), (5, 'conv1_1')]  # Custom exits
+def get_argsparser():
+    parser = argparse.ArgumentParser(
+        description="Build and run an EEVIT model, as specified in the configuration file"
     )
-)
-"""
+    parser.add_argument(
+        "--config-path",
+        type=str,
+        default="./config/run_args.yaml",
+        # required=True,
+        help="Path to the configuration JSON file. Default: './config/run_args.yaml'",
+    )
+
+    parser.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Perform a dry run without making any changes",
+    )
+
+    parser.set_defaults(keep_onnx=False)  # Default is True
+
+    parser.add_argument(
+        "--skip-conda-env-check",
+        action="store_true",
+        default=False,
+        help="Skip the check for the required conda environment",
+    )
+
+    return parser
+
+
+def parse_args_onnx_export():
+    parser = get_argsparser()
+
+    parser.add_argument(
+        "--onnx-export",
+        "-e",
+        action="store_true",
+        default=False,
+        help="Export model to ONNX format",
+    )
+
+    parser.add_argument(
+        "--onnx-report",
+        "-r",
+        action="store_true",
+        default=False,
+        help="Print torch's report on exported ONNX model",
+    )
+
+    parser.add_argument(
+        "--onnx-keep-file",
+        "-k",
+        dest="onnx_keep",
+        action="store_true",
+        help="Keep the ONNX model file after running it",
+    )
+
+    parser.set_defaults(onnx_save_file=False)  # Default is True
+
+    parser.add_argument(
+        "--onnx-filename-suffix",
+        type=str,
+        default="",
+        help="Suffix to append to the ONNX filename",
+    )
+
+    return parser.parse_args()
+
+
+def parse_args_evaluation():
+    parser = get_argsparser()
+
+    # Add interactive mode argument
+    parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Run in interactive mode: evaluate one image at a time and show detailed results",
+    )
+
+    parser.add_argument(
+        "-s",
+        "--save-eval-metrics",
+        action="store_true",
+        help="Save evaluation metrics to a JSON file",
+    )
+
+    parser.add_argument(
+        "-n",
+        "--num-examples",
+        type=int,
+        default=None,
+        help="Number of examples to evaluate. If not specified, uses all available examples.",
+    )
+
+    args = parser.parse_args()
+    if args.dry_run:
+        config = get_config_dict(args.config_path)
+        logger.info("🔍 Dry run. (Displaying config only)")
+        print(config)
+        exit()
+    return args

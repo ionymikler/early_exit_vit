@@ -1,1 +1,0 @@
-archive/dynamic_dynamo/dynamic_dynamo_simple.py

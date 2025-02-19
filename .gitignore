@@ -2,6 +2,8 @@
 *.pyc
 *.onnx
 **/*.onnx*
-onnx_export*
+onnx_export*.md
 models/
 scratch/
+tmp/
+results/*.*

@@ -34,11 +34,11 @@ model:
       # - [0, 'dummy_mlp']
       # - [0, 'conv1_1']
 
+      - [3, 'conv1_1']
       - [4, 'conv1_1']
-      - [5, 'conv1_1']
+      - [5, 'conv2_1']
       - [6, 'conv2_1']
-      - [7, 'conv2_1']
-      - [8, 'attention', {sr_ratio: 2}] # in LGVIT 'attention_r2'
-      - [9, 'attention', {sr_ratio: 2}]
+      - [7, 'attention', {sr_ratio: 2}] # in LGVIT 'attention_r2'
+      - [8, 'attention', {sr_ratio: 2}]
+      - [9, 'attention', {sr_ratio: 3}]
       - [10, 'attention', {sr_ratio: 3}]
-      - [11, 'attention', {sr_ratio: 3}]

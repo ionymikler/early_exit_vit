@@ -2,13 +2,30 @@ import torch
 import json
 from typing import Dict, Tuple, List, Any
 
+from .arg_utils import ModelConfig
+from .logging_utils import get_logger_ready
+from eevit.eevit import EEVIT  # noqa F401
+
+# Constants
+PT_WEIGHTS_PATH = (
+    "/home/iony/DTU/f24/thesis/code/lgvit/LGViT-ViT-Cifar100/pytorch_model.bin"
+)
+PT_CONFIG_PATH = "/home/iony/DTU/f24/thesis/code/lgvit/LGViT-ViT-Cifar100/config.json"
+
+logger = get_logger_ready(__name__)
+
+
+def get_model(model_config: ModelConfig, verbose=True) -> EEVIT:
+    return EEVIT(config=model_config, verbose=verbose)
+
 
 def load_pretrained_weights(
-    model: torch.nn.Module,
+    model: EEVIT,
+    model_config: ModelConfig,
     pretrained_path: str,
     config_pretrained_path: str,
     verbose: bool = False,
-) -> Tuple[torch.nn.Module, Dict[str, List[str]]]:
+) -> Tuple[EEVIT, Dict[str, List[str]]]:
     """
     Load pretrained weights from LGVIT model into EEVIT model.
 
@@ -34,7 +51,11 @@ def load_pretrained_weights(
     keys_map = _create_base_architecture_mapping(config_pretrained)
 
     # Create highway mapping
-    hw_keys = _create_highway_mapping(model, saved_model_state_dict, config_pretrained)
+    # Get EEVIT exit positions from model config
+    eevit_exit_positions = model_config.early_exit_config.exit_list
+    hw_keys = _create_highway_mapping(
+        eevit_exit_positions, saved_model_state_dict, config_pretrained
+    )
     keys_map.update(hw_keys)
 
     # Create the weight mapping dictionary
@@ -43,16 +64,14 @@ def load_pretrained_weights(
     # Load weights into model
     incompatible_keys = model.load_state_dict(lgvit_map, strict=False)
 
-    if verbose:
-        _print_incompatible_keys(incompatible_keys)
-
     return model, incompatible_keys
 
 
 def _create_base_architecture_mapping(
     config_pretrained: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Create the base architecture key mapping."""
+    """Create the base architecture key mapping.
+    The mapp is from LGVIT to EEVIT."""
     keys_map = {
         # Patch embeddings
         "patch_embedding.pos_embedding": "deit.embeddings.position_embeddings",
@@ -76,12 +95,6 @@ def _create_base_architecture_mapping(
         keys_map[f"transformer.layers.{i}.norm_1.bias"] = (
             f"deit.encoder.layer.{i}.layernorm_before.bias"
         )
-        keys_map[f"transformer.layers.{i}.norm_2.weight"] = (
-            f"deit.encoder.layer.{i}.layernorm_after.weight"
-        )
-        keys_map[f"transformer.layers.{i}.norm_2.bias"] = (
-            f"deit.encoder.layer.{i}.layernorm_after.bias"
-        )
 
         # Attention
         keys_map[f"transformer.layers.{i}.W_QKV.weight"] = (
@@ -103,7 +116,14 @@ def _create_base_architecture_mapping(
             f"deit.encoder.layer.{i}.attention.output.dense.bias"
         )
 
-        # MLP
+        # MLPs
+        keys_map[f"transformer.layers.{i}.mlps.norm_2.weight"] = (
+            f"deit.encoder.layer.{i}.layernorm_after.weight"
+        )
+        keys_map[f"transformer.layers.{i}.mlps.norm_2.bias"] = (
+            f"deit.encoder.layer.{i}.layernorm_after.bias"
+        )
+
         keys_map[f"transformer.layers.{i}.mlps.mlp_intermediate.0.weight"] = (
             f"deit.encoder.layer.{i}.intermediate.dense.weight"
         )
@@ -121,7 +141,7 @@ def _create_base_architecture_mapping(
 
 
 def _create_highway_mapping(
-    model: torch.nn.Module,
+    eevit_exit_positions: List[int],
     saved_model_state_dict: Dict[str, torch.Tensor],
     config_pretrained: Dict[str, Any],
 ) -> Dict[str, str]:
@@ -131,10 +151,6 @@ def _create_highway_mapping(
     # Parse exit positions
     s = config_pretrained["position_exits"].strip("][,")
     lgvit_exit_positions = list(map(int, s.split(",")))
-
-    # Get EEVIT exit positions from model config
-    model_config = model.config if hasattr(model, "config") else model.module.config
-    eevit_exit_positions = model_config.early_exit_config.exit_list
 
     for idx in range(len(lgvit_exit_positions)):
         eevit_idx = eevit_exit_positions[idx]
@@ -155,8 +171,8 @@ def _create_highway_mapping(
                 length = lgvit_key.find("mlp.") + len("mlp.")
                 eevit_key = f"{eevit_prefix}.highway_head.{lgvit_key[length:]}"
 
-            if eevit_key in model.state_dict() and lgvit_key in saved_model_state_dict:
-                hw_keys[eevit_key] = lgvit_key
+            # if eevit_key in model.state_dict() and lgvit_key in saved_model_state_dict:
+            hw_keys[eevit_key] = lgvit_key
 
     return hw_keys
 
@@ -175,16 +191,73 @@ def _make_weight_mapping(
     return values_dict
 
 
-def _print_incompatible_keys(incompatible_keys: Dict[str, List[str]]) -> None:
+def _print_incompatible_keys(
+    incompatible_keys: Dict[str, List[str]], verbose: bool = False
+) -> None:
     """Print information about incompatible keys."""
-    print(
-        f"\nUnexpected Keys (Keys in LGVIT but not in EEVIT): Total: {len(incompatible_keys.unexpected_keys)}"
-    )
-    for uk in incompatible_keys.unexpected_keys:
-        print(uk)
+    logger.info(f"Unexpected Keys: {len(incompatible_keys.unexpected_keys)}")
+    logger.info(f"Missing Keys: {len(incompatible_keys.missing_keys)}")
+    if (
+        len(incompatible_keys.unexpected_keys) > 0
+        or len(incompatible_keys.missing_keys) > 0
+    ):
+        print(
+            f"Unexpected Keys (Keys in LGVIT but not in EEVIT): Total: {len(incompatible_keys.unexpected_keys)}"
+        )
+        for uk in incompatible_keys.unexpected_keys:
+            print(uk)
 
-    print(
-        f"\nMissing Keys (Keys in EEVIT but not in LGVIT) Total: {len(incompatible_keys.missing_keys)}"
+        print(
+            f"Missing Keys (Keys in EEVIT but not in LGVIT) Total: {len(incompatible_keys.missing_keys)}"
+        )
+        for mk in incompatible_keys.missing_keys:
+            print(mk)
+        else:
+            logger.info("✅ No incompatible keys found.")
+
+
+def setup_model_for_evaluation(
+    model_config: ModelConfig,
+    pretrained_weights_path: str = PT_WEIGHTS_PATH,
+    pretrained_config_path: str = PT_CONFIG_PATH,
+    device: str = "cpu",
+    verbose: bool = False,
+) -> EEVIT:
+    """
+    Complete model setup function that:
+    1. Creates the EEVIT model
+    2. Loads pretrained weights
+    3. Moves model to device
+    4. Sets model to eval mode
+
+    Args:
+        config_path: Path to EEVIT config YAML
+        pretrained_weights_path: Path to pretrained LGVIT weights
+        pretrained_config_path: Path to pretrained LGVIT config
+        device: Device to put model on
+        verbose: Whether to print details
+
+    Returns:
+        EEVIT model ready for evaluation
+    """
+    # Create model
+    model = get_model(model_config, verbose)
+
+    # Load pretrained weights
+    logger.info("Loading pretrained weights...")
+
+    model, incompatible_keys = load_pretrained_weights(
+        model=model,
+        model_config=model_config,
+        pretrained_path=pretrained_weights_path,
+        config_pretrained_path=pretrained_config_path,
+        verbose=verbose,
     )
-    for mk in incompatible_keys.missing_keys:
-        print(mk)
+
+    _print_incompatible_keys(incompatible_keys, verbose)
+
+    # Prepare model for evaluation
+    model = model.to(device)
+    model.eval()
+
+    return model

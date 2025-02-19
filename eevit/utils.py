@@ -11,8 +11,10 @@ def get_ee_indexed_params(model_config: ModelConfig) -> Dict[int, list]:
     }  # int -> [type, kwargs]
 
 
-def add_fast_pass(x):
-    return torch.cat([x, torch.zeros(x.shape[0], 1, x.shape[-1])], dim=1)
+def add_fast_pass(x: torch.Tensor) -> torch.Tensor:
+    return torch.cat(
+        [x, torch.zeros(x.shape[0], 1, x.shape[-1], device=x.device)], dim=1
+    )
 
 
 def remove_fast_pass(x_with_fastpass: torch.Tensor) -> torch.Tensor:

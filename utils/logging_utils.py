@@ -1,3 +1,4 @@
+import torch
 import logging
 from colorama import Fore, Style
 
@@ -42,3 +43,20 @@ def print_dict(dictionary, ident="", braces=1):
             print_dict(value, ident + "  ", braces + 1)
         else:
             print(f"{ident}{key} = {value}")
+
+
+def get_tensor_stats(tensor):
+    return {
+        "shape": tensor.shape,
+        "sum": tensor.sum().item(),
+        "mean": tensor.mean().item(),
+        "std": tensor.std().item(),
+        "min": tensor.min().item(),
+        "max": tensor.max().item(),
+        "norm": torch.norm(tensor).item(),
+        # 'hash': hash(tensor.cpu().numpy().tobytes())
+    }
+
+
+def gts(tensor):
+    return print_dict(get_tensor_stats(tensor))

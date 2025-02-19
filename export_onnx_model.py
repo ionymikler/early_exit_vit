@@ -7,14 +7,12 @@ from datetime import datetime
 
 # local imports
 from utils import (
-    parse_args,
-    get_config_dict,
-    get_model,
     gen_data,
     load_and_run_onnx,
     check_conda_env,
 )
-from utils.arg_utils import parse_config_dict
+from utils.model_utils import get_model
+from utils.arg_utils import parse_config_dict, parse_args_onnx_export, get_config_dict
 from utils.logging_utils import get_logger_ready, announce, print_dict, yellow_txt
 
 logger = get_logger_ready("main.py")
@@ -80,7 +78,7 @@ def gen_random_input_data(dataset_config: dict):
 
 
 def main():
-    args = parse_args()
+    args = parse_args_onnx_export()
 
     init_checks(args)
 
@@ -90,10 +88,6 @@ def main():
         logger.info(f"🔍 Dry run. Config: {config}")
         return
 
-    # Dataset config
-    dataset_config = config["dataset"]  # noqa F841
-
-    # ViT config
     model_config = parse_config_dict(config["model"].copy())
 
     model = get_model(model_config)
@@ -101,12 +95,13 @@ def main():
     _ = input(PRESS_ENTER_MSG)
 
     # Generate random data
+    dataset_config = config["dataset"]  # noqa F841
     dummy_image_tensor = gen_random_input_data(dataset_config)
 
     out_pytorch = run_model(data=dummy_image_tensor, model=model)
     _ = input(PRESS_ENTER_MSG)
 
-    if args.export_onnx:
+    if args.onnx_export:
         model_name = (
             f"{model.name}_{args.onnx_filename_suffix}"
             if args.onnx_filename_suffix
@@ -115,7 +110,7 @@ def main():
         timestamp = datetime.now().strftime("%H-%M")
         onnx_filepath = f"./models/onnx/{model_name}_{timestamp}.onnx"
         onnx_program = export_model(
-            model=model, _x=dummy_image_tensor, report=args.report
+            model=model, _x=dummy_image_tensor, report=args.onnx_report
         )
 
         onnx_program.save(onnx_filepath)
@@ -124,7 +119,7 @@ def main():
         announce(logger, "Loading and running the ONNX model...")
         out_ort = load_and_run_onnx(onnx_filepath, dummy_image_tensor)
 
-        if not args.keep_onnx:
+        if not args.onnx_keep:
             os.remove(onnx_filepath)
 
         # Compare the outputs
