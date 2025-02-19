@@ -270,20 +270,22 @@ class TransformerEnconder(nn.Module):
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
             #### CONDITIONAL ####
-            x_with_fastpass, predictions_placeholder_tensor = (
-                self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
-                if fast_pass_layer.any()
-                else layer(x_with_fastpass, predictions_placeholder_tensor)
-            )
-            # x_with_fastpass, predictions_placeholder_tensor = torch.cond(
-            #     fast_pass_layer.any(),
-            #     self.fast_pass,
-            #     layer,
-            #     (x_with_fastpass, predictions_placeholder_tensor),
+            # x_with_fastpass, predictions_placeholder_tensor = (
+            #     self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
+            #     if fast_pass_layer.any()
+            #     else layer(x_with_fastpass, predictions_placeholder_tensor)
             # )
-            assert torch.allclose(
-                predictions_placeholder_tensor[0, :-1].sum(), torch.tensor(1.0)
-            ), "Sum of predictions is not 1.0"
+            x_with_fastpass, predictions_placeholder_tensor = torch.cond(
+                fast_pass_layer.any(),
+                self.fast_pass,
+                layer,
+                (x_with_fastpass, predictions_placeholder_tensor),
+            )
+            # //CONDITIONAL
+
+            # assert torch.allclose(
+            #     predictions_placeholder_tensor[0, :-1].sum(), torch.tensor(1.0)
+            # ), "Sum of predictions is not 1.0"
             i += 1
         fp = get_fast_pass(x_with_fastpass)
         x_norm = self.norm_post_layers(remove_fast_pass(x_with_fastpass))

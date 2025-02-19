@@ -63,7 +63,8 @@ def init_checks(args):
 
 
 def gen_random_input_data(dataset_config: dict):
-    image_tensor = gen_data(  # TODO: Currently shape is (1,c,w,h). I'm I sure the shape is not (1, w,h,c)? Check CIFAR10
+    image_tensor = gen_data(
+        # TODO: Currently shape is (1,c,w,h). I'm I sure the shape is not (1, w,h,c)? Check CIFAR10
         data_shape=(
             1,
             dataset_config["channels_num"],
@@ -71,8 +72,6 @@ def gen_random_input_data(dataset_config: dict):
             dataset_config["image_size"],
         )
     )
-    # image_tensor = gen_data(model.patch_embedding.output_shape)
-    # image_tensor = add_fast_pass(gen_data(data_shape=(1, 197, 768)))
 
     return image_tensor
 
@@ -92,14 +91,14 @@ def main():
 
     model = get_model(model_config)
 
-    _ = input(PRESS_ENTER_MSG)
+    input(PRESS_ENTER_MSG)
 
     # Generate random data
-    dataset_config = config["dataset"]  # noqa F841
-    dummy_image_tensor = gen_random_input_data(dataset_config)
+    dataset_config_dict = config["dataset"]  # noqa F841
+    dummy_image_tensor = gen_random_input_data(dataset_config_dict)
 
     out_pytorch = run_model(data=dummy_image_tensor, model=model)
-    _ = input(PRESS_ENTER_MSG)
+    input(PRESS_ENTER_MSG)
 
     if args.onnx_export:
         model_name = (
@@ -125,7 +124,7 @@ def main():
         # Compare the outputs
         assert torch.allclose(
             out_pytorch, torch.tensor(out_ort[0]), atol=1e-5
-        ), "Outputs are not equal"
+        ), "Outputs are not equal ❌"
 
         logger.info("Outputs are equal ✅")
 

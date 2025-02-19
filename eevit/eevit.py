@@ -84,14 +84,14 @@ class EEVIT(nn.Module):
         x = remove_fast_pass(x_fp)
         fp = get_fast_pass(x_fp)
         #### CONDITIONAL ####
-        predictions = (
-            self.fast_pass(x, predictions)
-            if fp.any()
-            else self.last_classifier_fw(x, predictions)
-        )
-        # predictions = torch.cond(
-        #     fp.any(), self.fast_pass, self.last_classifier_fw, (x, predictions)
+        # predictions = (
+        #     self.fast_pass(x, predictions)
+        #     if fp.any()
+        #     else self.last_classifier_fw(x, predictions)
         # )
+        predictions = torch.cond(
+            fp.any(), self.fast_pass, self.last_classifier_fw, (x, predictions)
+        )
         #### //CONDITIONAL ####
 
         return predictions
