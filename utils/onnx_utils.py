@@ -43,6 +43,7 @@ def export_and_save(model: nn.Module, _x: torch.Tensor, report: bool = False) ->
     """
 
     onnx_program = export_model(model, _x, report)
+    onnx_program.optimize()
     onnx_filepath = (
         # f"./models/onnx/{format_model_name(model.name)}_{datetime.now().strftime('%H-%M')}.onnx"
         f"./models/onnx/{format_model_name(model.name)}.onnx"

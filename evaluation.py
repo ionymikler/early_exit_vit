@@ -137,7 +137,7 @@ def evaluate_model(
     logger.info(f"Total Samples: {total_samples}")
 
     if save_eval_metrics:
-        result_utils.save_metrics(metrics, "evaluation_")
+        result_utils.save_metrics(metrics, "evaluation")
 
 
 def main():

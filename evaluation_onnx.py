@@ -151,7 +151,7 @@ def evaluate_onnx_model(
     logger.info(f"Total Samples: {total_samples}")
 
     if save_eval_metrics:
-        result_utils.save_metrics(metrics, "onnx_evaluation_")
+        result_utils.save_metrics(metrics, "onnx_evaluation")
 
     logger.info("Done evaluating ONNX model ✅")
 
