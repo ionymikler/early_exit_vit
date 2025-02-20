@@ -1,6 +1,21 @@
 import json
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+
+from datetime import datetime
+
+from .logging_utils import get_logger_ready
+
+logger = get_logger_ready(__name__)
+
+
+def save_metrics(metrics, file_prefix: str):
+    timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+    metrics_file = f"results/{file_prefix}evaluation_metrics_{timestamp}.json"
+
+    with open(metrics_file, "w") as f:
+        json.dump(metrics, f, indent=4)
+    logger.info(f"\nMetrics saved to {metrics_file}")
 
 
 def load_metrics(file_path):

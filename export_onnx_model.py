@@ -2,8 +2,6 @@
 # Made by: Jonathan Mikler on 2024-12-03
 import os
 import torch
-import torch.nn as nn
-from datetime import datetime
 
 # local imports
 from utils import (
@@ -12,10 +10,11 @@ from utils import (
     check_conda_env,
 )
 from utils.model_utils import get_model
-from utils.arg_utils import parse_config_dict, parse_args_onnx_export, get_config_dict
+from utils.arg_utils import parse_config_dict, get_argsparser, get_config_dict
 from utils.logging_utils import get_logger_ready, announce, print_dict, yellow_txt
+from utils.onnx_utils import export_and_save
 
-logger = get_logger_ready("main.py")
+logger = get_logger_ready(__name__)
 PRESS_ENTER_MSG = yellow_txt("Press Enter to continue...")
 
 
@@ -27,24 +26,6 @@ def run_model(model, data, print_output=False):
     if print_output:
         logger.info(f"Output: {out}")
     return out
-
-
-def export_model(model: nn.Module, _x, report=False) -> torch.onnx.ONNXProgram:
-    announce(logger, f"Exporting model '{model.name}' to ONNX format")
-
-    with torch.no_grad():
-        model.eval()
-        onnx_program = torch.onnx.export(
-            model=model,
-            args=(_x),
-            input_names=["image"],
-            # output_names=["predictions"],
-            report=report,
-            dynamo=True,
-            verbose=True,
-        )
-
-    return onnx_program
 
 
 def init_checks(args):
@@ -77,7 +58,7 @@ def gen_random_input_data(dataset_config: dict):
 
 
 def main():
-    args = parse_args_onnx_export()
+    args = get_argsparser().parse_args()
 
     init_checks(args)
 
@@ -101,19 +82,9 @@ def main():
     input(PRESS_ENTER_MSG)
 
     if args.onnx_export:
-        model_name = (
-            f"{model.name}_{args.onnx_filename_suffix}"
-            if args.onnx_filename_suffix
-            else model.name
+        onnx_filepath = export_and_save(
+            model, dummy_image_tensor, report=args.onnx_report
         )
-        timestamp = datetime.now().strftime("%H-%M")
-        onnx_filepath = f"./models/onnx/{model_name}_{timestamp}.onnx"
-        onnx_program = export_model(
-            model=model, _x=dummy_image_tensor, report=args.onnx_report
-        )
-
-        onnx_program.save(onnx_filepath)
-        logger.info(f"ONNX model saved at: {onnx_filepath}")
 
         announce(logger, "Loading and running the ONNX model...")
         out_ort = load_and_run_onnx(onnx_filepath, dummy_image_tensor)

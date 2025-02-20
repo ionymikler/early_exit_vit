@@ -3,22 +3,31 @@ import logging
 from colorama import Fore, Style
 
 
+def color_txt(txt: str, color_name: str) -> str:
+    color_constant = getattr(Fore, color_name.upper())
+    return f"{color_constant}{txt}{Style.RESET_ALL}"
+
+
 def yellow_txt(txt: str) -> str:
-    return f"{Fore.YELLOW}{txt}{Style.RESET_ALL}"
+    return color_txt(txt, "yellow")
 
 
-def get_logger_ready(name: str) -> logging.Logger:
+def green_txt(txt: str) -> str:
+    return color_txt(txt, "green")
+
+
+def get_logger_ready(name: str, level: int = logging.INFO) -> logging.Logger:
     # Set up logging
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
 
     # Create a stream handler
     stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setLevel(level)
 
     # Create a formatter and set it for the handler
     formatter = logging.Formatter(
-        "[%(levelname)s] [%(asctime)s][%(name)s]: %(message)s"
+        "[%(levelname)s] [%(asctime)s][%(name)s:%(lineno)d]: %(message)s"
     )
     formatter.default_time_format = "%H:%M:%S"
     formatter.default_msec_format = "%s.%03d"

@@ -144,10 +144,11 @@ def parse_config_dict(model_dict: dict) -> ModelConfig:
         raise KeyError(f"Missing required configuration key: {e}")
 
 
-def get_argsparser():
+def get_argsparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Build and run an EEVIT model, as specified in the configuration file"
     )
+
     parser.add_argument(
         "--config-path",
         type=str,
@@ -173,12 +174,30 @@ def get_argsparser():
         help="Skip the check for the required conda environment",
     )
 
-    return parser
+    parser.add_argument(
+        "-n",
+        "--num-examples",
+        type=int,
+        default=None,
+        help="Number of examples to evaluate. If not specified, uses all available examples.",
+    )
 
+    ### EVALUATION ARGUMENTS ###
+    parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Run in interactive mode: evaluate one image at a time and show detailed results",
+    )
 
-def parse_args_onnx_export():
-    parser = get_argsparser()
+    parser.add_argument(
+        "-s",
+        "--save-metrics",
+        action="store_true",
+        help="Save evaluation metrics to a JSON file",
+    )
 
+    ### ONNX ARGUMENTS ###
     parser.add_argument(
         "--onnx-export",
         "-e",
@@ -203,6 +222,14 @@ def parse_args_onnx_export():
         help="Keep the ONNX model file after running it",
     )
 
+    parser.add_argument(
+        "--onnx-program-filepath",
+        "-f",
+        type=str,
+        default="./models/onnx/EEVIT.onnx",
+        help="Path to the ONNX model file to load and run",
+    )
+
     parser.set_defaults(onnx_save_file=False)  # Default is True
 
     parser.add_argument(
@@ -212,39 +239,4 @@ def parse_args_onnx_export():
         help="Suffix to append to the ONNX filename",
     )
 
-    return parser.parse_args()
-
-
-def parse_args_evaluation():
-    parser = get_argsparser()
-
-    # Add interactive mode argument
-    parser.add_argument(
-        "-i",
-        "--interactive",
-        action="store_true",
-        help="Run in interactive mode: evaluate one image at a time and show detailed results",
-    )
-
-    parser.add_argument(
-        "-s",
-        "--save-eval-metrics",
-        action="store_true",
-        help="Save evaluation metrics to a JSON file",
-    )
-
-    parser.add_argument(
-        "-n",
-        "--num-examples",
-        type=int,
-        default=None,
-        help="Number of examples to evaluate. If not specified, uses all available examples.",
-    )
-
-    args = parser.parse_args()
-    if args.dry_run:
-        config = get_config_dict(args.config_path)
-        logger.info("🔍 Dry run. (Displaying config only)")
-        print(config)
-        exit()
-    return args
+    return parser

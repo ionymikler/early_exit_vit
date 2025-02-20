@@ -261,3 +261,7 @@ def setup_model_for_evaluation(
     model.eval()
 
     return model
+
+
+def format_model_name(model_name: str, suffix: str = None) -> str:
+    return f"{model_name}_{suffix}" if suffix else model_name

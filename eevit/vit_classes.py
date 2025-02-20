@@ -11,10 +11,9 @@ from eevit.utils import (
     get_ee_indexed_params,
     set_fast_pass_token,
 )
-from utils.logging_utils import get_logger_ready, get_tensor_stats, print_dict
+from utils.logging_utils import get_logger_ready
 from utils.arg_utils import ModelConfig
 
-gts = lambda t: print_dict(get_tensor_stats(t))  # noqa E731
 logger = get_logger_ready("vit_classes.py")
 debug = False
 
@@ -67,10 +66,10 @@ class PatchEmbedding(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1, 1, self.config.embed_depth))
         self.dropout = nn.Dropout(self.config.general_dropout)
 
-        # print(
-        logger.info(
-            f"PatchEmbedding initialized with {num_patches + 1} patches (including the cls token)"
-        )
+        if self.verbose:
+            logger.info(
+                f"PatchEmbedding initialized with {num_patches + 1} patches (including the cls token)"
+            )
 
     @property
     def input_shape(self):
@@ -216,15 +215,15 @@ class Attention(nn.Module):
 
 
 class TransformerEnconder(nn.Module):
-    def __init__(self, config: ModelConfig):
+    def __init__(self, config: ModelConfig, verbose: bool = False):
         super().__init__()
+        self.verbose: bool = verbose
 
         self._create_layers(config)
         self.num_classes = config.num_classes
 
         self.norm_post_layers = nn.LayerNorm(config.embed_depth)
 
-        # print(
         logger.info(
             f"TransformerEnconder initialized with {len(self.layers)} layers and {len(config.early_exit_config.exits)} early exits"
         )
@@ -236,10 +235,11 @@ class TransformerEnconder(nn.Module):
         for idx in range(config.num_layers_transformer):
             if idx in self.ee_params_by_idx.keys():
                 hw = Highway.from_model_config(config, idx)
-                # print(
-                logger.info(
-                    f"Highway of type '{hw.highway_type}({hw.init_kwargs})' appended to location '{idx}'"
-                )
+
+                if self.verbose:
+                    logger.info(
+                        f"Highway of type '{hw.highway_type}({hw.init_kwargs})' appended to location '{idx}'"
+                    )
 
                 self.layers.append(Attention(config, hw))
             else:

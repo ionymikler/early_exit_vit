@@ -5,20 +5,27 @@ import numpy as np
 from torch.utils.data import DataLoader
 from collections import defaultdict
 
-from utils import check_conda_env
-from utils.arg_utils import parse_args_evaluation, get_config_dict, parse_config_dict
-from utils.logging_utils import get_logger_ready, yellow_txt
-from utils.dataset_utils import get_cifar100_dataset, prepare_dataset, collate_fn
-from utils.model_utils import setup_model_for_evaluation
+from utils import (
+    logging_utils,
+    dataset_utils,
+    arg_utils,
+    model_utils,
+    result_utils,
+    check_conda_env,
+)
+
 
 # _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _DEVICE = torch.device("cpu")
 
-logger = get_logger_ready("evaluation")
+logger = logging_utils.get_logger_ready("evaluation")
 
 
 def evaluate_model(
-    model: torch.nn.Module, test_loader: DataLoader, interactive: bool = False
+    model: torch.nn.Module,
+    test_loader: DataLoader,
+    interactive: bool = False,
+    save_eval_metrics: bool = False,
 ) -> dict:
     """
     Evaluate model on test set with detailed per-exit statistics.
@@ -108,7 +115,9 @@ def evaluate_model(
 
     for exit_key, stats in exit_stats.items():
         if not stats["count"] > 0:
-            logger.info(yellow_txt(f"No samples found for exit layer {exit_key}"))
+            logger.info(
+                logging_utils.yellow_txt(f"No samples found for exit layer {exit_key}")
+            )
             continue
         exit_accuracy = 100 * stats["correct"] / stats["count"]
         exit_confidence = np.mean(np.concatenate(stats["confidences"])).item()
@@ -122,55 +131,41 @@ def evaluate_model(
     # // Process per-exit statistics
 
     # Printed summary
-    logger.info(yellow_txt("\nEvaluation Complete!"))
+    logger.info(logging_utils.yellow_txt("\nEvaluation Complete!"))
     logger.info("Evaluation Summary:")
     logger.info(f"Overall Accuracy: {overall_accuracy:.2f}%")
     logger.info(f"Total Samples: {total_samples}")
 
-    return metrics
+    if save_eval_metrics:
+        result_utils.save_metrics(metrics, "evaluation_")
 
 
 def main():
-    logger.info(yellow_txt("Starting evaluation..."))
-    args = parse_args_evaluation()
+    logger.info(logging_utils.yellow_txt("Starting evaluation..."))
+    args = arg_utils.get_argsparser().parse_args()
 
     if not check_conda_env("eevit"):
         exit()
 
-    config = get_config_dict(args.config_path)
-    model_config = parse_config_dict(config["model"].copy())
+    config = arg_utils.get_config_dict(args.config_path)
+    model_config = arg_utils.parse_config_dict(config["model"].copy())
 
-    dataset = get_cifar100_dataset()
-    _, test_dataset = prepare_dataset(dataset)
-    if args.num_examples is not None:
-        logger.info(f"Using {args.num_examples} examples from the test dataset")
-        indices = torch.randperm(len(test_dataset))[: args.num_examples]
-        test_dataset = torch.utils.data.Subset(test_dataset, indices)
+    dataset = dataset_utils.get_cifar100_dataset()
+    _, test_dataset = dataset_utils.prepare_dataset(dataset, args.num_examples)
 
     test_loader = DataLoader(
         test_dataset,
         batch_size=1,
         shuffle=False,
         num_workers=4,
-        collate_fn=collate_fn,
+        collate_fn=dataset_utils.collate_fn,
     )
 
-    model = setup_model_for_evaluation(
+    model = model_utils.setup_model_for_evaluation(
         model_config=model_config, device=_DEVICE, verbose=True
     )
 
-    metrics = evaluate_model(model, test_loader, interactive=args.interactive)
-
-    if args.save_eval_metrics:
-        import json
-        from datetime import datetime
-
-        timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
-        metrics_file = f"results/evaluation_metrics_{timestamp}.json"
-
-        with open(metrics_file, "w") as f:
-            json.dump(metrics, f, indent=4)
-        logger.info(f"\nMetrics saved to {metrics_file}")
+    evaluate_model(model, test_loader, interactive=args.interactive)
 
 
 if __name__ == "__main__":

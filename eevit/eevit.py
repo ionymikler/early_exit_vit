@@ -38,11 +38,10 @@ class EEVIT(nn.Module):
         """
         super().__init__()
         self.name = "EEVIT"
-        # print("Initializing Vit model...")
-        logger.info("Initializing Vit model...")
+        logger.info("ℹ️ Initializing Vit model...")
         self.patch_embedding = PatchEmbedding(config, verbose=verbose)
 
-        self.transformer = TransformerEnconder(config)
+        self.transformer = TransformerEnconder(config, verbose=verbose)
 
         self.pool = config.pool
         self.to_latent = nn.Identity()
@@ -50,7 +49,7 @@ class EEVIT(nn.Module):
         self.last_exit = nn.Linear(config.embed_depth, config.num_classes)
         self.softmax = nn.Softmax(dim=-1)
 
-        logger.info("ViT model initialized")
+        logger.info("ViT model initialized ✅")
 
     def last_classifier_fw(self, x, intermediate_predictions):
         x = (
