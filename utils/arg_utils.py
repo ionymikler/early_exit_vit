@@ -239,4 +239,12 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Suffix to append to the ONNX filename",
     )
 
+    parser.add_argument(
+        "--onnx-enable-profile",
+        "-p",
+        action="store_true",
+        default=False,
+        help="Enable profiling for the ONNX model",
+    )
+
     return parser

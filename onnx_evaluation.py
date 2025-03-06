@@ -35,8 +35,23 @@ def main():
         exit()
 
     # Initialize ONNX Runtime session
+
+    session_options = ort.SessionOptions()
+    session_options.enable_profiling = args.onnx_enable_profile
+    if session_options.enable_profiling and (
+        (args.num_examples is not None and args.num_examples > 20)
+        or args.num_examples is None
+    ):
+        logger.warning(
+            logging_utils.yellow_txt(
+                "Profiling is enabled and the number of examples is greater than 20. "
+                "This may results in a large profiling file."
+                "Consider reducing the number of examples or disabling profiling."
+            )
+        )
+        exit()
     ort_session = ort.InferenceSession(
-        onnx_filepath, providers=["CPUExecutionProvider"]
+        onnx_filepath, providers=["CPUExecutionProvider"], sess_options=session_options
     )
 
     # Evaluate the ONNX model
