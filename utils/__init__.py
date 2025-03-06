@@ -3,7 +3,6 @@ import torch
 import onnx
 import onnxruntime
 
-from eevit.eevit import EEVIT  # noqa F401
 from .logging_utils import get_logger_ready, announce, print_dict, yellow_txt
 
 logger = get_logger_ready("utils")
