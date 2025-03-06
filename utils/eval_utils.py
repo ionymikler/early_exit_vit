@@ -4,6 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from collections import defaultdict
+from torch.profiler import profile, record_function, ProfilerActivity
 
 from utils import (
     logging_utils,
@@ -138,6 +139,7 @@ def evaluate_pytorch_model(
     device: torch.device,
     interactive: bool = False,
     save_eval_metrics: bool = False,
+    profile_do: bool = False,
 ) -> dict:
     """
     Evaluate PyTorch model on test set with detailed per-exit statistics.
@@ -159,7 +161,23 @@ def evaluate_pytorch_model(
         """Wrapper function for PyTorch model prediction"""
         with torch.no_grad():
             images = images.to(device)
-            outputs = model(images)
+            if profile_do:
+                with profile(
+                    activities=[ProfilerActivity.CPU],
+                    record_shapes=True,
+                    profile_memory=True,
+                    with_stack=True,
+                ) as prof:
+                    with record_function("model_inference"):
+                        outputs = model(images)
+                print(
+                    prof.key_averages(group_by_stack_n=5).table(
+                        sort_by="cpu_time_total", row_limit=10
+                    )
+                )
+                # prof.export_chrome_trace("torch_profile.json")
+            else:
+                outputs = model(images)
             predictions = outputs[:, :-1]  # Remove exit layer index
             exit_layer = outputs[:, -1].item()  # Get exit layer
             return predictions, exit_layer
