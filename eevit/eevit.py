@@ -2,7 +2,6 @@
 import torch
 from torch import nn
 
-
 from .vit_classes import PatchEmbedding, TransformerEnconder
 from .utils import get_fast_pass, remove_fast_pass
 from utils.arg_utils import ModelConfig
@@ -39,6 +38,8 @@ class EEVIT(nn.Module):
         super().__init__()
         self.name = "EEVIT"
         logger.info("ℹ️ Initializing Vit model...")
+        self.exportable = True if config.enable_export else False
+
         self.patch_embedding = PatchEmbedding(config, verbose=verbose)
 
         self.transformer = TransformerEnconder(config, verbose=verbose)
@@ -76,21 +77,25 @@ class EEVIT(nn.Module):
         return predictions.clone()
 
     def forward(self, image_tensor: torch.Tensor) -> torch.Tensor:
+        # with record_function("EEVIT.forward.embeddings"):
         embeddings = self.patch_embedding(image_tensor)
 
+        # with record_function("EEVIT.forward.transformer"):
         x_fp, predictions = self.transformer(embeddings)
 
         x = remove_fast_pass(x_fp)
         fp = get_fast_pass(x_fp)
         #### CONDITIONAL ####
-        # predictions = (
-        #     self.fast_pass(x, predictions)
-        #     if fp.any()
-        #     else self.last_classifier_fw(x, predictions)
-        # )
-        predictions = torch.cond(
-            fp.any(), self.fast_pass, self.last_classifier_fw, (x, predictions)
-        )
+        if self.exportable:
+            predictions = torch.cond(
+                fp.any(), self.fast_pass, self.last_classifier_fw, (x, predictions)
+            )
+        else:
+            predictions = (
+                self.fast_pass(x, predictions)
+                if fp.any()
+                else self.last_classifier_fw(x, predictions)
+            )
         #### //CONDITIONAL ####
 
         return predictions

@@ -256,7 +256,7 @@ class Highway(nn.Module):
         batch_size = predictions.shape[0]
         layer_idx_tensor = torch.full(
             (batch_size, 1), self.layer_idx, dtype=predictions.dtype
-        )
+        ).to(predictions.device)
 
         # Concatenate predictions with layer index
         predictions_with_idx = torch.cat([predictions, layer_idx_tensor], dim=1)

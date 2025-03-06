@@ -218,6 +218,7 @@ class TransformerEnconder(nn.Module):
     def __init__(self, config: ModelConfig, verbose: bool = False):
         super().__init__()
         self.verbose: bool = verbose
+        self.exportable = True if config.enable_export else False
 
         self._create_layers(config)
         self.num_classes = config.num_classes
@@ -270,17 +271,19 @@ class TransformerEnconder(nn.Module):
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
             #### CONDITIONAL ####
-            # x_with_fastpass, predictions_placeholder_tensor = (
-            #     self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
-            #     if fast_pass_layer.any()
-            #     else layer(x_with_fastpass, predictions_placeholder_tensor)
-            # )
-            x_with_fastpass, predictions_placeholder_tensor = torch.cond(
-                fast_pass_layer.any(),
-                self.fast_pass,
-                layer,
-                (x_with_fastpass, predictions_placeholder_tensor),
-            )
+            if self.exportable:
+                x_with_fastpass, predictions_placeholder_tensor = torch.cond(
+                    fast_pass_layer.any(),
+                    self.fast_pass,
+                    layer,
+                    (x_with_fastpass, predictions_placeholder_tensor),
+                )
+            else:
+                x_with_fastpass, predictions_placeholder_tensor = (
+                    self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
+                    if fast_pass_layer.any()
+                    else layer(x_with_fastpass, predictions_placeholder_tensor)
+                )
             # //CONDITIONAL
 
             # assert torch.allclose(

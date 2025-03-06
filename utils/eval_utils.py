@@ -17,6 +17,7 @@ logger = logging_utils.get_logger_ready("common_evaluation")
 def evaluate_model_generic(
     predictor_fn,
     test_loader: DataLoader,
+    device: torch.device,
     interactive: bool = False,
     save_eval_metrics: bool = False,
     metrics_prefix: str = "evaluation",
@@ -57,7 +58,7 @@ def evaluate_model_generic(
 
         # Get images and labels
         images = batch["pixel_values"]
-        labels = batch["labels"]
+        labels = batch["labels"].to(device)
         batch_size = labels.size(0)
         total_samples += batch_size
 
@@ -169,6 +170,7 @@ def evaluate_pytorch_model(
         interactive=interactive,
         save_eval_metrics=save_eval_metrics,
         metrics_prefix="pytorch_evaluation",
+        device=device,
     )
 
 
@@ -214,4 +216,5 @@ def evaluate_onnx_model(
         interactive=interactive,
         save_eval_metrics=save_eval_metrics,
         metrics_prefix="onnx_evaluation",
+        device=torch.device("cpu"),
     )

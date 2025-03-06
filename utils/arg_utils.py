@@ -69,6 +69,7 @@ class ModelConfig:
     early_exit_config: EarlyExitsConfig = (
         None  # Will be set to default EarlyExitsConfig in __post_init__
     )
+    enable_export: bool = False
 
     def __post_init__(self):
         """Validate configuration parameters."""
