@@ -15,7 +15,7 @@ from utils import (
 logger = logging_utils.get_logger_ready("common_evaluation")
 
 
-def calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) -> dict:
+def _calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) -> dict:
     """
     Calculate statistics from the collected per-class data.
     Enhanced to include distribution data for visualization.
@@ -103,7 +103,37 @@ def calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) -
     return class_metrics
 
 
-def evaluate_model_generic(
+def _warmup_model(model, test_loader, device):
+    """
+    Warmup the model by running a few batches of dummy data.
+    This is done to ensure more accurate performance measurements.
+
+    Args:
+        model: PyTorch model
+        test_loader: DataLoader for test set
+        device: Device to run on
+    """
+    logger.info(logging_utils.yellow_txt("Performing model warmup..."))
+    # Generate dummy data
+    # Get input shape from first batch in test_loader
+    dummy_shape = next(iter(test_loader))["pixel_values"].shape
+    dummy_input = torch.randn(dummy_shape, device=device)
+
+    # Run model for 20 iterations to warm up
+    num_warmup_iterations = 20
+    logger.info(f"Running {num_warmup_iterations} warmup iterations with dummy data...")
+
+    # First run can often be much slower, so do it separately
+    _ = model(dummy_input)
+
+    # Then run the remaining warmup iterations
+    for _ in range(num_warmup_iterations - 1):
+        _ = model(dummy_input)
+
+    logger.info("Warmup complete")
+
+
+def _evaluate_model_generic(
     predictor_fn,
     test_loader: DataLoader,
     device: torch.device,
@@ -114,6 +144,7 @@ def evaluate_model_generic(
     """
     Generic evaluation function that works with both PyTorch and ONNX models.
     Enhanced to collect full distributions of accuracy and latency data.
+    Includes a warmup phase to ensure more accurate performance measurements.
 
     Args:
         predictor_fn: A function that takes a batch of images and returns predictions and exit layer
@@ -127,6 +158,10 @@ def evaluate_model_generic(
     Returns:
         dict: Dictionary containing detailed evaluation metrics including per-class statistics
     """
+    # Perform warmup with dummy data to ensure fair performance measurement
+    _warmup_model(predictor_fn, test_loader, device)
+
+    # Start actual evaluation
     logger.info("Starting evaluation...")
     if interactive:
         logger.info("Press Enter to continue to next image, or 'q' to quit")
@@ -293,15 +328,38 @@ def evaluate_model_generic(
         }
 
     # Calculate and add per-class statistics
-    class_metrics = calculate_per_class_statistics(class_stats, test_loader)
+    class_metrics = _calculate_per_class_statistics(class_stats, test_loader)
     metrics["class_statistics"] = class_metrics
 
     # Printed summary
-    logger.info(logging_utils.yellow_txt("\nEvaluation Complete!"))
+    print("")
+    logger.info(logging_utils.yellow_txt("Evaluation Complete! ✅"))
     logger.info("Evaluation Summary:")
     logger.info(f"Overall Accuracy: {overall_accuracy:.2f}%")
     logger.info(f"Total Samples: {total_samples}")
     logger.info(f"Classes with samples: {len(class_metrics)}")
+
+    print("")
+    logger.info("\nLatency Summary by Exit:")
+    for exit_key, stats in sorted(
+        metrics["exit_statistics"].items(),
+        key=lambda x: float("inf")
+        if x[0] == "final"
+        else int(x[0].split("_")[1])
+        if "_" in x[0]
+        else float("inf"),
+    ):
+        exit_name = (
+            "Final Layer" if exit_key == "final" else f"Exit {exit_key.split('_')[1]}"
+        )
+        avg_latency = stats["avg_inference_time_ms"]
+        std_latency = stats["std_inference_time_ms"]
+        sample_count = stats["count"]
+        percentage = stats["percentage_samples"]
+
+        logger.info(
+            f"  {exit_name}: {avg_latency:.2f} ms ± {std_latency:.2f} ms ({sample_count} samples, {percentage:.1f}%)"
+        )
 
     if save_eval_metrics:
         result_utils.save_metrics(metrics, metrics_prefix)
@@ -358,7 +416,7 @@ def evaluate_pytorch_model(
             exit_layer = outputs[:, -1].item()  # Get exit layer
             return predictions, exit_layer
 
-    return evaluate_model_generic(
+    return _evaluate_model_generic(
         predictor_fn=predictor_fn,
         test_loader=test_loader,
         interactive=interactive,
@@ -404,7 +462,7 @@ def evaluate_onnx_model(
         exit_layer = outputs[:, -1].item()  # Get exit layer
         return predictions, exit_layer
 
-    return evaluate_model_generic(
+    return _evaluate_model_generic(
         predictor_fn=predictor_fn,
         test_loader=test_loader,
         interactive=interactive,
