@@ -6,4 +6,4 @@ onnx_export*.md
 models/
 scratch/
 tmp/
-results/*.*
+results/

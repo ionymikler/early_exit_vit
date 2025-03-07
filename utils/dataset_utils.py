@@ -151,9 +151,9 @@ def get_label_name(
     """
     try:
         if hasattr(dataset, "features"):
-            return dataset.features["fine_label"].names[label_idx]
+            name = dataset.features["fine_label"].names[label_idx]
         elif hasattr(dataset, "dataset"):  # For Subset objects
-            return dataset.dataset.features["fine_label"].names[label_idx]
+            name = dataset.dataset.features["fine_label"].names[label_idx]
         else:
             raise AttributeError(
                 "Dataset structure doesn't contain feature names. "
@@ -161,3 +161,5 @@ def get_label_name(
             )
     except IndexError as e:
         raise ValueError(f"Invalid label index {label_idx}") from e
+
+    return name
