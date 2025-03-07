@@ -198,6 +198,13 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Save evaluation metrics to a JSON file",
     )
 
+    parser.add_argument(
+        "--use-gpu",
+        action="store_true",
+        default=False,
+        help="Use GPU for model inference if available",
+    )
+
     ### ONNX ARGUMENTS ###
     parser.add_argument(
         "--onnx-export",

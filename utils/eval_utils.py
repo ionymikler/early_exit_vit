@@ -12,7 +12,7 @@ from utils import (
     dataset_utils,
 )
 
-logger = logging_utils.get_logger_ready("common_evaluation")
+logger = logging_utils.get_logger_ready(__name__)
 
 
 def _calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) -> dict:
@@ -340,7 +340,7 @@ def _evaluate_model_generic(
     logger.info(f"Classes with samples: {len(class_metrics)}")
 
     print("")
-    logger.info("\nLatency Summary by Exit:")
+    logger.info("Latency Summary by Exit:")
     for exit_key, stats in sorted(
         metrics["exit_statistics"].items(),
         key=lambda x: float("inf")

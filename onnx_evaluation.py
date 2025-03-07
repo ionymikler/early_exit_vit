@@ -30,8 +30,11 @@ def make_inference_session(onnx_filepath: str, args) -> ort.InferenceSession:
             )
         )
         exit()
+
+    provider = "CUDAExecutionProvider" if args.use_gpu else "CPUExecutionProvider"
+    logger.info(f"Using {provider} for inference.")
     ort_session = ort.InferenceSession(
-        onnx_filepath, providers=["CPUExecutionProvider"], sess_options=session_options
+        onnx_filepath, providers=[provider], sess_options=session_options
     )
     return ort_session
 

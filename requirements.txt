@@ -3,7 +3,8 @@ onnx==1.17.0
 onnxruntime==1.19.2
 onnxscript==0.1.0.dev20241226
 numpy==1.26.4
-torch==2.6.0.dev20241226+cu124
+torch==2.6.0
+einops
 
 # for evaluation
 datasets==2.15.0
