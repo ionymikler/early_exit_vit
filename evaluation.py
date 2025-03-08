@@ -47,10 +47,14 @@ def main():
 
     # Create results directory before evaluation
     model_type = f"pytorch_{device.type}"
-    results_dir = result_utils.make_results_dir(model_type)
-
-    # Save metadata
-    result_utils.save_metadata(results_dir, model_type, args)
+    if args.save_metrics:
+        results_dir = result_utils.make_results_dir(
+            model_type, profiling=args.profile_do
+        )
+        # Save metadata
+        result_utils.save_metadata(results_dir, model_type, args)
+    else:
+        results_dir = None
 
     metrics = evaluate_pytorch_model(
         model=model,

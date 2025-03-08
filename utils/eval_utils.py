@@ -209,7 +209,7 @@ def _evaluate_model_generic(
                 break
 
         # Get images and labels
-        images = batch["pixel_values"]
+        images = batch["pixel_values"].to(device)
         labels = batch["labels"].to(device)
         batch_size = labels.size(0)
         total_samples += batch_size
@@ -277,7 +277,7 @@ def _evaluate_model_generic(
                 class_stats[true_class]["exit_by_layer"][exit_key] = 0
             class_stats[true_class]["exit_by_layer"][exit_key] += 1
 
-        if interactive:
+        if interactive or args.profile_do:
             label_name = batch["label_names"][0]  # Since batch size is 1
             predicted_name = dataset_utils.get_label_name(
                 test_loader.dataset, predicted_classes.item()
@@ -289,7 +289,9 @@ def _evaluate_model_generic(
             print(f"Predicted: {predicted_name} (class {predicted_classes.item()})")
             print(f"Confidence: {confidence.item():.2%}")
             print(f"Exit layer: {exit_layer if exit_layer != -1 else 'Final layer'}")
-            print(f"Inference time: {inference_time_ms:.2f} ms")
+            print(
+                f"Inference time: {inference_time_ms:.2f} ms (incorrect when profiling)"
+            )
             print("=" * 50)
         else:
             current_accuracy = 100 * total_correct / total_samples
@@ -400,20 +402,28 @@ def evaluate_pytorch_model(
     """
     logger.info("ℹ️  Starting PyTorch model evaluation...")
     model.eval()
+    model.to(device)
 
-    def predictor_fn(images, warmup: bool = False):
-        """Wrapper function for PyTorch model prediction"""
+    def get_predictor_fn():
+        if profile_do:
+            return predictor_fn_with_profiling
+        else:
+            return predictor_fn_without_profiling
+
+    def predictor_fn_with_profiling(images, warmup: bool = False):
+        """Prediction function with profiling"""
         with torch.no_grad():
-            images = images.to(device)
-            if profile_do and not warmup:
-                with profile(
-                    activities=[ProfilerActivity.CPU],
-                    record_shapes=True,
-                    profile_memory=True,
-                    with_stack=True,
-                ) as prof:
-                    with record_function("model_inference"):
-                        outputs = model(images)
+            with profile(
+                activities=[ProfilerActivity.CPU],
+                record_shapes=True,
+                profile_memory=True,
+                with_stack=True,
+            ) as prof:
+                with record_function("model_inference"):
+                    outputs = model(images)
+
+            # Process profiling results
+            if not warmup:
                 print(
                     prof.key_averages(group_by_stack_n=5).table(
                         sort_by="cpu_time_total", row_limit=10
@@ -421,18 +431,22 @@ def evaluate_pytorch_model(
                 )
                 if results_dir:
                     result_utils.save_pytorch_profiler_output(prof, results_dir)
-                else:
-                    logger.warning(
-                        "No results directory provided, profiler output not saved."
-                    )
-            else:
-                outputs = model(images)
+
             predictions = outputs[:, :-1]  # Remove exit layer index
             exit_layer = outputs[:, -1].item()  # Get exit layer
             return predictions, exit_layer
 
+    def predictor_fn_without_profiling(images, warmup: bool = False):
+        """Prediction function without profiling"""
+        with torch.no_grad():
+            outputs = model(images)
+            predictions = outputs[:, :-1]  # Remove exit layer index
+            exit_layer = outputs[:, -1].item()  # Get exit layer
+
+            return predictions, exit_layer
+
     return _evaluate_model_generic(
-        predictor_fn=predictor_fn,
+        predictor_fn=get_predictor_fn(),
         test_loader=test_loader,
         interactive=interactive,
         device=device,

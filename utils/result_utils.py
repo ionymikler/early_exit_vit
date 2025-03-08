@@ -79,7 +79,7 @@ def save_metadata(results_dir: str, model_type: str, args=None):
         logger.error(f"Failed to save metadata: {e}")
 
 
-def make_results_dir(model_type: str) -> str:
+def make_results_dir(model_type: str, profiling: bool) -> str:
     """
     Create a subdirectory for results with datetime and model type.
 
@@ -89,9 +89,11 @@ def make_results_dir(model_type: str) -> str:
     Returns:
         Path to the results directory
     """
-    timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
-    results_dir = f"results/{model_type}_{timestamp}"
+    results_dir = f"results/{model_type}"
+    if profiling:
+        results_dir += "_profiling"
 
+    results_dir += f'_{datetime.now().strftime("%y%m%d_%H%M%S")}'
     # Create directory if it doesn't exist
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -125,7 +127,15 @@ def save_pytorch_profiler_output(profile: Profile, results_dir: str):
         profile: PyTorch profiler instance
         results_dir: Directory to save profiler output to
     """
-    output_path = f"{results_dir}/pytorch_profiler_trace.json"
+    base_output_path = f"{results_dir}/pytorch_profiler_trace"
+    output_path = f"{base_output_path}_1.json"
+    counter = 2
+
+    # Check if file exists and find the minimum available number
+    while os.path.exists(output_path):
+        output_path = f"{base_output_path}_{counter}.json"
+        counter += 1
+
     profile.export_chrome_trace(output_path)
     logger.info(f"PyTorch profiler output saved to {output_path}")
 
