@@ -1,5 +1,6 @@
 # Made by: Jonathan Mikler on 2025-03-06
 import torch
+import os
 import numpy as np
 import time
 from tqdm import tqdm
@@ -10,6 +11,7 @@ from utils import (
     logging_utils,
     result_utils,
     dataset_utils,
+    to_numpy,
 )
 from utils.arg_utils import get_config_dict
 
@@ -112,7 +114,7 @@ def _calculate_per_class_statistics(
     return class_metrics
 
 
-def _warmup_model(predictor_fn, test_loader, device):
+def warmup_model(predictor_fn, test_loader, device):
     """
     Warmup the model by running a few batches of dummy data.
     This is done to ensure more accurate performance measurements.
@@ -132,12 +134,9 @@ def _warmup_model(predictor_fn, test_loader, device):
     num_warmup_iterations = 20
     logger.info(f"Running {num_warmup_iterations} warmup iterations with dummy data...")
 
-    # First run can often be much slower, so do it separately
-    _ = predictor_fn(dummy_input, warmup=True)
-
     # Then run the remaining warmup iterations
     for _ in range(num_warmup_iterations - 1):
-        _ = predictor_fn(dummy_input, warmup=True)
+        _ = predictor_fn(dummy_input)
 
     logger.info("Warmup complete")
 
@@ -167,8 +166,6 @@ def _evaluate_model_generic(
     Returns:
         dict: Dictionary containing detailed evaluation metrics including per-class statistics
     """
-    # Perform warmup with dummy data to ensure fair performance measurement
-    _warmup_model(predictor_fn, test_loader, device)
 
     # Start actual evaluation
     logger.info("Starting evaluation...")
@@ -410,7 +407,7 @@ def evaluate_pytorch_model(
         else:
             return predictor_fn_without_profiling
 
-    def predictor_fn_with_profiling(images, warmup: bool = False):
+    def predictor_fn_with_profiling(images):
         """Prediction function with profiling"""
         with torch.no_grad():
             with profile(
@@ -423,20 +420,19 @@ def evaluate_pytorch_model(
                     outputs = model(images)
 
             # Process profiling results
-            if not warmup:
-                print(
-                    prof.key_averages(group_by_stack_n=5).table(
-                        sort_by="cpu_time_total", row_limit=10
-                    )
+            print(
+                prof.key_averages(group_by_stack_n=5).table(
+                    sort_by="cpu_time_total", row_limit=10
                 )
-                if results_dir:
-                    result_utils.save_pytorch_profiler_output(prof, results_dir)
+            )
+            if results_dir:
+                result_utils.save_pytorch_profiler_output(prof, results_dir)
 
             predictions = outputs[:, :-1]  # Remove exit layer index
             exit_layer = outputs[:, -1].item()  # Get exit layer
             return predictions, exit_layer
 
-    def predictor_fn_without_profiling(images, warmup: bool = False):
+    def predictor_fn_without_profiling(images):
         """Prediction function without profiling"""
         with torch.no_grad():
             outputs = model(images)
@@ -476,14 +472,7 @@ def evaluate_onnx_model(
     """
     logger.info("ℹ️  Starting ONNX model evaluation...")
 
-    def to_numpy(tensor):
-        return (
-            tensor.detach().cpu().numpy()
-            if tensor.requires_grad
-            else tensor.cpu().numpy()
-        )
-
-    def predictor_fn(images, warmup: bool = False):
+    def predictor_fn(images):
         """Wrapper function for ONNX model prediction"""
         ort_inputs = {onnx_session.get_inputs()[0].name: to_numpy(images)}
         ort_outputs = onnx_session.run(None, ort_inputs)
@@ -508,6 +497,7 @@ def evaluate_onnx_model(
 
         profile_dest = f"{results_dir}/onnx_profiler_output.json"
         shutil.copy(profile_path, profile_dest)
+        os.remove(profile_path)
         logger.info(f"ONNX profiler output saved to {profile_dest}")
 
     return metrics

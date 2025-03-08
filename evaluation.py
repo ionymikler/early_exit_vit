@@ -11,7 +11,11 @@ from utils import (
     check_conda_env,
 )
 
-from utils.eval_utils import evaluate_pytorch_model, check_before_profiling
+from utils.eval_utils import (
+    evaluate_pytorch_model,
+    check_before_profiling,
+    warmup_model,
+)
 
 
 logger = logging_utils.get_logger_ready("evaluation")
@@ -55,6 +59,16 @@ def main():
         result_utils.save_metadata(results_dir, model_type, args)
     else:
         results_dir = None
+
+    # warm up model
+    def warmup_predictor_fn(images):
+        with torch.no_grad():
+            outputs = model(images)
+            predictions = outputs[:, :-1]  # Remove exit layer index
+            exit_layer = outputs[:, -1].item()  # Get exit layer
+            return predictions, exit_layer
+
+    warmup_model(warmup_predictor_fn, test_loader, device)
 
     metrics = evaluate_pytorch_model(
         model=model,

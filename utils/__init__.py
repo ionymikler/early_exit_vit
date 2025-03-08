@@ -1,5 +1,6 @@
 # utils/__init__.py
 import torch
+import numpy as np
 import onnx
 import onnxruntime
 
@@ -50,6 +51,12 @@ def check_conda_env(conda_env_required):
         )
         return False
     return True
+
+
+def to_numpy(tensor: torch.Tensor) -> np.ndarray:
+    return (
+        tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+    )
 
 
 __all__ = [
