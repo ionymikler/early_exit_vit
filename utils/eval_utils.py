@@ -112,7 +112,7 @@ def _calculate_per_class_statistics(
     return class_metrics
 
 
-def _warmup_model(model, test_loader, device):
+def _warmup_model(predictor_fn, test_loader, device):
     """
     Warmup the model by running a few batches of dummy data.
     This is done to ensure more accurate performance measurements.
@@ -133,11 +133,11 @@ def _warmup_model(model, test_loader, device):
     logger.info(f"Running {num_warmup_iterations} warmup iterations with dummy data...")
 
     # First run can often be much slower, so do it separately
-    _ = model(dummy_input)
+    _ = predictor_fn(dummy_input, warmup=True)
 
     # Then run the remaining warmup iterations
     for _ in range(num_warmup_iterations - 1):
-        _ = model(dummy_input)
+        _ = predictor_fn(dummy_input, warmup=True)
 
     logger.info("Warmup complete")
 
@@ -406,11 +406,11 @@ def evaluate_pytorch_model(
     logger.info("ℹ️  Starting PyTorch model evaluation...")
     model.eval()
 
-    def predictor_fn(images):
+    def predictor_fn(images, warmup: bool = False):
         """Wrapper function for PyTorch model prediction"""
         with torch.no_grad():
             images = images.to(device)
-            if profile_do:
+            if profile_do and not warmup:
                 with profile(
                     activities=[ProfilerActivity.CPU],
                     record_shapes=True,

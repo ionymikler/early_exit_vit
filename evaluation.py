@@ -12,8 +12,6 @@ from utils import (
 
 from utils.eval_utils import evaluate_pytorch_model, check_before_profiling
 
-# _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_DEVICE = torch.device("cpu")
 
 logger = logging_utils.get_logger_ready("evaluation")
 
@@ -21,6 +19,9 @@ logger = logging_utils.get_logger_ready("evaluation")
 def main():
     logger.info(logging_utils.yellow_txt("Starting evaluation..."))
     args = arg_utils.get_argsparser().parse_args()
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() and args.use_gpu else "cpu"
+    )
 
     if not args.skip_conda_env_check and not check_conda_env("eevit"):
         exit()
@@ -40,7 +41,7 @@ def main():
     )
 
     model = model_utils.setup_model_for_evaluation(
-        model_config=model_config, device=_DEVICE, verbose=True
+        model_config=model_config, device=device, verbose=True
     )
 
     check_before_profiling(args)
@@ -48,7 +49,7 @@ def main():
     evaluate_pytorch_model(
         model=model,
         test_loader=test_loader,
-        device=_DEVICE,
+        device=device,
         interactive=args.interactive,
         save_eval_metrics=args.save_metrics,
         profile_do=args.profile_do,

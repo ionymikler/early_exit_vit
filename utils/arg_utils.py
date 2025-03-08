@@ -166,8 +166,6 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Perform a dry run without making any changes",
     )
 
-    parser.set_defaults(keep_onnx=False)  # Default is True
-
     parser.add_argument(
         "--skip-conda-env-check",
         action="store_true",

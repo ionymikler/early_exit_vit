@@ -29,6 +29,12 @@ COLOR_SCHEMES = {
         "tertiary": "#228B22",  # Medium shade
         "scatter": "Greens",  # Colormap for scatter plots
     },
+    "pytorch": {
+        "primary": "#8B0000",  # Dark Red
+        "secondary": "#CD5C5C",  # Indian Red
+        "tertiary": "#F08080",  # Light Coral
+        "scatter": "Reds",  # Colormap for scatter plots
+    },
     "default": {
         "primary": "#808080",  # Gray
         "secondary": "#A9A9A9",  # Dark Gray
