@@ -50,6 +50,7 @@ def main():
         interactive=args.interactive,
         save_eval_metrics=args.save_metrics,
         profile_do=args.profile_do,
+        args=args,  # Pass args to the evaluation function
     )
 
 

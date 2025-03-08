@@ -140,6 +140,7 @@ def _evaluate_model_generic(
     interactive: bool = False,
     save_eval_metrics: bool = False,
     metrics_prefix: str = "evaluation",
+    args=None,
 ) -> dict:
     """
     Generic evaluation function that works with both PyTorch and ONNX models.
@@ -154,6 +155,7 @@ def _evaluate_model_generic(
         interactive: If True, shows detailed results for each image and waits for user input
         save_eval_metrics: Whether to save metrics to a file
         metrics_prefix: Prefix for saved metrics file
+        args: Command-line arguments used for evaluation (for metadata)
 
     Returns:
         dict: Dictionary containing detailed evaluation metrics including per-class statistics
@@ -362,7 +364,7 @@ def _evaluate_model_generic(
         )
 
     if save_eval_metrics:
-        result_utils.save_metrics(metrics, metrics_prefix)
+        result_utils.save_metrics(metrics, metrics_prefix, args)
 
     return metrics
 
@@ -374,6 +376,7 @@ def evaluate_pytorch_model(
     interactive: bool = False,
     save_eval_metrics: bool = False,
     profile_do: bool = False,
+    args=None,
 ) -> dict:
     """
     Evaluate PyTorch model on test set with detailed per-exit and per-class statistics.
@@ -385,6 +388,7 @@ def evaluate_pytorch_model(
         interactive: If True, shows detailed results for each image and waits for user input
         save_eval_metrics: Whether to save metrics to a file
         profile_do: Whether to profile the model
+        args: Command-line arguments used for evaluation (for metadata)
 
     Returns:
         dict: Dictionary containing detailed evaluation metrics
@@ -423,6 +427,7 @@ def evaluate_pytorch_model(
         save_eval_metrics=save_eval_metrics,
         metrics_prefix="pytorch_evaluation",
         device=device,
+        args=args,
     )
 
 
@@ -431,6 +436,7 @@ def evaluate_onnx_model(
     test_loader: DataLoader,
     interactive: bool = False,
     save_eval_metrics: bool = False,
+    args=None,
 ) -> dict:
     """
     Evaluate ONNX model on test set with detailed per-exit and per-class statistics.
@@ -440,6 +446,7 @@ def evaluate_onnx_model(
         test_loader: DataLoader for test set
         interactive: If True, shows detailed results for each image and waits for user input
         save_eval_metrics: Whether to save metrics to a file
+        args: Command-line arguments used for evaluation (for metadata)
 
     Returns:
         dict: Dictionary containing detailed evaluation metrics
@@ -469,4 +476,5 @@ def evaluate_onnx_model(
         save_eval_metrics=save_eval_metrics,
         metrics_prefix="onnx_evaluation",
         device=torch.device("cpu"),
+        args=args,
     )

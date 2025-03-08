@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import os
-
+import shutil  # noqa F401
 from datetime import datetime
 from .logging_utils import get_logger_ready
 
@@ -11,28 +11,76 @@ logger = get_logger_ready(__name__)
 
 # Color schemes for different backends
 COLOR_SCHEMES = {
-    "pytorch-cpu": {
-        "primary": "#EE4C2C",  # PyTorch red
-        "secondary": "#FFB991",  # Lighter shade
-        "tertiary": "#FF7043",  # Medium shade
-        "scatter": "Reds",  # Colormap for scatter plots
-    },
-    "pytorch-cuda": {
-        "primary": "#76B900",  # NVIDIA green
-        "secondary": "#B4E66E",  # Lighter shade
-        "tertiary": "#98DC19",  # Medium shade
-        "scatter": "Greens",  # Colormap for scatter plots
-    },
-    "onnxrt-cpu": {
-        "primary": "#2878BD",  # ONNX blue
+    "pc-onnx": {
+        "primary": "#2878BD",  # Dark blue
         "secondary": "#8CC7FF",  # Lighter shade
         "tertiary": "#5AA7FF",  # Medium shade
         "scatter": "Blues",  # Colormap for scatter plots
     },
+    "pc-pytorch": {
+        "primary": "#8B0000",  # Dark red
+        "secondary": "#CD5C5C",  # Lighter shade
+        "tertiary": "#A52A2A",  # Medium shade
+        "scatter": "Reds",  # Colormap for scatter plots
+    },
+    "nvidia-onnx": {
+        "primary": "#006400",  # Dark green
+        "secondary": "#66CDAA",  # Lighter shade
+        "tertiary": "#228B22",  # Medium shade
+        "scatter": "Greens",  # Colormap for scatter plots
+    },
+    "default": {
+        "primary": "#808080",  # Gray
+        "secondary": "#A9A9A9",  # Dark Gray
+        "tertiary": "#D3D3D3",  # Light Gray
+        "scatter": "Greys",  # Colormap for scatter plots
+    },
 }
 
 
-def save_metrics(metrics, file_prefix: str):
+def save_metadata(results_dir: str, model_type: str, args=None):
+    """
+    Save evaluation metadata to a YAML file.
+
+    Args:
+        results_dir: Directory to save metadata to
+        model_type: Type of model ('pytorch' or 'onnx')
+        args: Command-line arguments used for evaluation
+    """
+    if args is None:
+        return
+
+    try:
+        import yaml
+
+        # Convert args to dictionary if it's not already
+        if hasattr(args, "__dict__"):
+            args_dict = vars(args)
+        else:
+            args_dict = args
+
+        # Create metadata object
+        timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+        metadata = {"timestamp": timestamp, "model_type": model_type, "args": args_dict}
+
+        metadata_file = f"{results_dir}/metadata.yaml"
+        with open(metadata_file, "w") as f:
+            yaml.dump(metadata, f, default_flow_style=False)
+
+        logger.info(f"Metadata saved to {metadata_file}")
+    except Exception as e:
+        logger.error(f"Failed to save metadata: {e}")
+
+
+def save_metrics(metrics, file_prefix: str, args=None):
+    """
+    Save metrics to JSON file and create a symlink to the latest results.
+
+    Args:
+        metrics: Dictionary containing evaluation metrics
+        file_prefix: Prefix for the output files
+        args: Optional argparse.Namespace object containing the evaluation arguments
+    """
     timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
 
     # Create a subdirectory for results with datetime and model type
@@ -44,15 +92,28 @@ def save_metrics(metrics, file_prefix: str):
         os.makedirs(results_dir)
 
     metrics_file = f"{results_dir}/{file_prefix}_metrics.json"
-    latest_metrics_file = f"results/{file_prefix}_metrics_latest.json"
 
     with open(metrics_file, "w") as f:
         json.dump(metrics, f, indent=4)
 
-    with open(latest_metrics_file, "w") as f:
-        json.dump(metrics, f, indent=4)
-
     logger.info(f"Metrics saved to {metrics_file}")
+
+    # Save metadata
+    save_metadata(results_dir, model_type, args)
+
+    # # Create a soft link to the latest results directory
+    # latest_link = f"results/{model_type}_latest"
+
+    # # Remove existing symlink if it exists
+    # if os.path.islink(latest_link):
+    #     os.unlink(latest_link)
+    # elif os.path.exists(latest_link):
+    #     # If it's a directory instead of a symlink, remove it
+    #     shutil.rmtree(latest_link)
+
+    # # Create the new symlink
+    # os.symlink(results_dir, latest_link, target_is_directory=True)
+    # logger.info(f"Created symlink: {latest_link} -> {results_dir}")
 
 
 def load_metrics(file_path):
@@ -60,7 +121,7 @@ def load_metrics(file_path):
         return json.load(f)
 
 
-def plot_metrics(metrics, title: str, color_scheme="pytorch-cpu", top_n_classes=10):
+def plot_metrics(metrics, title: str, color_scheme="default", top_n_classes=10):
     """
     Plot metrics for model evaluation, including both exit statistics and class statistics.
 
@@ -74,7 +135,7 @@ def plot_metrics(metrics, title: str, color_scheme="pytorch-cpu", top_n_classes=
         Tuple of figures: (exit_stats_figure, class_accuracy_stats_figure, class_speed_stats_figure)
     """
     # Get color scheme
-    colors = COLOR_SCHEMES.get(color_scheme, COLOR_SCHEMES["pytorch-cpu"])
+    colors = COLOR_SCHEMES.get(color_scheme, COLOR_SCHEMES["default"])
 
     # Create exit statistics visualization (now with column charts)
     exit_fig = plot_exit_statistics(metrics, title, colors)

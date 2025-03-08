@@ -8,6 +8,7 @@ import utils.dataset_utils as dataset_utils
 import utils.arg_utils as arg_utils
 
 from utils.eval_utils import evaluate_onnx_model
+from utils import check_conda_env
 
 logger = logging_utils.get_logger_ready("onnx_evaluation")
 
@@ -43,6 +44,9 @@ def main():
     logger.info(logging_utils.yellow_txt("Starting ONNX evaluation..."))
     args = arg_utils.get_argsparser().parse_args()
 
+    if not args.skip_conda_env_check and not check_conda_env("onnx_eval"):
+        exit()
+
     dataset = dataset_utils.get_cifar100_dataset()
     _, test_dataset = dataset_utils.prepare_dataset(dataset, args.num_examples)
 
@@ -61,8 +65,6 @@ def main():
         logger.error(f"Could not find ONNX model file. {e}")
         exit()
 
-    # Initialize ONNX Runtime session
-
     ort_session = make_inference_session(onnx_filepath, args)
 
     # Evaluate the ONNX model
@@ -71,6 +73,7 @@ def main():
         test_loader=test_dataloader,
         interactive=args.interactive,
         save_eval_metrics=args.save_metrics,
+        args=args,
     )
 
 
