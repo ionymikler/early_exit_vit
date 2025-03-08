@@ -7,32 +7,22 @@ import utils.logging_utils as logging_utils
 import utils.dataset_utils as dataset_utils
 import utils.arg_utils as arg_utils
 
-from utils.eval_utils import evaluate_onnx_model
+from utils.eval_utils import evaluate_onnx_model, check_before_profiling
 from utils import check_conda_env
 
 logger = logging_utils.get_logger_ready("onnx_evaluation")
 
 
-def make_inference_session(onnx_filepath: str, args) -> ort.InferenceSession:
+def make_inference_session(
+    onnx_filepath: str, profile_do: bool, use_gpu: bool
+) -> ort.InferenceSession:
     """
     Create an ONNX Runtime session for inference."
     """
     session_options = ort.SessionOptions()
-    session_options.enable_profiling = args.onnx_enable_profile
-    if session_options.enable_profiling and (
-        (args.num_examples is not None and args.num_examples > 20)
-        or args.num_examples is None
-    ):
-        logger.warning(
-            logging_utils.yellow_txt(
-                "Profiling is enabled and the number of examples is greater than 20. "
-                "This may results in a large profiling file."
-                "Consider reducing the number of examples or disabling profiling."
-            )
-        )
-        exit()
+    session_options.enable_profiling = profile_do
 
-    provider = "CUDAExecutionProvider" if args.use_gpu else "CPUExecutionProvider"
+    provider = "CUDAExecutionProvider" if use_gpu else "CPUExecutionProvider"
     logger.info(f"Using {provider} for inference.")
     ort_session = ort.InferenceSession(
         onnx_filepath, providers=[provider], sess_options=session_options
@@ -65,7 +55,8 @@ def main():
         logger.error(f"Could not find ONNX model file. {e}")
         exit()
 
-    ort_session = make_inference_session(onnx_filepath, args)
+    check_before_profiling(args)
+    ort_session = make_inference_session(onnx_filepath, args.profile_do, args.use_gpu)
 
     # Evaluate the ONNX model
     evaluate_onnx_model(

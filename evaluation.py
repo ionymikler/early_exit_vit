@@ -10,7 +10,7 @@ from utils import (
     check_conda_env,
 )
 
-from utils.eval_utils import evaluate_pytorch_model
+from utils.eval_utils import evaluate_pytorch_model, check_before_profiling
 
 # _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _DEVICE = torch.device("cpu")
@@ -42,6 +42,8 @@ def main():
     model = model_utils.setup_model_for_evaluation(
         model_config=model_config, device=_DEVICE, verbose=True
     )
+
+    check_before_profiling(args)
 
     evaluate_pytorch_model(
         model=model,

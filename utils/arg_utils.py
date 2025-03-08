@@ -205,14 +205,28 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Use GPU for model inference if available",
     )
 
-    ### ONNX ARGUMENTS ###
+    # ONNX evaluation arguments
     parser.add_argument(
-        "--onnx-export",
-        "-e",
+        "--onnx-program-filepath",
+        "-f",
+        type=str,
+        default="./models/onnx/EEVIT.onnx",
+        help="Path to save the ONNX model file",
+    )
+
+    parser.add_argument(
+        "--profile-do",
+        "-p",
         action="store_true",
         default=False,
-        help="Export model to ONNX format",
+        help="Enable profiling for the ONNX model",
     )
+
+    return parser
+
+
+def get_export_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Export the model to ONNX format")
 
     parser.add_argument(
         "--onnx-report",
@@ -229,30 +243,21 @@ def get_argsparser() -> argparse.ArgumentParser:
         action="store_true",
         help="Keep the ONNX model file after running it",
     )
+    parser.set_defaults(onnx_keep=False)  # Default is True
 
     parser.add_argument(
         "--onnx-program-filepath",
         "-f",
         type=str,
-        default="./models/onnx/EEVIT.onnx",
-        help="Path to the ONNX model file to load and run",
+        default="./models/onnx/default.onnx",
+        help="Path to save the ONNX model file",
     )
-
-    parser.set_defaults(onnx_save_file=False)  # Default is True
 
     parser.add_argument(
         "--onnx-filename-suffix",
         type=str,
         default="",
         help="Suffix to append to the ONNX filename",
-    )
-
-    parser.add_argument(
-        "--onnx-enable-profile",
-        "-p",
-        action="store_true",
-        default=False,
-        help="Enable profiling for the ONNX model",
     )
 
     return parser

@@ -478,3 +478,18 @@ def evaluate_onnx_model(
         device=torch.device("cpu"),
         args=args,
     )
+
+
+def check_before_profiling(args):
+    if args.profile_do and (
+        (args.num_examples is not None and args.num_examples > 20)
+        or args.num_examples is None
+    ):
+        logger.warning(
+            logging_utils.yellow_txt(
+                "Profiling is enabled and the number of examples is greater than 20. "
+                "This may results in a large profiling file."
+                "Consider reducing the number of examples or disabling profiling."
+            )
+        )
+        exit()

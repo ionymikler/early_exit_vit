@@ -10,7 +10,7 @@ from utils import (
     check_conda_env,
 )
 from utils.model_utils import get_model
-from utils.arg_utils import parse_config_dict, get_argsparser, get_config_dict
+from utils.arg_utils import parse_config_dict, get_export_parser, get_config_dict
 from utils.logging_utils import get_logger_ready, announce, print_dict, yellow_txt
 from utils.onnx_utils import export_and_save
 
@@ -58,7 +58,8 @@ def gen_random_input_data(dataset_config: dict):
 
 
 def main():
-    args = get_argsparser().parse_args()
+    # NOTE: There might be some bug in the parser
+    args = get_export_parser().parse_args()
 
     init_checks(args)
 
