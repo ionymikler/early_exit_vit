@@ -11,20 +11,20 @@ logger = get_logger_ready(__name__)
 
 # Color schemes for different backends
 COLOR_SCHEMES = {
-    "pc-onnx": {
+    "onnx-cpu": {
         "primary": "#2878BD",  # Dark blue
         "secondary": "#8CC7FF",  # Lighter shade
         "tertiary": "#5AA7FF",  # Medium shade
         "scatter": "Blues",  # Colormap for scatter plots
     },
-    "pc-pytorch": {
-        "primary": "#8B0000",  # Dark red
-        "secondary": "#CD5C5C",  # Lighter shade
-        "tertiary": "#A52A2A",  # Medium shade
-        "scatter": "Reds",  # Colormap for scatter plots
+    "onnx-gpu": {
+        "primary": "#4B0082",  # Indigo
+        "secondary": "#8A2BE2",  # Blue Violet
+        "tertiary": "#9370DB",  # Medium Purple
+        "scatter": "Purples",  # Colormap for scatter plots
     },
-    "nvidia-onnx": {
-        "primary": "#006400",  # Dark green
+    "nvidia-onnx-cpu": {
+        "primary": "#483D8B",  # Dark Slate Blue
         "secondary": "#66CDAA",  # Lighter shade
         "tertiary": "#228B22",  # Medium shade
         "scatter": "Greens",  # Colormap for scatter plots
@@ -397,8 +397,8 @@ def plot_class_statistics_unified(
     class_ids = [int(class_id) for class_id, _ in sorted_classes]
     class_names = [stats["name"] for _, stats in sorted_classes]
     class_accuracies = [stats["accuracy"] for _, stats in sorted_classes]
-    avg_exits = [stats["avg_exit_layer"] for _, stats in sorted_classes]
     std_exits = [stats["std_exit_layer"] for _, stats in sorted_classes]
+    mode_exits = [stats["mode_exit_layer"] for _, stats in sorted_classes]
     avg_times = [stats["avg_inference_time_ms"] for _, stats in sorted_classes]
     std_times = [stats["std_inference_time_ms"] for _, stats in sorted_classes]
     avg_confidences = [stats["avg_confidence"] for _, stats in sorted_classes]
@@ -483,8 +483,8 @@ def plot_class_statistics_unified(
 
     # 3. Average Exit Layer with Error Bars (BOTTOM LEFT)
     ax3 = fig.add_subplot(gs[1, 0])
-    bars = ax3.bar(x, avg_exits, color=bar_colors, yerr=std_exits, capsize=5)
-    ax3.set_title("Average Exit Layer by Class")
+    bars = ax3.bar(x, mode_exits, color=bar_colors, yerr=std_exits, capsize=5)
+    ax3.set_title("Most Common Exit Layer by Class")
     ax3.set_ylabel("Exit Layer")
     ax3.set_xticks(x)
     ax3.set_xticklabels(short_names, rotation=45, ha="right")
@@ -498,9 +498,9 @@ def plot_class_statistics_unified(
     for i, bar in enumerate(bars):
         height = bar.get_height()
         ax3.text(
-            bar.get_x() + bar.get_width() / 2.0,
+            bar.get_x() + bar.get_width() / 3.0,
             height,
-            f"{avg_exits[i]:.1f}",
+            f"{mode_exits[i]}",
             ha="center",
             va="bottom",
         )

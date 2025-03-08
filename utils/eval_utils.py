@@ -11,11 +11,14 @@ from utils import (
     result_utils,
     dataset_utils,
 )
+from utils.arg_utils import get_config_dict
 
 logger = logging_utils.get_logger_ready(__name__)
 
 
-def _calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) -> dict:
+def _calculate_per_class_statistics(
+    class_stats: dict, test_loader: DataLoader, config
+) -> dict:
     """
     Calculate statistics from the collected per-class data.
     Enhanced to include distribution data for visualization.
@@ -27,6 +30,7 @@ def _calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) 
     Returns:
         Dictionary with processed per-class metrics including distribution data
     """
+    max_layer = config.get("model", {}).get("num_layers_transformer", 12) - 1
     class_metrics = {}
     for class_id, stats in class_stats.items():
         if stats["count"] == 0:
@@ -47,7 +51,7 @@ def _calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) 
         for exit_key, count in exit_distribution.items():
             # Convert exit_key to numeric value for calculations
             if exit_key == "final":
-                value = -1  # Final layer is represented as -1
+                value = max_layer
             else:
                 value = int(exit_key.split("_")[1])
             # Add this exit value to the list count times
@@ -55,6 +59,10 @@ def _calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) 
 
         exit_values = np.array(exit_values)
         avg_exit = np.mean(exit_values).item() if len(exit_values) > 0 else 0
+        mode_exit = (
+            np.bincount(exit_values.astype(int)).argmax() if len(exit_values) > 0 else 0
+        )
+
         std_exit = np.std(exit_values).item() if len(exit_values) > 0 else 0
 
         # Calculate statistics for inference times
@@ -82,6 +90,7 @@ def _calculate_per_class_statistics(class_stats: dict, test_loader: DataLoader) 
             # Exit layer statistics
             "avg_exit_layer": round(avg_exit, 4),
             "std_exit_layer": round(std_exit, 4),
+            "mode_exit_layer": int(mode_exit),
             "exit_distribution": exit_distribution,
             # Inference time statistics
             "avg_inference_time_ms": round(avg_time, 4),
@@ -330,7 +339,8 @@ def _evaluate_model_generic(
         }
 
     # Calculate and add per-class statistics
-    class_metrics = _calculate_per_class_statistics(class_stats, test_loader)
+    config = get_config_dict(args.config_path)
+    class_metrics = _calculate_per_class_statistics(class_stats, test_loader, config)
     metrics["class_statistics"] = class_metrics
 
     # Printed summary
