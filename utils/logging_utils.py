@@ -17,24 +17,39 @@ def green_txt(txt: str) -> str:
 
 
 def get_logger_ready(name: str, level: int = logging.INFO) -> logging.Logger:
+    """
+    Set up logging with duplicate handler prevention.
+
+    Args:
+        name: Name of the logger
+        level: Log level
+
+    Returns:
+        Configured logger
+    """
     # Set up logging
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Create a stream handler
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(level)
+    # Check if logger already has handlers to avoid duplicates
+    if not logger.handlers:
+        # Create a stream handler
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(level)
 
-    # Create a formatter and set it for the handler
-    formatter = logging.Formatter(
-        "[%(levelname)s] [%(asctime)s][%(name)s:%(lineno)d]: %(message)s"
-    )
-    formatter.default_time_format = "%H:%M:%S"
-    formatter.default_msec_format = "%s.%03d"
-    stream_handler.setFormatter(formatter)
+        # Create a formatter and set it for the handler
+        formatter = logging.Formatter(
+            "[%(levelname)s] [%(asctime)s][%(name)s:%(lineno)d]: %(message)s"
+        )
+        formatter.default_time_format = "%H:%M:%S"
+        formatter.default_msec_format = "%s.%03d"
+        stream_handler.setFormatter(formatter)
 
-    # Add the handler to the logger
-    logger.addHandler(stream_handler)
+        # Add the handler to the logger
+        logger.addHandler(stream_handler)
+
+        # Prevent propagation to the root logger to avoid duplicate messages
+        logger.propagate = False
 
     return logger
 

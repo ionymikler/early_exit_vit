@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 import utils.logging_utils as logging_utils
 import utils.dataset_utils as dataset_utils
 import utils.arg_utils as arg_utils
+import utils.result_utils as result_utils
 
 from utils.eval_utils import evaluate_onnx_model, check_before_profiling
 from utils import check_conda_env
@@ -56,16 +57,29 @@ def main():
         exit()
 
     check_before_profiling(args)
+
+    # Create results directory before evaluation
+    model_type = f"onnx_{('gpu' if args.use_gpu else 'cpu')}"
+    results_dir = result_utils.make_results_dir(model_type)
+
+    # Save metadata
+    result_utils.save_metadata(results_dir, model_type, args)
+
     ort_session = make_inference_session(onnx_filepath, args.profile_do, args.use_gpu)
 
     # Evaluate the ONNX model
-    evaluate_onnx_model(
+    metrics = evaluate_onnx_model(
         onnx_session=ort_session,
         test_loader=test_dataloader,
         interactive=args.interactive,
-        save_eval_metrics=args.save_metrics,
         args=args,
+        results_dir=results_dir,
     )
+
+    # Save metrics if requested
+    if args.save_metrics:
+        prefix = f"onnx_evaluation_{('gpu' if args.use_gpu else 'cpu')}"
+        result_utils.save_metrics(metrics, results_dir, prefix)
 
 
 if __name__ == "__main__":

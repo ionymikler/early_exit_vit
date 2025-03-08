@@ -7,6 +7,7 @@ from utils import (
     dataset_utils,
     arg_utils,
     model_utils,
+    result_utils,
     check_conda_env,
 )
 
@@ -19,9 +20,7 @@ logger = logging_utils.get_logger_ready("evaluation")
 def main():
     logger.info(logging_utils.yellow_txt("Starting evaluation..."))
     args = arg_utils.get_argsparser().parse_args()
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() and args.use_gpu else "cpu"
-    )
+    device = torch.device("cuda" if args.use_gpu else "cpu")
 
     if not args.skip_conda_env_check and not check_conda_env("eevit"):
         exit()
@@ -46,15 +45,26 @@ def main():
 
     check_before_profiling(args)
 
-    evaluate_pytorch_model(
+    # Create results directory before evaluation
+    model_type = f"pytorch_{device.type}"
+    results_dir = result_utils.make_results_dir(model_type)
+
+    # Save metadata
+    result_utils.save_metadata(results_dir, model_type, args)
+
+    metrics = evaluate_pytorch_model(
         model=model,
         test_loader=test_loader,
         device=device,
         interactive=args.interactive,
-        save_eval_metrics=args.save_metrics,
         profile_do=args.profile_do,
-        args=args,  # Pass args to the evaluation function
+        args=args,
+        results_dir=results_dir,  # Pass results_dir to evaluate_pytorch_model
     )
+
+    if args.save_metrics:
+        prefix = f"pytorch_evaluation_{device.type}"
+        result_utils.save_metrics(metrics, results_dir, prefix)
 
 
 if __name__ == "__main__":

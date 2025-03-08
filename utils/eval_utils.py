@@ -30,7 +30,7 @@ def _calculate_per_class_statistics(
     Returns:
         Dictionary with processed per-class metrics including distribution data
     """
-    max_layer = config.get("model", {}).get("num_layers_transformer", 12) - 1
+    max_layer = config.get("model", {}).get("num_layers_transformer")
     class_metrics = {}
     for class_id, stats in class_stats.items():
         if stats["count"] == 0:
@@ -147,8 +147,6 @@ def _evaluate_model_generic(
     test_loader: DataLoader,
     device: torch.device,
     interactive: bool = False,
-    save_eval_metrics: bool = False,
-    metrics_prefix: str = "evaluation",
     args=None,
 ) -> dict:
     """
@@ -373,9 +371,6 @@ def _evaluate_model_generic(
             f"  {exit_name}: {avg_latency:.2f} ms ± {std_latency:.2f} ms ({sample_count} samples, {percentage:.1f}%)"
         )
 
-    if save_eval_metrics:
-        result_utils.save_metrics(metrics, metrics_prefix, args)
-
     return metrics
 
 
@@ -383,10 +378,10 @@ def evaluate_pytorch_model(
     model: torch.nn.Module,
     test_loader: DataLoader,
     device: torch.device,
+    args,
     interactive: bool = False,
-    save_eval_metrics: bool = False,
     profile_do: bool = False,
-    args=None,
+    results_dir: str = None,
 ) -> dict:
     """
     Evaluate PyTorch model on test set with detailed per-exit and per-class statistics.
@@ -395,10 +390,10 @@ def evaluate_pytorch_model(
         model: PyTorch model
         test_loader: DataLoader for test set
         device: Device to run model on
-        interactive: If True, shows detailed results for each image and waits for user input
-        save_eval_metrics: Whether to save metrics to a file
-        profile_do: Whether to profile the model
         args: Command-line arguments used for evaluation (for metadata)
+        interactive: If True, shows detailed results for each image and waits for user input
+        profile_do: Whether to profile the model
+        results_dir: Directory to save results to
 
     Returns:
         dict: Dictionary containing detailed evaluation metrics
@@ -424,6 +419,12 @@ def evaluate_pytorch_model(
                         sort_by="cpu_time_total", row_limit=10
                     )
                 )
+                if results_dir:
+                    result_utils.save_pytorch_profiler_output(prof, results_dir)
+                else:
+                    logger.warning(
+                        "No results directory provided, profiler output not saved."
+                    )
             else:
                 outputs = model(images)
             predictions = outputs[:, :-1]  # Remove exit layer index
@@ -434,8 +435,6 @@ def evaluate_pytorch_model(
         predictor_fn=predictor_fn,
         test_loader=test_loader,
         interactive=interactive,
-        save_eval_metrics=save_eval_metrics,
-        metrics_prefix="pytorch_evaluation",
         device=device,
         args=args,
     )
@@ -445,8 +444,8 @@ def evaluate_onnx_model(
     onnx_session,
     test_loader: DataLoader,
     interactive: bool = False,
-    save_eval_metrics: bool = False,
     args=None,
+    results_dir: str = None,
 ) -> dict:
     """
     Evaluate ONNX model on test set with detailed per-exit and per-class statistics.
@@ -455,8 +454,8 @@ def evaluate_onnx_model(
         onnx_session: ONNX Runtime InferenceSession
         test_loader: DataLoader for test set
         interactive: If True, shows detailed results for each image and waits for user input
-        save_eval_metrics: Whether to save metrics to a file
         args: Command-line arguments used for evaluation (for metadata)
+        results_dir: Directory to save results to
 
     Returns:
         dict: Dictionary containing detailed evaluation metrics
@@ -470,7 +469,7 @@ def evaluate_onnx_model(
             else tensor.cpu().numpy()
         )
 
-    def predictor_fn(images):
+    def predictor_fn(images, warmup: bool = False):
         """Wrapper function for ONNX model prediction"""
         ort_inputs = {onnx_session.get_inputs()[0].name: to_numpy(images)}
         ort_outputs = onnx_session.run(None, ort_inputs)
@@ -479,15 +478,25 @@ def evaluate_onnx_model(
         exit_layer = outputs[:, -1].item()  # Get exit layer
         return predictions, exit_layer
 
-    return _evaluate_model_generic(
+    metrics = _evaluate_model_generic(
         predictor_fn=predictor_fn,
         test_loader=test_loader,
         interactive=interactive,
-        save_eval_metrics=save_eval_metrics,
-        metrics_prefix="onnx_evaluation",
         device=torch.device("cpu"),
         args=args,
     )
+
+    # If profiling is enabled and we have a results directory, save the profile
+    if args and args.profile_do and results_dir:
+        profile_path = onnx_session.end_profiling()
+        # Copy the profile to the results directory
+        import shutil
+
+        profile_dest = f"{results_dir}/onnx_profiler_output.json"
+        shutil.copy(profile_path, profile_dest)
+        logger.info(f"ONNX profiler output saved to {profile_dest}")
+
+    return metrics
 
 
 def check_before_profiling(args):

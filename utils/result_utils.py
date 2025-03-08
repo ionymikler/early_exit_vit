@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import sys
 import os
 import shutil  # noqa F401
+from torch.profiler import profile as Profile
 from datetime import datetime
 from .logging_utils import get_logger_ready
 
@@ -78,48 +79,55 @@ def save_metadata(results_dir: str, model_type: str, args=None):
         logger.error(f"Failed to save metadata: {e}")
 
 
-def save_metrics(metrics, file_prefix: str, args=None):
+def make_results_dir(model_type: str) -> str:
     """
-    Save metrics to JSON file and create a symlink to the latest results.
+    Create a subdirectory for results with datetime and model type.
 
     Args:
-        metrics: Dictionary containing evaluation metrics
-        file_prefix: Prefix for the output files
-        args: Optional argparse.Namespace object containing the evaluation arguments
+        model_type: Type of model ('pytorch' or 'onnx')
+
+    Returns:
+        Path to the results directory
     """
     timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
-
-    # Create a subdirectory for results with datetime and model type
-    model_type = "pytorch" if "pytorch" in file_prefix else "onnx"
     results_dir = f"results/{model_type}_{timestamp}"
 
     # Create directory if it doesn't exist
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
-    metrics_file = f"{results_dir}/{file_prefix}_metrics.json"
+    return results_dir
+
+
+def save_metrics(metrics, results_dir: str, files_prefix: str):
+    """
+    Save metrics to JSON file and create a symlink to the latest results.
+
+    Args:
+        metrics: Dictionary containing evaluation metrics
+        results_dir: Directory to save results to
+        files_prefix: Prefix for the output files
+    """
+    # Save metrics to JSON file
+    metrics_file = f"{results_dir}/{files_prefix}_metrics.json"
 
     with open(metrics_file, "w") as f:
         json.dump(metrics, f, indent=4)
 
     logger.info(f"Metrics saved to {metrics_file}")
 
-    # Save metadata
-    save_metadata(results_dir, model_type, args)
 
-    # # Create a soft link to the latest results directory
-    # latest_link = f"results/{model_type}_latest"
+def save_pytorch_profiler_output(profile: Profile, results_dir: str):
+    """
+    Save PyTorch profiler output to results directory.
 
-    # # Remove existing symlink if it exists
-    # if os.path.islink(latest_link):
-    #     os.unlink(latest_link)
-    # elif os.path.exists(latest_link):
-    #     # If it's a directory instead of a symlink, remove it
-    #     shutil.rmtree(latest_link)
-
-    # # Create the new symlink
-    # os.symlink(results_dir, latest_link, target_is_directory=True)
-    # logger.info(f"Created symlink: {latest_link} -> {results_dir}")
+    Args:
+        profile: PyTorch profiler instance
+        results_dir: Directory to save profiler output to
+    """
+    output_path = f"{results_dir}/pytorch_profiler_trace.json"
+    profile.export_chrome_trace(output_path)
+    logger.info(f"PyTorch profiler output saved to {output_path}")
 
 
 def load_metrics(file_path):
