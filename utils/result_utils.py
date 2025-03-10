@@ -569,6 +569,87 @@ def plot_class_statistics_unified(
     return fig
 
 
+def plot_latency_accuracy_scatter(metrics, title, colors):
+    """
+    Create a scatter plot showing the relationship between accuracy and latency for each class.
+
+    Args:
+        metrics (dict): Metrics dictionary containing class statistics
+        title (str): Title for the plot
+        colors (dict): Color scheme to use
+
+    Returns:
+        matplotlib.figure.Figure: Scatter plot figure
+    """
+    # Extract class-level metrics
+    class_stats = metrics.get("class_statistics", {})
+
+    # Prepare data for plotting
+    class_names = []
+    accuracies = []
+    latencies = []
+
+    for class_id, stats in class_stats.items():
+        class_names.append(stats["name"])
+        accuracies.append(stats["accuracy"])
+        latencies.append(stats["avg_inference_time_ms"])
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Create scatter plot
+    scatter = ax.scatter(
+        latencies,
+        accuracies,
+        c=range(len(class_names)),  # Color gradient
+        cmap=colors["scatter"],
+        s=100,  # Marker size
+    )
+
+    # Add labels for each point
+    for i, (name, lat, acc) in enumerate(zip(class_names, latencies, accuracies)):
+        ax.annotate(
+            name,
+            (lat, acc),
+            xytext=(5, 5),
+            textcoords="offset points",
+            fontsize=8,
+            alpha=0.7,
+        )
+
+    # Customize the plot
+    ax.set_title(f"{title} - Class Latency vs Accuracy")
+    ax.set_xlabel("Average Inference Time (ms)")
+    ax.set_ylabel("Accuracy (%)")
+
+    # Add colorbar
+    plt.colorbar(scatter, ax=ax, label="Class Index")
+
+    # Add overall metrics
+    overall_accuracy = metrics.get("overall_accuracy", "N/A")
+    ax.axhline(
+        y=overall_accuracy,
+        color=colors["tertiary"],
+        linestyle="--",
+        label=f"Overall Accuracy ({overall_accuracy}%)",
+    )
+
+    # Calculate and display correlation
+    correlation = np.corrcoef(latencies, accuracies)[0, 1]
+    ax.text(
+        0.05,
+        0.95,
+        f"Correlation: {correlation:.2f}",
+        transform=ax.transAxes,
+        bbox=dict(facecolor="white", alpha=0.8),
+    )
+
+    ax.legend()
+    plt.tight_layout()
+
+    return fig
+
+
 def choose_color_scheme_cli():
     """Command-line interface for selecting color scheme"""
     print("Available color schemes:")
