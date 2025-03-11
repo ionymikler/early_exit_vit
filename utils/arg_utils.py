@@ -15,6 +15,7 @@ class EarlyExitsConfig:
     """Configuration for early exits in the model."""
 
     # Required parameters (no defaults)
+    enabled: bool
     embed_depth: int
     num_classes: int
     num_attn_heads: int

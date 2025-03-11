@@ -18,20 +18,8 @@ logger = get_logger_ready("vit_classes.py")
 debug = False
 
 
-# helpers
 def ensure_tuple(t) -> tuple:
     return t if isinstance(t, tuple) else (t, t)
-
-
-# def print(f):
-#     """
-#     workaround for the lookup of the print function when exporting to ONNX
-#     """
-#     logger.info(f)
-
-
-def real_print(f):
-    print(f)
 
 
 # classes
@@ -218,6 +206,7 @@ class TransformerEnconder(nn.Module):
     def __init__(self, config: ModelConfig, verbose: bool = False):
         super().__init__()
         self.verbose: bool = verbose
+        self.early_exits_enabled = config.early_exit_config.enabled
         self.exportable = True if config.enable_export else False
 
         self._create_layers(config)
@@ -267,7 +256,6 @@ class TransformerEnconder(nn.Module):
 
         i = 0
         for layer in self.layers:
-            # x_with_fastpass = layer(x_with_fastpass)
             fast_pass_layer = get_fast_pass(x_with_fastpass)
 
             #### CONDITIONAL ####
@@ -281,18 +269,13 @@ class TransformerEnconder(nn.Module):
             else:
                 x_with_fastpass, predictions_placeholder_tensor = (
                     self.fast_pass(x_with_fastpass, predictions_placeholder_tensor)
-                    if fast_pass_layer.any()
+                    if (fast_pass_layer.any() and self.early_exits_enabled)
                     else layer(x_with_fastpass, predictions_placeholder_tensor)
                 )
             # //CONDITIONAL
-
-            # assert torch.allclose(
-            #     predictions_placeholder_tensor[0, :-1].sum(), torch.tensor(1.0)
-            # ), "Sum of predictions is not 1.0"
             i += 1
         fp = get_fast_pass(x_with_fastpass)
         x_norm = self.norm_post_layers(remove_fast_pass(x_with_fastpass))
         x_with_fastpass = set_fast_pass_token(add_fast_pass(x_norm), fp)
-        # x_with_fastpass = set_fast_pass_token(x_norm, fp)
 
         return x_with_fastpass, predictions_placeholder_tensor
