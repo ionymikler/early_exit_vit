@@ -1,9 +1,11 @@
 import json
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import os
 import shutil  # noqa F401
+from argparse import Namespace
 from torch.profiler import profile as Profile
 from datetime import datetime
 from .logging_utils import get_logger_ready
@@ -45,7 +47,7 @@ COLOR_SCHEMES = {
 }
 
 
-def save_metadata(results_dir: str, model_type: str, args=None):
+def save_metadata(results_dir: str, model_type: str, args: Namespace, config: dict):
     """
     Save evaluation metadata to a YAML file.
 
@@ -53,22 +55,23 @@ def save_metadata(results_dir: str, model_type: str, args=None):
         results_dir: Directory to save metadata to
         model_type: Type of model ('pytorch' or 'onnx')
         args: Command-line arguments used for evaluation
+        config: Configuration dictionary
     """
     if args is None:
         return
 
     try:
-        import yaml
-
-        # Convert args to dictionary if it's not already
-        if hasattr(args, "__dict__"):
-            args_dict = vars(args)
-        else:
-            args_dict = args
+        # Convert args to dictionary
+        args_dict = vars(args)
 
         # Create metadata object
         timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
-        metadata = {"timestamp": timestamp, "model_type": model_type, "args": args_dict}
+        metadata = {
+            "timestamp": timestamp,
+            "model_type": model_type,
+            "args": args_dict,
+            "config": config,
+        }
 
         metadata_file = f"{results_dir}/metadata.yaml"
         with open(metadata_file, "w") as f:

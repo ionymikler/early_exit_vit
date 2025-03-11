@@ -56,7 +56,7 @@ def main():
             model_type, profiling=args.profile_do, suffix=args.suffix
         )
         # Save metadata
-        result_utils.save_metadata(results_dir, model_type, args)
+        result_utils.save_metadata(results_dir, model_type, args, config)
     else:
         results_dir = None
 
