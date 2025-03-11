@@ -6,23 +6,21 @@ from utils import result_utils, logging_utils
 logger = logging_utils.get_logger_ready(__name__)
 
 
-def save_figure(fig, metrics_path, suffix=""):
-    """Save figure as PNG in the same directory as the metrics file."""
-    base_path = os.path.splitext(metrics_path)[0]
-    save_path = f"{base_path}_plot{suffix}.png"
+def process_results_directory(results_dir, color_scheme=None, save_figures=False):
+    """Process results directory to generate latency vs accuracy visualization."""
+    # Verify the directory exists
+    if not os.path.exists(results_dir) or not os.path.isdir(results_dir):
+        logger.error(f"Results directory not found: {results_dir}")
+        return
 
-    fig.savefig(save_path, bbox_inches="tight", dpi=300)
-    logger.info(f"Figure saved to: {save_path}")
-
-
-def process_metrics_file(file_path, color_scheme=None, save_figures=False):
-    """Process metrics file to generate latency vs accuracy visualization."""
-    if not os.path.exists(file_path):
-        logger.error(f"File not found: {file_path}")
+    # Check for metrics file
+    metrics_file = os.path.join(results_dir, "result_metrics.json")
+    if not os.path.exists(metrics_file):
+        logger.error(f"Metrics file not found in directory: {metrics_file}")
         return
 
     try:
-        metrics = result_utils.load_metrics(file_path)
+        metrics = result_utils.load_metrics_from_dir(results_dir)
     except Exception as e:
         logger.error(f"Error loading metrics file: {e}")
         return
@@ -30,13 +28,9 @@ def process_metrics_file(file_path, color_scheme=None, save_figures=False):
     if color_scheme is None:
         color_scheme = result_utils.choose_color_scheme_cli()
 
-    title = (
-        f"EEVIT Model Evaluation - {os.path.basename(file_path).removesuffix('.json')}"
-    )
-
     # Generate only the latency vs accuracy plot
     latency_accuracy_fig = result_utils.plot_latency_accuracy_scatter(
-        metrics, title, result_utils.COLOR_SCHEMES[color_scheme]
+        metrics, results_dir, result_utils.COLOR_SCHEMES[color_scheme]
     )
 
     # Show plot
@@ -48,7 +42,9 @@ def process_metrics_file(file_path, color_scheme=None, save_figures=False):
         save_figures = save_choice.startswith("y")
 
     if save_figures:
-        save_figure(latency_accuracy_fig, file_path, "_classes_latency_accuracy")
+        result_utils.save_figure(
+            latency_accuracy_fig, results_dir, "classes_latency_accuracy"
+        )
 
     plt.show()
 
@@ -57,7 +53,10 @@ def get_argument_parser():
     parser = argparse.ArgumentParser(
         description="Generate latency vs accuracy visualization from metrics"
     )
-    parser.add_argument("file_path", help="Path to the metrics JSON file")
+    parser.add_argument(
+        "results_dir",
+        help="Path to the results directory containing result_metrics.json",
+    )
     parser.add_argument(
         "--color-scheme",
         "-c",
@@ -75,8 +74,10 @@ def get_argument_parser():
 
 def main():
     args = get_argument_parser().parse_args()
-    process_metrics_file(
-        file_path=args.file_path, color_scheme=args.color_scheme, save_figures=args.save
+    process_results_directory(
+        results_dir=args.results_dir,
+        color_scheme=args.color_scheme,
+        save_figures=args.save,
     )
 
 

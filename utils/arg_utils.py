@@ -203,6 +203,14 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Use GPU for model inference if available",
     )
 
+    # Add suffix argument for results directory naming
+    parser.add_argument(
+        "--suffix",
+        type=str,
+        default=None,
+        help="Custom suffix to append to results directory instead of timestamp",
+    )
+
     # ONNX evaluation arguments
     parser.add_argument(
         "--onnx-program-filepath",

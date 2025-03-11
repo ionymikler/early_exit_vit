@@ -79,12 +79,14 @@ def save_metadata(results_dir: str, model_type: str, args=None):
         logger.error(f"Failed to save metadata: {e}")
 
 
-def make_results_dir(model_type: str, profiling: bool) -> str:
+def make_results_dir(model_type: str, profiling: bool, suffix: str = None) -> str:
     """
     Create a subdirectory for results with datetime and model type.
 
     Args:
         model_type: Type of model ('pytorch' or 'onnx')
+        profiling: Whether profiling is enabled
+        suffix: Optional suffix to use instead of timestamp
 
     Returns:
         Path to the results directory
@@ -93,7 +95,12 @@ def make_results_dir(model_type: str, profiling: bool) -> str:
     if profiling:
         results_dir += "_profiling"
 
-    results_dir += f'_{datetime.now().strftime("%y%m%d_%H%M%S")}'
+    # Use provided suffix or generate timestamp
+    if suffix:
+        results_dir += f"_{suffix}"
+    else:
+        results_dir += f'_{datetime.now().strftime("%y%m%d_%H%M%S")}'
+
     # Create directory if it doesn't exist
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -101,22 +108,36 @@ def make_results_dir(model_type: str, profiling: bool) -> str:
     return results_dir
 
 
-def save_metrics(metrics, results_dir: str, files_prefix: str):
+def save_metrics(metrics, results_dir: str):
     """
-    Save metrics to JSON file and create a symlink to the latest results.
+    Save metrics to JSON file with a standardized name.
 
     Args:
         metrics: Dictionary containing evaluation metrics
         results_dir: Directory to save results to
-        files_prefix: Prefix for the output files
+        files_prefix: Optional prefix for the output files (not used for standard metrics file)
     """
-    # Save metrics to JSON file
-    metrics_file = f"{results_dir}/{files_prefix}_metrics.json"
+    # Save metrics to JSON file with standardized name
+    metrics_file = f"{results_dir}/result_metrics.json"
 
     with open(metrics_file, "w") as f:
         json.dump(metrics, f, indent=4)
 
     logger.info(f"Metrics saved to {metrics_file}")
+
+
+def save_figure(fig, results_dir: str, metric_name: str):
+    """
+    Save a figure to the results directory with standardized naming.
+
+    Args:
+        fig: The matplotlib figure to save
+        results_dir: Path to the results directory
+        metric_name: Name of the metric (will be used for filename)
+    """
+    save_path = f"{results_dir}/{metric_name}.png"
+    fig.savefig(save_path, bbox_inches="tight", dpi=300)
+    logger.info(f"Figure saved to: {save_path}")
 
 
 def save_pytorch_profiler_output(profile: Profile, results_dir: str):
@@ -140,18 +161,76 @@ def save_pytorch_profiler_output(profile: Profile, results_dir: str):
     logger.info(f"PyTorch profiler output saved to {output_path}")
 
 
-def load_metrics(file_path):
-    with open(file_path, "r") as f:
+def load_metrics_from_dir(results_dir: str):
+    """
+    Load metrics from the standard metrics file in a results directory.
+
+    Args:
+        results_dir: Path to results directory
+
+    Returns:
+        Dictionary containing metrics data
+    """
+    metrics_file = os.path.join(results_dir, "result_metrics.json")
+
+    if not os.path.exists(metrics_file):
+        raise FileNotFoundError(f"Metrics file not found in directory: {metrics_file}")
+
+    with open(metrics_file, "r") as f:
         return json.load(f)
 
 
-def plot_metrics(metrics, title: str, color_scheme="default", top_n_classes=10):
+def get_results_info(results_dir: str):
+    """
+    Extract model type and results identifier from the metadata YAML file in a results directory.
+
+    Args:
+        results_dir: Path to results directory
+
+    Returns:
+        Tuple of (model_type, results_identifier)
+    """
+    # Read the metadata.yaml file
+    metadata_file = os.path.join(results_dir, "metadata.yaml")
+
+    if not os.path.exists(metadata_file):
+        logger.warning(f"Metadata file not found in directory: {metadata_file}")
+        return "unknown_model", "unknown_results"
+
+    try:
+        import yaml
+
+        with open(metadata_file, "r") as f:
+            metadata = yaml.safe_load(f)
+
+        # Extract model_type directly from metadata
+        model_type = metadata.get("model_type", "unknown_model")
+
+        # Get timestamp or suffix for the identifier
+        timestamp = metadata.get("timestamp", "")
+
+        # Check if suffix was provided in the arguments
+        suffix = None
+        if "args" in metadata and isinstance(metadata["args"], dict):
+            suffix = metadata["args"].get("suffix")
+
+        # Use suffix if available, otherwise use timestamp
+        identifier = suffix if suffix else timestamp
+
+        return model_type, f"results_{identifier}"
+
+    except Exception as e:
+        logger.warning(f"Error reading metadata file: {e}")
+        return "unknown_model", "unknown_results"
+
+
+def plot_metrics(metrics, results_dir: str, color_scheme="default", top_n_classes=10):
     """
     Plot metrics for model evaluation, including both exit statistics and class statistics.
 
     Args:
         metrics: Dictionary containing evaluation metrics
-        title: Title for the plot
+        results_dir: Directory where results are stored
         color_scheme: Color scheme to use
         top_n_classes: Number of top classes to highlight in class-specific plots
 
@@ -160,6 +239,12 @@ def plot_metrics(metrics, title: str, color_scheme="default", top_n_classes=10):
     """
     # Get color scheme
     colors = COLOR_SCHEMES.get(color_scheme, COLOR_SCHEMES["default"])
+
+    # Extract model type and results identifier for title
+    model_type, results_id = get_results_info(results_dir)
+
+    title = f"{model_type} | {results_id}"
+    logger.info(f"Using title for plots: {title}")
 
     # Create exit statistics visualization (now with column charts)
     exit_fig = plot_exit_statistics(metrics, title, colors)
@@ -201,6 +286,10 @@ def plot_exit_statistics(metrics, title: str, colors):
     inference_times = []
     inference_time_stds = []
 
+    # Calculate overall average inference time across all exits
+    total_inference_time = 0
+    total_samples = 0
+
     # Sort exits by their position
     for exit_key, stats in sorted(
         metrics["exit_statistics"].items(),
@@ -230,6 +319,15 @@ def plot_exit_statistics(metrics, title: str, colors):
         # Standard deviation of inference times
         time_values = np.array(stats["inference_time_values"])
         inference_time_stds.append(np.std(time_values))
+
+        # Add to total for averaging
+        total_inference_time += stats["avg_inference_time_ms"] * stats["count"]
+        total_samples += stats["count"]
+
+    # Calculate overall average inference time
+    overall_avg_inference_time = (
+        total_inference_time / total_samples if total_samples > 0 else 0
+    )
 
     # Create figure with subplots
     fig = plt.figure(figsize=(15, 10))
@@ -324,11 +422,20 @@ def plot_exit_statistics(metrics, title: str, colors):
             ),  # White background with slight transparency
         )
 
+    # Add overall average latency line
+    ax3.axhline(
+        y=overall_avg_inference_time,
+        color=colors["tertiary"],
+        linestyle="--",
+        label=f"Overall Avg. Time ({overall_avg_inference_time:.1f}ms)",
+    )
+
     ax3.set_title("Inference Time by Exit Point")
     ax3.set_ylabel("Time (ms)")
     ax3.set_xlabel("Exit Point")
     ax3.set_ylim(0, max(inference_times) * 1.15)  # Give some headroom for error bars
     ax3.grid(axis="y", linestyle="--", alpha=0.7)
+    ax3.legend()
 
     # 4. Accuracy vs Speed Scatter Plot
     ax4 = fig.add_subplot(gs[1, 1])
@@ -569,18 +676,24 @@ def plot_class_statistics_unified(
     return fig
 
 
-def plot_latency_accuracy_scatter(metrics, title, colors):
+def plot_latency_accuracy_scatter(metrics, results_dir, colors):
     """
     Create a scatter plot showing the relationship between accuracy and latency for each class.
 
     Args:
         metrics (dict): Metrics dictionary containing class statistics
-        title (str): Title for the plot
+        results_dir (str): Directory where results are stored
         colors (dict): Color scheme to use
 
     Returns:
         matplotlib.figure.Figure: Scatter plot figure
     """
+    # Extract model type and results identifier for title
+    model_type, results_id = get_results_info(results_dir)
+
+    title = f"{model_type} | {results_id}"
+    logger.info(f"Using title for latency-accuracy plot: {title}")
+
     # Extract class-level metrics
     class_stats = metrics.get("class_statistics", {})
 

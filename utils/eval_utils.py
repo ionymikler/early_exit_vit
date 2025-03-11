@@ -399,7 +399,6 @@ def evaluate_pytorch_model(
     """
     logger.info("ℹ️  Starting PyTorch model evaluation...")
     model.eval()
-    model.to(device)
 
     def get_predictor_fn():
         if profile_do:

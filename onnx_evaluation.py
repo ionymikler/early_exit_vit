@@ -60,8 +60,10 @@ def main():
     check_before_profiling(args)
 
     # Create results directory before evaluation
-    model_type = f"onnx_{('gpu' if args.use_gpu else 'cpu')}"
-    results_dir = result_utils.make_results_dir(model_type, profiling=args.profile_do)
+    model_type = f"onnx_{'gpu' if args.use_gpu else 'cpu'}"
+    results_dir = result_utils.make_results_dir(
+        model_type, profiling=args.profile_do, suffix=args.suffix
+    )
 
     # Save metadata
     result_utils.save_metadata(results_dir, model_type, args)
@@ -93,8 +95,7 @@ def main():
 
     # Save metrics if requested
     if args.save_metrics:
-        prefix = f"onnx_evaluation_{('gpu' if args.use_gpu else 'cpu')}"
-        result_utils.save_metrics(metrics, results_dir, prefix)
+        result_utils.save_metrics(metrics, results_dir)
 
 
 if __name__ == "__main__":

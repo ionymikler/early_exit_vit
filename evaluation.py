@@ -50,10 +50,10 @@ def main():
     check_before_profiling(args)
 
     # Create results directory before evaluation
-    model_type = f"pytorch_{device.type}"
+    model_type = f"pytorch_{'gpu' if device.type == 'cuda' else 'cpu'}"
     if args.save_metrics:
         results_dir = result_utils.make_results_dir(
-            model_type, profiling=args.profile_do
+            model_type, profiling=args.profile_do, suffix=args.suffix
         )
         # Save metadata
         result_utils.save_metadata(results_dir, model_type, args)
@@ -81,8 +81,7 @@ def main():
     )
 
     if args.save_metrics:
-        prefix = f"pytorch_evaluation_{device.type}"
-        result_utils.save_metrics(metrics, results_dir, prefix)
+        result_utils.save_metrics(metrics, results_dir)
 
 
 if __name__ == "__main__":

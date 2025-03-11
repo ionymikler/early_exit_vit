@@ -6,36 +6,32 @@ from utils import result_utils, logging_utils
 logger = logging_utils.get_logger_ready(__name__)
 
 
-def save_figure(fig, metrics_path, suffix=""):
-    """Save figure as PNG in the same directory as the metrics file."""
-    # Get base path and create new filename
-    base_path = os.path.splitext(metrics_path)[0]
-    save_path = f"{base_path}_plot{suffix}.png"
-
-    # Save the figure
-    fig.savefig(save_path, bbox_inches="tight", dpi=300)
-    logger.info(f"Figure saved to: {save_path}")
-
-
-def process_metrics_file(
-    file_path, color_scheme=None, top_n_classes=10, save_figures=False
+def process_results_directory(
+    results_dir, color_scheme=None, top_n_classes=10, save_figures=False
 ):
     """
-    Process a metrics file to generate visualizations.
+    Process a results directory to generate visualizations.
 
     Args:
-        file_path: Path to the metrics JSON file
+        results_dir: Path to the results directory
         color_scheme: Color scheme to use (if None, will prompt)
         top_n_classes: Number of top classes to include in class visualizations
         save_figures: Whether to automatically save figures
     """
-    if not os.path.exists(file_path):
-        logger.error(f"File not found: {file_path}")
+    # Verify the directory exists
+    if not os.path.exists(results_dir) or not os.path.isdir(results_dir):
+        logger.error(f"Results directory not found: {results_dir}")
+        return
+
+    # Check for metrics file
+    metrics_file = os.path.join(results_dir, "result_metrics.json")
+    if not os.path.exists(metrics_file):
+        logger.error(f"Metrics file not found in directory: {metrics_file}")
         return
 
     # Load metrics
     try:
-        metrics = result_utils.load_metrics(file_path)
+        metrics = result_utils.load_metrics_from_dir(results_dir)
     except Exception as e:
         logger.error(f"Error loading metrics file: {e}")
         return
@@ -44,14 +40,9 @@ def process_metrics_file(
     if color_scheme is None:
         color_scheme = result_utils.choose_color_scheme_cli()
 
-    # Create title from filename
-    title = (
-        f"EEVIT Model Evaluation - {os.path.basename(file_path).removesuffix('.json')}"
-    )
-
     # Generate plots
     exit_fig, class_accuracy_fig, class_speed_fig = result_utils.plot_metrics(
-        metrics, title, color_scheme, top_n_classes
+        metrics, results_dir, color_scheme, top_n_classes
     )
 
     # Show plots
@@ -72,11 +63,11 @@ def process_metrics_file(
         save_figures = save_choice.startswith("y")
 
     if save_figures:
-        save_figure(exit_fig, file_path, "_exits")
+        result_utils.save_figure(exit_fig, results_dir, "exit_statistics")
         if class_accuracy_fig:
-            save_figure(class_accuracy_fig, file_path, "_classes_accuracy")
+            result_utils.save_figure(class_accuracy_fig, results_dir, "class_accuracy")
         if class_speed_fig:
-            save_figure(class_speed_fig, file_path, "_classes_speed")
+            result_utils.save_figure(class_speed_fig, results_dir, "class_speed")
 
     # Wait for user to close figures
     if exit_fig or class_accuracy_fig or class_speed_fig:
@@ -88,7 +79,10 @@ def get_argument_parser():
         description="Process model evaluation metrics and create visualizations"
     )
 
-    parser.add_argument("file_path", help="Path to the metrics JSON file")
+    parser.add_argument(
+        "results_dir",
+        help="Path to the results directory containing result_metrics.json",
+    )
 
     parser.add_argument(
         "--color-scheme",
@@ -118,9 +112,9 @@ def get_argument_parser():
 def main():
     args = get_argument_parser().parse_args()
 
-    # Process the metrics file
-    process_metrics_file(
-        file_path=args.file_path,
+    # Process the results directory
+    process_results_directory(
+        results_dir=args.results_dir,
         color_scheme=args.color_scheme,
         top_n_classes=args.top_classes,
         save_figures=args.save,
