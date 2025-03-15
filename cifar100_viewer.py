@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-# CIFAR-100 Dataset Viewer
+# Enhanced CIFAR-100 Dataset Viewer
 # Displays random images from a specific class in the CIFAR-100 dataset
+# With options to save individual images
 
 import argparse
 import random
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 from datasets import load_dataset
 from typing import List, Tuple
 import os
+from PIL import Image
 
 
 def get_cifar100_dataset():
@@ -69,12 +71,50 @@ def get_images_by_label(
     return result
 
 
+def save_individual_images(images: List[Tuple], save_dir: str):
+    """
+    Save individual images to the specified directory.
+
+    Args:
+        images: List of tuples containing (image, label_name, image_idx)
+        save_dir: Directory to save images to
+    """
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+        print(f"Created directory: {save_dir}")
+
+    saved_paths = []
+    for img, label_name, img_idx in images:
+        # Create a clean label for the filename (remove spaces and special characters)
+        clean_label = label_name.replace(" ", "_").lower()
+
+        # Create filename: label_id.png
+        filename = f"{clean_label}_{img_idx}.png"
+        save_path = os.path.join(save_dir, filename)
+
+        # Convert to PIL Image and save
+        # Check if img is already a PIL Image or needs conversion
+        if isinstance(img, Image.Image):
+            pil_img = img
+        else:
+            # Handle numpy array or other format
+            pil_img = Image.fromarray(img)
+
+        pil_img.save(save_path)
+        saved_paths.append(save_path)
+        print(f"Saved: {save_path}")
+
+    return saved_paths
+
+
 def display_images(
     images: List[Tuple],
     rows: int = 3,
     cols: int = 5,
     title: str = None,
-    save_path: str = None,
+    save_figure_path: str = None,
+    save_individual: bool = False,
+    save_dir: str = None,
 ):
     """
     Display images in a grid.
@@ -84,7 +124,9 @@ def display_images(
         rows: Number of rows in the grid
         cols: Number of columns in the grid
         title: Optional title for the figure
-        save_path: Path to save the figure (if None, figure is not saved)
+        save_figure_path: Path to save the figure (if None, figure is not saved)
+        save_individual: Whether to save individual images
+        save_dir: Directory to save individual images to (if None, user will be prompted)
     """
     fig, axes = plt.subplots(rows, cols, figsize=(15, 9))
 
@@ -107,12 +149,18 @@ def display_images(
     plt.tight_layout()
     plt.subplots_adjust(top=0.9)  # Adjust for title if present
 
-    # Save figure if save_path is provided
-    if save_path:
+    # Save whole figure if save_figure_path is provided
+    if save_figure_path:
         # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path, bbox_inches="tight", dpi=300)
-        print(f"Figure saved to {save_path}")
+        os.makedirs(os.path.dirname(save_figure_path), exist_ok=True)
+        plt.savefig(save_figure_path, bbox_inches="tight", dpi=300)
+        print(f"Figure saved to {save_figure_path}")
+
+    # Save individual images if requested
+    if save_individual:
+        if save_dir is None:
+            save_dir = input("Enter directory to save individual images: ")
+        save_individual_images(images, save_dir)
 
     plt.show()
 
@@ -167,8 +215,8 @@ def interactive_mode():
                 input("Choose split (train/test) [default: test]: ").lower() or "test"
             )
             if split not in ["train", "test"]:
-                print("Invalid split. Using 'train'.")
-                split = "train"
+                print("Invalid split. Using 'test'.")
+                split = "test"
 
             # Get number of images to display
             try:
@@ -178,14 +226,29 @@ def interactive_mode():
                 count = 15
 
             # Ask if user wants to save the figure
-            save_fig = input("Save the figure? (y/n) [default: n]: ").lower() == "y"
-            save_path = None
+            save_fig = (
+                input("Save the complete figure? (y/n) [default: n]: ").lower() == "y"
+            )
+            save_fig_path = None
 
             if save_fig:
                 # Create path for saving the figure
                 class_name = class_names[label_idx].replace(" ", "_").lower()
                 save_dir = "results/cifar100_viewer"
-                save_path = f"{save_dir}/{class_name}_sample.png"
+                save_fig_path = f"{save_dir}/{class_name}_sample.png"
+
+            # Ask if user wants to save individual images
+            save_individual = (
+                input("Save individual images? (y/n) [default: n]: ").lower() == "y"
+            )
+            save_individual_dir = None
+
+            if save_individual:
+                save_individual_dir = input(
+                    "Enter directory to save individual images [default: results/cifar100_images]: "
+                )
+                if not save_individual_dir:
+                    save_individual_dir = "results/cifar100_images"
 
             # Get and display images
             images = get_images_by_label(dataset, label_idx, split, count)
@@ -200,7 +263,9 @@ def interactive_mode():
                     rows=rows,
                     cols=cols,
                     title=f"Class {label_idx}: {class_names[label_idx]} ({split} split)",
-                    save_path=save_path,
+                    save_figure_path=save_fig_path,
+                    save_individual=save_individual,
+                    save_dir=save_individual_dir,
                 )
 
         except Exception as e:
@@ -208,22 +273,33 @@ def interactive_mode():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CIFAR-100 Dataset Viewer")
+    parser = argparse.ArgumentParser(description="Enhanced CIFAR-100 Dataset Viewer")
     parser.add_argument("--label", type=int, help="Class label index (0-99)")
     parser.add_argument(
         "--split",
         type=str,
         choices=["train", "test"],
-        default="train",
+        default="test",
         help="Dataset split to use (train or test)",
     )
     parser.add_argument(
         "--count", type=int, default=15, help="Number of images to display"
     )
     parser.add_argument(
-        "--save",
+        "--save-figure",
         action="store_true",
-        help="Save the figure to results/cifar100_viewer/<label-name>_sample.png",
+        help="Save the complete figure",
+    )
+    parser.add_argument(
+        "--save-individual",
+        action="store_true",
+        help="Save individual images",
+    )
+    parser.add_argument(
+        "--save-dir",
+        type=str,
+        default=None,
+        help="Directory to save individual images",
     )
 
     args = parser.parse_args()
@@ -243,18 +319,20 @@ def main():
             cols = min(5, args.count)
             rows = (args.count + cols - 1) // cols
 
-            save_path = None
-            if args.save:
+            save_fig_path = None
+            if args.save_figure:
                 class_name = class_names[args.label].replace(" ", "_").lower()
                 save_dir = "results/cifar100_viewer"
-                save_path = f"{save_dir}/{class_name}_sample.png"
+                save_fig_path = f"{save_dir}/{class_name}_sample.png"
 
             display_images(
                 images,
                 rows=rows,
                 cols=cols,
                 title=f"Class {args.label}: {class_names[args.label]} ({args.split} split)",
-                save_path=save_path,
+                save_figure_path=save_fig_path,
+                save_individual=args.save_individual,
+                save_dir=args.save_dir,
             )
     else:
         # Interactive mode

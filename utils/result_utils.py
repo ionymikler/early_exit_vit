@@ -47,7 +47,9 @@ COLOR_SCHEMES = {
 }
 
 
-def save_metadata(results_dir: str, model_type: str, args: Namespace, config: dict):
+def save_metadata(
+    results_dir: str, model_type: str, args: Namespace, config: dict = None
+):
     """
     Save evaluation metadata to a YAML file.
 

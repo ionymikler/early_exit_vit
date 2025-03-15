@@ -61,7 +61,7 @@ class HighwayConv1_1(nn.Module):
         )
         self.drop = nn.Dropout(ee_config.general_dropout)
 
-    def forward(self, x, H, W):
+    def forward(self, x: torch.Tensor, H, W):
         B, N, C = x.shape
         x0 = x
         x = x.permute(0, 2, 1).reshape(B, C, H, W)
