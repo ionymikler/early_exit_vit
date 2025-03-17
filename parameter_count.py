@@ -59,7 +59,9 @@ def analyze_model_parameters(model, show_details=False):
         # Check for highway parameters
         if ".highway" in name:
             analysis_data["has_highway_params"] = True
-            print(f"Found highway parameter: {name} with {num_params} parameters")
+            logger.debug(
+                f"Found highway parameter: {name} with {num_params} parameters"
+            )
 
         # Parse layer index if in transformer layers
         layer_idx = None
@@ -337,6 +339,178 @@ def analyze_model_parameters(model, show_details=False):
     return analysis_data
 
 
+def plot_layer_detail_columns(analysis_data, model_config, layer_indices=[3, 7]):
+    """Plot stacked column charts for multiple layers side by side,
+    with the three main components (Attention, MLP, Highway) stacked together in each column,
+    and showing the intermediate head type in the x-axis labels"""
+    layers_data = analysis_data["layers"]
+
+    # Get early exit types from model config
+    ee_config = model_config.early_exit_config
+    exit_types = {}
+    for exit_entry in ee_config.exits:
+        position = exit_entry[0]
+        exit_type = exit_entry[1]
+        exit_types[position] = exit_type
+
+    # Map exit types to more descriptive names
+    head_type_names = {
+        "conv1_1": "Local Perception",
+        "conv2_1": "Local Perception",
+        "attention": "Global Aggregation",
+        "dummy_mlp": "Dummy MLP",
+    }
+
+    # Create a single figure with one subplot
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Define colors for component types
+    component_colors = {
+        "Attention": "#4285F4",  # Blue for attention
+        "MLP": "#EA4335",  # Red for MLP
+        "Highway": "#FBBC05",  # Yellow for highway
+    }
+
+    # Define x positions for bars
+    x_positions = np.arange(len(layer_indices))
+    bar_width = 0.6
+
+    # Store legend handles and labels
+    legend_handles = []
+    legend_labels = []
+    used_labels = set()
+
+    # Store x-tick labels
+    x_tick_labels = []
+
+    # Process each requested layer
+    for i, layer_idx in enumerate(layer_indices):
+        layer_key = str(layer_idx)
+
+        # Create x-tick label including head type
+        head_type = exit_types.get(layer_idx, "Unknown")
+        head_type_desc = head_type_names.get(head_type, head_type)
+        x_tick_label = f"Layer {layer_idx}\n({head_type_desc})"
+        x_tick_labels.append(x_tick_label)
+
+        if layer_key not in layers_data:
+            ax.text(
+                x_positions[i],
+                0,
+                f"Layer {layer_idx} data not available",
+                ha="center",
+                va="bottom",
+                fontsize=10,
+            )
+            continue
+
+        layer_data = layers_data[layer_key]
+
+        # Collect the three main components
+        main_components = [
+            {
+                "name": "Attention",
+                "parameters": layer_data["attention"]["total"],
+                "percentage": layer_data["attention"]["percentage_of_layer"],
+            },
+            {
+                "name": "MLP",
+                "parameters": layer_data["mlp"]["total"],
+                "percentage": layer_data["mlp"]["percentage_of_layer"],
+            },
+        ]
+
+        # Add Highway if it exists
+        if "highway" in layer_data:
+            main_components.append(
+                {
+                    "name": "Highway",
+                    "parameters": layer_data["highway"]["parameters"],
+                    "percentage": layer_data["highway"]["percentage_of_layer"],
+                }
+            )
+
+        # Extract data for plotting
+        component_names = [comp["name"] for comp in main_components]
+        param_values = [comp["parameters"] for comp in main_components]
+        percentages = [comp["percentage"] for comp in main_components]
+        colors = [component_colors[comp["name"]] for comp in main_components]
+
+        # Create stacked bar for this layer
+        bottom = 0
+        for j, (name, value, pct, color) in enumerate(
+            zip(component_names, param_values, percentages, colors)
+        ):
+            # Only add to legend if this component name hasn't been used yet
+            if name not in used_labels:
+                bar = ax.bar(
+                    x_positions[i],  # x-position
+                    value,  # height
+                    bottom=bottom,  # bottom position for stacking
+                    width=bar_width,  # bar width
+                    color=color,  # color based on component type
+                    label=name,  # for legend
+                )
+                used_labels.add(name)
+                legend_handles.append(bar)
+                legend_labels.append(name)
+            else:
+                bar = ax.bar(
+                    x_positions[i],  # x-position
+                    value,  # height
+                    bottom=bottom,  # bottom position for stacking
+                    width=bar_width,  # bar width
+                    color=color,  # color based on component type
+                )
+
+            # Add parameter count and percentage label in the middle of each segment
+            # Only add if segment is large enough
+            if value > layer_data["total_parameters"] * 0.05:
+                ax.text(
+                    x_positions[i],  # x-position (bar center)
+                    bottom + value / 2,  # y-position (segment center)
+                    f"{name}\n{value:,}\n({pct:.1f}%)",  # Component name, count, and percentage
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    color="black",
+                    fontweight="bold",
+                    bbox=dict(facecolor="white", alpha=0.8, edgecolor="none", pad=2),
+                )
+
+            bottom += value
+
+        # Add total count on top of each stack
+        ax.text(
+            x_positions[i],  # x-position (bar center)
+            bottom * 1.02,  # y-position (just above the stack)
+            f"Total: {layer_data['total_parameters']:,}",  # Total layer parameters
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold",
+        )
+
+    # Set labels and title
+    ax.set_title("Parameter Distribution by Layer and Head Type", fontsize=16)
+    ax.set_ylabel("Number of Parameters", fontsize=14)
+
+    # Set x-ticks with layer numbers and head types
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(x_tick_labels)
+
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Format y-axis with commas for thousands
+    ax.yaxis.set_major_formatter(plt.matplotlib.ticker.StrMethodFormatter("{x:,.0f}"))
+
+    # Add a legend
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=len(used_labels))
+
+    plt.tight_layout()
+    return fig
+
+
 def plot_main_components(analysis_data):
     """Plot the parameter distribution for the main components of EEVIT as a stacked column"""
     main_components = analysis_data["main_components"]
@@ -419,7 +593,7 @@ def plot_main_components(analysis_data):
 
 
 def plot_layer_breakdown(analysis_data):
-    """Plot the parameter distribution across the transformer layers in two separate plots"""
+    """Plot the parameter distribution across the transformer layers as two vertically stacked plots"""
     layers_data = analysis_data["layers"]
 
     # Prepare data for plotting
@@ -439,9 +613,11 @@ def plot_layer_breakdown(analysis_data):
 
     # Split into two groups - first 6 and last 6 layers
     split_idx = 6
+    first_half_indices = layer_indices[:split_idx]
+    second_half_indices = layer_indices[split_idx:]
 
-    # Create figure with two subplots
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 12), sharex=True)
+    # Create figure with two vertically-stacked subplots, but WITHOUT sharex
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 12), sharex=False)
 
     # Add main title to the figure
     fig.suptitle("EEVIT Parameter Distribution by Layer", fontsize=18, y=0.98)
@@ -450,7 +626,6 @@ def plot_layer_breakdown(analysis_data):
     width = 0.25
 
     # First subplot - first 6 layers
-    first_half_indices = layer_indices[:split_idx]
     x1 = np.arange(len(first_half_indices))
 
     # Create bars for first half
@@ -482,20 +657,18 @@ def plot_layer_breakdown(analysis_data):
             ),
         )
 
-    # ax1.set_title('Parameter Distribution - Layers 0-5', fontsize=15)
+    ax1.set_title("Layers 0-5", fontsize=15)
     ax1.set_ylabel("Number of Parameters", fontsize=14)
-    ax1.grid(axis="y", linestyle="--", alpha=0.7)
-    ax1.legend(loc="upper right")
-
     # Explicitly set x-ticks for top plot
     ax1.set_xticks(x1)
     ax1.set_xticklabels([str(idx) for idx in first_half_indices])
+    ax1.grid(axis="y", linestyle="--", alpha=0.7)
+    ax1.legend(loc="upper right")
 
     # Format y-axis with commas for thousands
     ax1.yaxis.set_major_formatter(plt.matplotlib.ticker.StrMethodFormatter("{x:,.0f}"))
 
     # Second subplot - last 6 layers
-    second_half_indices = layer_indices[split_idx:]
     x2 = np.arange(len(second_half_indices))
 
     # Create bars for second half
@@ -539,44 +712,20 @@ def plot_layer_breakdown(analysis_data):
             ),
         )
 
-    # ax2.set_title('Parameter Distribution - Layers 6-11', fontsize=15)
+    ax2.set_title("Layers 6-11", fontsize=15)
     ax2.set_xlabel("Layer Index", fontsize=14)
     ax2.set_ylabel("Number of Parameters", fontsize=14)
-    ax2.grid(axis="y", linestyle="--", alpha=0.7)
-    ax2.legend(loc="upper right")
-
-    # Set x-ticks for bottom plot
+    # Explicitly set x-ticks for bottom plot
     ax2.set_xticks(x2)
     ax2.set_xticklabels([str(idx) for idx in second_half_indices])
+    ax2.grid(axis="y", linestyle="--", alpha=0.7)
+    ax2.legend(loc="upper right")
 
     # Format y-axis with commas for thousands
     ax2.yaxis.set_major_formatter(plt.matplotlib.ticker.StrMethodFormatter("{x:,.0f}"))
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])  # Make room for suptitle
     return fig
-
-
-def save_results(analysis_data, main_components_fig, layers_fig):
-    """Save the analysis results to JSON and figures to PNG files"""
-    # Create paths using pathlib
-    results_dir = Path("./results/model_analysis")
-    results_dir.mkdir(parents=True, exist_ok=True)
-    json_path = results_dir / "eevit_param_analysis.json"
-    main_comp_path = results_dir / "eevit_main_components.png"
-    layers_path = results_dir / "eevit_layer_breakdown.png"
-
-    # Save JSON
-    with json_path.open("w") as f:
-        json.dump(analysis_data, f, indent=2)
-
-    # Save figures
-    main_components_fig.savefig(main_comp_path, dpi=300, bbox_inches="tight")
-    layers_fig.savefig(layers_path, dpi=300, bbox_inches="tight")
-
-    print("Results saved to:")
-    print(f"- {json_path.absolute()}")
-    print(f"- {main_comp_path.absolute()}")
-    print(f"- {layers_path.absolute()}")
 
 
 def main():
@@ -594,14 +743,26 @@ def main():
 
     # Create visualizations
     print("\nGenerating visualizations...")
-    main_components_fig = plot_main_components(analysis_data)
-    layers_fig = plot_layer_breakdown(analysis_data)
+
+    # Original visualizations
+    main_components_fig = plot_main_components(analysis_data)  # Original column chart
+    layers_fig = plot_layer_breakdown(analysis_data)  # Original layer breakdown
+
+    # New layer detail visualization (passing model_config for exit type information)
+    layer_detail_fig = plot_layer_detail_columns(analysis_data, model_config, [3, 7])
 
     # Show plots
+    print("Displaying visualizations (close a figure to see the next one)...")
+
+    # Show original plots
     plt.figure(main_components_fig.number)
     plt.show(block=False)
 
     plt.figure(layers_fig.number)
+    plt.show(block=False)
+
+    # Show new layer detail plot
+    plt.figure(layer_detail_fig.number)
     plt.show(block=False)
 
     # Ask user if they want to save the results
@@ -609,10 +770,43 @@ def main():
         "\nWould you like to save the results (JSON and figures)? (y/n): "
     ).lower()
     if save_choice.startswith("y"):
-        save_results(analysis_data, main_components_fig, layers_fig)
+        save_results(analysis_data, main_components_fig, layers_fig, layer_detail_fig)
 
     # Keep figures open until user closes them
     plt.show()
+
+
+def save_results(analysis_data, main_components_fig, layers_fig, layer_detail_fig=None):
+    """Save the analysis results to JSON and figures to PNG files"""
+    # Create paths using pathlib
+    results_dir = Path("./results/model_analysis")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    json_path = results_dir / "eevit_param_analysis.json"
+    main_comp_path = results_dir / "eevit_main_components.png"
+    layers_path = results_dir / "eevit_layer_breakdown.png"
+
+    # Path for new layer detail plot
+    layer_detail_path = results_dir / "eevit_layer_details.png"
+
+    # Save JSON
+    with json_path.open("w") as f:
+        json.dump(analysis_data, f, indent=2)
+
+    # Save figures
+    main_components_fig.savefig(main_comp_path, dpi=300, bbox_inches="tight")
+    layers_fig.savefig(layers_path, dpi=300, bbox_inches="tight")
+
+    # Save layer detail figure if available
+    if layer_detail_fig is not None:
+        layer_detail_fig.savefig(layer_detail_path, dpi=300, bbox_inches="tight")
+
+    print("Results saved to:")
+    print(f"- {json_path.absolute()}")
+    print(f"- {main_comp_path.absolute()}")
+    print(f"- {layers_path.absolute()}")
+
+    if layer_detail_fig is not None:
+        print(f"- {layer_detail_path.absolute()}")
 
 
 if __name__ == "__main__":

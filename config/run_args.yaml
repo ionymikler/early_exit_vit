@@ -32,9 +32,6 @@ model:
     num_attn_heads: 8
 
     exits: # [position, type, [kwargs] ]
-      # - [0, 'dummy_mlp']
-      # - [0, 'conv1_1']
-
       - [3, 'conv1_1']
       - [4, 'conv1_1']
       - [5, 'conv2_1']
