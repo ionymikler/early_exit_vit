@@ -274,7 +274,7 @@ def _evaluate_model_generic(
                 class_stats[true_class]["exit_by_layer"][exit_key] = 0
             class_stats[true_class]["exit_by_layer"][exit_key] += 1
 
-        if interactive or args.profile_do:
+        if interactive:  # TODO: Consider also an arg liek 'disp_results'
             label_name = batch["label_names"][0]  # Since batch size is 1
             predicted_name = dataset_utils.get_label_name(
                 test_loader.dataset, predicted_classes.item()
@@ -419,11 +419,11 @@ def evaluate_pytorch_model(
                     outputs = model(images)
 
             # Process profiling results
-            print(
-                prof.key_averages(group_by_stack_n=5).table(
-                    sort_by="cpu_time_total", row_limit=10
-                )
-            )
+            # print(
+            #     prof.key_averages(group_by_stack_n=5).table(
+            #         sort_by="cpu_time_total", row_limit=10
+            #     )
+            # )
             if results_dir:
                 result_utils.save_pytorch_profiler_output(prof, results_dir)
 
@@ -504,7 +504,7 @@ def evaluate_onnx_model(
 
 def check_before_profiling(args):
     if args.profile_do and (
-        (args.num_examples is not None and args.num_examples > 20)
+        (args.num_examples is not None and args.num_examples > 100)
         or args.num_examples is None
     ):
         logger.warning(

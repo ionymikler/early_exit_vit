@@ -87,6 +87,7 @@ def save_metadata(
 def make_results_dir(model_type: str, profiling: bool, suffix: str = None) -> str:
     """
     Create a subdirectory for results with datetime and model type.
+    If directory already exists, append a counter to create a unique one.
 
     Args:
         model_type: Type of model ('pytorch' or 'onnx')
@@ -96,19 +97,27 @@ def make_results_dir(model_type: str, profiling: bool, suffix: str = None) -> st
     Returns:
         Path to the results directory
     """
-    results_dir = f"results/{model_type}"
+    base_dir = f"results/{model_type}"
     if profiling:
-        results_dir += "_profiling"
+        base_dir += "_profiling"
 
     # Use provided suffix or generate timestamp
     if suffix:
-        results_dir += f"_{suffix}"
+        base_results_dir = f"{base_dir}_{suffix}"
     else:
-        results_dir += f'_{datetime.now().strftime("%y%m%d_%H%M%S")}'
+        base_results_dir = f'{base_dir}_{datetime.now().strftime("%y%m%d_%H%M%S")}'
 
-    # Create directory if it doesn't exist
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
+    # Create a unique directory if the initial one already exists
+    results_dir = base_results_dir
+    counter = 1
+
+    while os.path.exists(results_dir):
+        results_dir = f"{base_results_dir}_{counter}"
+        counter += 1
+
+    # Create the directory
+    os.makedirs(results_dir)
+    logger.info(f"Created results directory: {results_dir}")
 
     return results_dir
 
