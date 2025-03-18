@@ -124,18 +124,19 @@ def warmup_model(predictor_fn, test_loader, device):
         test_loader: DataLoader for test set
         device: Device to run on
     """
-    logger.info(logging_utils.yellow_txt("Performing model warmup..."))
+    _WARMUP_ITERS = 100
+    logger.info(
+        logging_utils.yellow_txt(
+            f"Performing model warmup with {_WARMUP_ITERS} iterations..."
+        )
+    )
     # Generate dummy data
     # Get input shape from first batch in test_loader
     dummy_shape = next(iter(test_loader))["pixel_values"].shape
     dummy_input = torch.randn(dummy_shape, device=device)
 
-    # Run model for 20 iterations to warm up
-    num_warmup_iterations = 20
-    logger.info(f"Running {num_warmup_iterations} warmup iterations with dummy data...")
-
     # Then run the remaining warmup iterations
-    for _ in range(num_warmup_iterations - 1):
+    for _ in range(_WARMUP_ITERS):
         _ = predictor_fn(dummy_input)
 
     logger.info("Warmup complete")

@@ -27,6 +27,9 @@ LAYER_GROUPS = {
     "Layers_7_10": range(7, 11),
 }
 
+# Define individual layers for detailed analysis
+INDIVIDUAL_LAYERS = {f"Layer_{i}": [i] for i in range(12)}
+
 
 def extract_attention_durations(file_path):
     """Extract 'dur' values from trace events where 'name' matches 'nn.Module: Attention_x'."""
@@ -34,6 +37,7 @@ def extract_attention_durations(file_path):
         data = json.load(f)
 
     durations = defaultdict(list)
+    individual_layer_durations = defaultdict(list)
 
     for event in data.get("traceEvents", []):
         name = event.get("name", "")
@@ -44,11 +48,17 @@ def extract_attention_durations(file_path):
         if match and dur is not None:
             layer = int(match.group(1))  # Extract layer number
 
+            # For individual layer statistics
+            layer_key = f"Layer_{layer}"
+            individual_layer_durations[layer_key].append(dur)
+
             # Assign to the correct group
             for group_name, layer_range in LAYER_GROUPS.items():
                 if layer in layer_range:
                     durations[group_name].append(dur)
 
+    # Merge both dictionaries
+    durations.update(individual_layer_durations)
     return durations
 
 
@@ -106,10 +116,20 @@ def compute_averages(trace_files):
 
 def save_to_json(file_results, overall_stats, output_file):
     """Save both individual file results and overall statistics to a single JSON file."""
+    # Organize the overall statistics section into individual layers and layer groups
+    organized_stats = {"individual_layers": {}, "layer_groups": {}}
+
+    # Sort statistics into the appropriate categories
+    for key, value in overall_stats.items():
+        if key.startswith("Layer_"):
+            organized_stats["individual_layers"][key] = value
+        elif key.startswith("Layers_"):
+            organized_stats["layer_groups"][key] = value
+
     # Create consolidated data structure
     consolidated_data = {
         "individual_runs": file_results,
-        "overall_statistics": overall_stats,
+        "overall_statistics": organized_stats,
     }
 
     with open(output_file, "w") as f:
@@ -119,15 +139,31 @@ def save_to_json(file_results, overall_stats, output_file):
 def print_overall_statistics(overall_stats):
     """Print the overall statistics in a readable format."""
     print("\nOverall Statistics Across All Runs:")
-    print("-" * 80)
+    print("-" * 95)
     print(
-        f"{'Layer Group':<15} {'Average (ms)':<15} {'Std Dev (ms)':<15} {'Min (ms)':<15} {'Max (ms)':<15} {'Sample Count'}"
+        f"{'Layer':<15} {'Average (ms)':<15} {'Std Dev (ms)':<15} {'Min (ms)':<15} {'Max (ms)':<15} {'Sample Count':<15}"
     )
-    print("-" * 80)
+    print("-" * 95)
 
-    for group, stats in overall_stats.items():
+    # First print individual layer statistics (sorted by layer number)
+    individual_layers = sorted(
+        [(k, v) for k, v in overall_stats.items() if k.startswith("Layer_")],
+        key=lambda x: int(x[0].split("_")[1]),
+    )
+
+    for layer_name, stats in individual_layers:
         print(
-            f"{group:<15} {stats['avg_ms']:<15.3f} {stats['std_dev_ms']:<15.3f} {stats['min_ms']:<15.3f} {stats['max_ms']:<15.3f} {stats['count']}"
+            f"{layer_name:<15} {stats['avg_ms']:<15.3f} {stats['std_dev_ms']:<15.3f} {stats['min_ms']:<15.3f} {stats['max_ms']:<15.3f} {stats['count']:<15}"
+        )
+
+    # Print a separator
+    print("-" * 95)
+
+    # Then print layer group statistics
+    group_stats = [(k, v) for k, v in overall_stats.items() if k.startswith("Layers_")]
+    for group_name, stats in group_stats:
+        print(
+            f"{group_name:<15} {stats['avg_ms']:<15.3f} {stats['std_dev_ms']:<15.3f} {stats['min_ms']:<15.3f} {stats['max_ms']:<15.3f} {stats['count']:<15}"
         )
 
 
