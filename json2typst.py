@@ -157,6 +157,14 @@ def json_to_typst(input_file, output_file):
             )
 
         # Create layer groups table
+        column_headers = [
+            "Layer Group",
+            "Avg (ms)",
+            "Std Dev",
+            "Min (ms)",
+            "Max (ms)",
+            "Count",
+        ]
         groups_table = create_typst_table(
             group_data, "Attention Latency by Layer Group", 6, column_headers
         )
@@ -169,7 +177,7 @@ def json_to_typst(input_file, output_file):
         with open(output_file, "w") as f:
             f.write(typst_content)
 
-        print(f"Successfully converted {input_file} to {output_file}")
+        print(f"✅ Successfully converted {input_file} to {output_file}")
         return True
 
     except Exception as e:

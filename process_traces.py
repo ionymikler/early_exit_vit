@@ -152,7 +152,8 @@ def save_to_json(file_results, overall_stats, output_file):
     for key, value in overall_stats.items():
         if key.startswith("Layer_"):
             organized_stats["individual_layers"][key] = value
-        elif key.startswith("Layers_"):
+        else:
+            # Any non-Layer_ key is assumed to be a layer group
             organized_stats["layer_groups"][key] = value
 
     # Create consolidated data structure
@@ -189,7 +190,9 @@ def print_overall_statistics(overall_stats):
     print("-" * 95)
 
     # Then print layer group statistics
-    group_stats = [(k, v) for k, v in overall_stats.items() if k.startswith("Layers_")]
+    group_stats = [
+        (k, v) for k, v in overall_stats.items() if not k.startswith("Layer_")
+    ]
     for group_name, stats in group_stats:
         print(
             f"{group_name:<15} {stats['avg_ms']:<15.3f} {stats['std_dev_ms']:<15.3f} {stats['min_ms']:<15.3f} {stats['max_ms']:<15.3f} {stats['count']:<15}"

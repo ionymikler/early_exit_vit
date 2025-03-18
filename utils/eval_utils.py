@@ -124,7 +124,7 @@ def warmup_model(predictor_fn, test_loader, device):
         test_loader: DataLoader for test set
         device: Device to run on
     """
-    _WARMUP_ITERS = 100
+    _WARMUP_ITERS = 200
     logger.info(
         logging_utils.yellow_txt(
             f"Performing model warmup with {_WARMUP_ITERS} iterations..."
@@ -136,7 +136,8 @@ def warmup_model(predictor_fn, test_loader, device):
     dummy_input = torch.randn(dummy_shape, device=device)
 
     # Then run the remaining warmup iterations
-    for _ in range(_WARMUP_ITERS):
+    pbar = tqdm(range(_WARMUP_ITERS), desc="Warming up", unit="iter")
+    for _ in pbar:
         _ = predictor_fn(dummy_input)
 
     logger.info("Warmup complete")
@@ -445,7 +446,7 @@ def evaluate_pytorch_model(
                 activities=[ProfilerActivity.CPU],
                 record_shapes=True,
                 profile_memory=True,
-                with_stack=True,
+                with_stack=False,
             ) as prof:
                 with record_function("model_inference"):
                     outputs = model(images)
