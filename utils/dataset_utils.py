@@ -124,9 +124,15 @@ def prepare_dataset(
 
     if num_examples is not None:
         logger.info(f"Using {num_examples} examples from each dataset split")
+        get_random = True
         for split in ["train", "test"]:
-            # indices = torch.randperm(len(dataset[split]))[:num_examples]
-            indices = torch.arange(num_examples)
+            if get_random:
+                indices = torch.randperm(len(dataset[split]))[:num_examples]
+                logger.warning(
+                    f"Retrieving random {num_examples} examples for the {split} split"
+                )
+            else:
+                indices = torch.arange(num_examples)
             dataset[split] = torch.utils.data.Subset(dataset[split], indices)
 
     return dataset["train"], dataset["test"]

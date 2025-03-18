@@ -172,7 +172,7 @@ def save_pytorch_profiler_output(profile: Profile, results_dir: str):
         counter += 1
 
     profile.export_chrome_trace(output_path)
-    logger.info(f"PyTorch profiler output saved to {output_path}")
+    logger.debug(f"PyTorch profiler output saved to {output_path}")
 
 
 def load_metrics_from_dir(results_dir: str):
