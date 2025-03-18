@@ -25,9 +25,9 @@ Usage:
 
 # Define layer groups for averaging
 LAYER_GROUPS = {
-    "Layers_0_2+11": list(range(0, 3)) + [11],  # Include the last layer as well
-    "Layers_3_6": range(3, 7),
-    "Layers_7_10": range(7, 11),
+    "No early-exit": list(range(0, 3)) + [11],  # Include the last layer as well
+    "LPH": range(3, 7),
+    "GAH": range(7, 11),
 }
 
 # Define individual layers for detailed analysis
