@@ -152,6 +152,7 @@ def _evaluate_model_generic(
     Generic evaluation function that works with both PyTorch and ONNX models.
     Enhanced to collect full distributions of accuracy and latency data.
     Includes a warmup phase to ensure more accurate performance measurements.
+    In interactive mode, allows selecting specific examples by index.
 
     Args:
         predictor_fn: A function that takes a batch of images and returns predictions and exit layer
@@ -159,8 +160,6 @@ def _evaluate_model_generic(
         test_loader: DataLoader for test set
         device: Device to run on
         interactive: If True, shows detailed results for each image and waits for user input
-        save_eval_metrics: Whether to save metrics to a file
-        metrics_prefix: Prefix for saved metrics file
         args: Command-line arguments used for evaluation (for metadata)
 
     Returns:
@@ -170,14 +169,12 @@ def _evaluate_model_generic(
     # Start actual evaluation
     logger.info("Starting evaluation...")
     if interactive:
-        logger.info("Press Enter to continue to next image, or 'q' to quit")
+        logger.info(
+            "Enter index number to evaluate specific example, Enter to continue to next image, or 'q' to quit"
+        )
 
     # Use fixed number of classes for CIFAR-100
     num_classes = 100
-
-    # Enhanced statistics tracking to include distributions
-    total_samples = 0
-    total_correct = 0
 
     # Dictionary to collect individual results for each exit
     exit_stats = {}
@@ -194,16 +191,46 @@ def _evaluate_model_generic(
             "accuracies": [],  # List to store accuracy (0 or 1) for each example
         }
 
-    # Create progress bar for non-interactive mode
-    pbar = None if interactive else tqdm(test_loader, desc="Evaluating", unit="batch")
-    iterator = test_loader if interactive else pbar
+    # Total statistics tracking
+    total_samples = 0
+    total_correct = 0
 
-    for batch_idx, batch in enumerate(iterator):
+    # Create a list from the DataLoader for random access in interactive mode
+    test_data = list(test_loader)
+    total_examples = len(test_data)
+
+    # Create progress bar for non-interactive mode
+    pbar = (
+        None
+        if interactive
+        else tqdm(range(total_examples), desc="Evaluating", unit="batch")
+    )
+
+    batch_idx = 0
+    while batch_idx < total_examples:
         if interactive:
-            user_input = input("\nPress Enter for next image, or 'q' to quit: ")
+            # Allow user to select a specific example or navigate sequentially
+            user_input = input(
+                f"\nEnter example index (0-{total_examples-1}), press Enter for next ({batch_idx}), or 'q' to quit: "
+            )
+
             if user_input.lower() == "q":
                 print("\nExiting interactive evaluation...")
                 break
+
+            if user_input.strip():
+                try:
+                    selected_idx = int(user_input)
+                    if 0 <= selected_idx < total_examples:
+                        batch_idx = selected_idx
+                    else:
+                        print(
+                            f"Index out of range (0-{total_examples-1}). Using next example."
+                        )
+                except ValueError:
+                    print("Invalid input. Using next example.")
+
+        batch = test_data[batch_idx]
 
         # Get images and labels
         images = batch["pixel_values"].to(device)
@@ -274,14 +301,14 @@ def _evaluate_model_generic(
                 class_stats[true_class]["exit_by_layer"][exit_key] = 0
             class_stats[true_class]["exit_by_layer"][exit_key] += 1
 
-        if interactive:  # TODO: Consider also an arg liek 'disp_results'
+        if interactive:
             label_name = batch["label_names"][0]  # Since batch size is 1
             predicted_name = dataset_utils.get_label_name(
                 test_loader.dataset, predicted_classes.item()
             )
 
             print("\n" + "=" * 50)
-            print(f"Image {batch_idx + 1}")
+            print(f"Image {batch_idx} of {total_examples-1}")
             print(f"True label: {label_name} (class {labels.item()})")
             print(f"Predicted: {predicted_name} (class {predicted_classes.item()})")
             print(f"Confidence: {confidence.item():.2%}")
@@ -293,6 +320,10 @@ def _evaluate_model_generic(
         else:
             current_accuracy = 100 * total_correct / total_samples
             pbar.set_postfix({"acc": f"{current_accuracy:.2f}%"})
+            pbar.update(1)
+
+        # Move to next example
+        batch_idx += 1
 
     overall_accuracy = 100 * total_correct / total_samples
 
