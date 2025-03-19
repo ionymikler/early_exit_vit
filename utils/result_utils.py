@@ -33,10 +33,10 @@ COLOR_SCHEMES = {
         "scatter": "Greens",  # Colormap for scatter plots
     },
     "nvidia-onnx-gpu": {
-        "primary": "#006400",  # Dark Green
-        "secondary": "#00FF00",  # Light Green
-        "tertiary": "#00008B",  # Dark Blue
-        "scatter": "Blues",  # Colormap for scatter plots
+        "primary": "#22577A",
+        "secondary": "#57CC99",  
+        "tertiary": "#CD5C5C",  
+        "scatter": "Blues", # Colormap for scatter plots
     },
     "pytorch": {
         "primary": "#8B0000",  # Dark Red
@@ -51,6 +51,8 @@ COLOR_SCHEMES = {
         "scatter": "Greys",  # Colormap for scatter plots
     },
 }
+
+HORIZONTAL_LINE_COLOR = "#8B0000" # Dark Red
 
 
 def save_metadata(
@@ -401,7 +403,7 @@ def plot_exit_statistics(metrics, title: str, colors):
     # Add overall accuracy line
     ax2.axhline(
         y=metrics["overall_accuracy"],
-        color=colors["tertiary"],
+        color=HORIZONTAL_LINE_COLOR,
         linestyle="--",
         label=f"Overall Accuracy ({metrics['overall_accuracy']:.1f}%)",
     )
@@ -445,7 +447,7 @@ def plot_exit_statistics(metrics, title: str, colors):
     # Add overall average latency line
     ax3.axhline(
         y=overall_avg_inference_time,
-        color=colors["tertiary"],
+        color=HORIZONTAL_LINE_COLOR,
         linestyle="--",
         label=f"Overall Avg. Time ({overall_avg_inference_time:.1f}ms)",
     )
@@ -583,7 +585,7 @@ def plot_class_statistics_unified(
     ax1.set_xticklabels(short_names, rotation=45, ha="right")
     ax1.axhline(
         y=metrics["overall_accuracy"],
-        color=colors["tertiary"],
+        color=HORIZONTAL_LINE_COLOR,
         linestyle="--",
         label=f"Overall Accuracy ({metrics['overall_accuracy']:.1f}%)",
     )
@@ -762,7 +764,7 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors):
     overall_accuracy = metrics.get("overall_accuracy", "N/A")
     ax.axhline(
         y=overall_accuracy,
-        color=colors["tertiary"],
+        color=HORIZONTAL_LINE_COLOR,
         linestyle="--",
         label=f"Overall Accuracy ({overall_accuracy}%)",
     )

@@ -14,7 +14,7 @@ from utils.arg_utils import parse_config_dict, get_export_parser, get_config_dic
 from utils.logging_utils import get_logger_ready, announce, print_dict, yellow_txt
 from utils.onnx_utils import export_and_save
 
-logger = get_logger_ready(__name__)
+logger = get_logger_ready("onnx_model_export.py")
 PRESS_ENTER_MSG = yellow_txt("Press Enter to continue...")
 
 
@@ -69,36 +69,36 @@ def main():
         logger.info(f"🔍 Dry run. Config: {config}")
         return
 
+    assert config["model"]["enable_export"] is True, yellow_txt(
+        "export mode is disabled in config"
+    )
+
     model_config = parse_config_dict(config["model"].copy())
 
     model = get_model(model_config)
-
-    input(PRESS_ENTER_MSG)
 
     # Generate random data
     dataset_config_dict = config["dataset"]  # noqa F841
     dummy_image_tensor = gen_random_input_data(dataset_config_dict)
 
     out_pytorch = run_model(data=dummy_image_tensor, model=model)
-    input(PRESS_ENTER_MSG)
 
-    if args.onnx_export:
-        onnx_filepath = export_and_save(
-            model, dummy_image_tensor, report=args.onnx_report
-        )
+    onnx_filepath = export_and_save(
+        model, dummy_image_tensor, args.onnx_output_filepath, report=args.onnx_report
+    )
 
-        announce(logger, "Loading and running the ONNX model...")
-        out_ort = load_and_run_onnx(onnx_filepath, dummy_image_tensor)
+    announce(logger, "Loading and running the ONNX model...")
+    out_ort = load_and_run_onnx(onnx_filepath, dummy_image_tensor)
 
-        if not args.onnx_keep:
-            os.remove(onnx_filepath)
+    if not args.onnx_keep:
+        os.remove(onnx_filepath)
 
-        # Compare the outputs
-        assert torch.allclose(
-            out_pytorch, torch.tensor(out_ort[0]), atol=1e-5
-        ), "Outputs are not equal ❌"
+    # Compare the outputs
+    assert torch.allclose(
+        out_pytorch, torch.tensor(out_ort[0]), atol=1e-5
+    ), "Outputs are not equal ❌"
 
-        logger.info("Outputs are equal ✅")
+    logger.info("Outputs are equal ✅")
 
 
 if __name__ == "__main__":

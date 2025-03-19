@@ -146,7 +146,7 @@ def parse_config_dict(model_dict: dict) -> ModelConfig:
         raise KeyError(f"Missing required configuration key: {e}")
 
 
-def get_argsparser() -> argparse.ArgumentParser:
+def _get_base_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Build and run an EEVIT model, as specified in the configuration file"
     )
@@ -174,6 +174,14 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Skip the check for the required conda environment",
     )
 
+    return parser
+
+
+def get_argsparser() -> argparse.ArgumentParser:
+    parser = _get_base_parser()
+
+    ### EVALUATION ARGUMENTS ###
+
     parser.add_argument(
         "-n",
         "--num-examples",
@@ -182,7 +190,6 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Number of examples to evaluate. If not specified, uses all available examples.",
     )
 
-    ### EVALUATION ARGUMENTS ###
     parser.add_argument(
         "-i",
         "--interactive",
@@ -233,9 +240,7 @@ def get_argsparser() -> argparse.ArgumentParser:
 
 
 def get_export_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Script to export the EEVIT model to ONNX"
-    )
+    parser = _get_base_parser()
 
     parser.add_argument(
         "--onnx-report",

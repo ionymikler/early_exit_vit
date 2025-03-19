@@ -6,7 +6,6 @@ import onnx
 
 
 from .logging_utils import get_logger_ready, announce
-from .model_utils import format_model_name
 
 logger = get_logger_ready(__name__)
 
@@ -29,7 +28,9 @@ def export_model(model: nn.Module, _x, report=False) -> torch.onnx.ONNXProgram:
     return onnx_program
 
 
-def export_and_save(model: nn.Module, _x: torch.Tensor, report: bool = False) -> str:
+def export_and_save(
+    model: nn.Module, _x: torch.Tensor, output_filename: str, report: bool = False
+) -> str:
     """
     Export model to ONNX format and save it to disk.
 
@@ -43,11 +44,9 @@ def export_and_save(model: nn.Module, _x: torch.Tensor, report: bool = False) ->
     """
 
     onnx_program = export_model(model, _x, report)
-    onnx_program.optimize()
-    onnx_filepath = (
-        # f"./models/onnx/{format_model_name(model.name)}_{datetime.now().strftime('%H-%M')}.onnx"
-        f"./models/onnx/{format_model_name(model.name)}.onnx"
-    )
+    # onnx_program.optimize()
+
+    onnx_filepath = f"./models/onnx/{output_filename}.onnx"
     onnx_program.save(onnx_filepath)
     logger.info(f"ONNX model saved at: {onnx_filepath}")
 
