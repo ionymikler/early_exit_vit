@@ -16,6 +16,8 @@ from utils.eval_utils import (
     check_before_profiling,
     warmup_model,
 )
+from typing import Tuple
+import numpy as np
 
 
 logger = logging_utils.get_logger_ready("evaluation")
@@ -61,14 +63,16 @@ def main():
         results_dir = None
 
     # warm up model
-    def warmup_predictor_fn(images):
+    def warmup_predictor_fn(images: torch.Tensor) -> Tuple[np.ndarray, float]:
         with torch.no_grad():
+            images.to(device)
             outputs = model(images)
             predictions = outputs[:, :-1]  # Remove exit layer index
             exit_layer = outputs[:, -1].item()  # Get exit layer
+
             return predictions, exit_layer
 
-    warmup_model(warmup_predictor_fn, test_loader, device)
+    warmup_model(warmup_predictor_fn, test_loader)
 
     metrics = evaluate_pytorch_model(
         model=model,

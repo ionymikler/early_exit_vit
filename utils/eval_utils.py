@@ -3,10 +3,11 @@ import torch
 import os
 import numpy as np
 import time
+import onnxruntime
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torch.profiler import profile, record_function, ProfilerActivity
-
+from typing import Tuple, Callable
 from utils import (
     logging_utils,
     result_utils,
@@ -114,7 +115,7 @@ def _calculate_per_class_statistics(
     return class_metrics
 
 
-def warmup_model(predictor_fn, test_loader, device):
+def warmup_model(predictor_fn, test_loader):
     """
     Warmup the model by running a few batches of dummy data.
     This is done to ensure more accurate performance measurements.
@@ -133,7 +134,7 @@ def warmup_model(predictor_fn, test_loader, device):
     # Generate dummy data
     # Get input shape from first batch in test_loader
     dummy_shape = next(iter(test_loader))["pixel_values"].shape
-    dummy_input = torch.randn(dummy_shape, device=device)
+    dummy_input = torch.randn(dummy_shape)
 
     # Then run the remaining warmup iterations
     pbar = tqdm(range(_WARMUP_ITERS), desc="Warming up", unit="iter")
@@ -144,9 +145,8 @@ def warmup_model(predictor_fn, test_loader, device):
 
 
 def _evaluate_model_generic(
-    predictor_fn,
+    predictor_fn: Callable[[torch.Tensor], Tuple[np.ndarray, float]],
     test_loader: DataLoader,
-    device: torch.device,
     interactive: bool = False,
     args=None,
 ) -> dict:
@@ -198,6 +198,7 @@ def _evaluate_model_generic(
     total_correct = 0
 
     # Create a list from the DataLoader for random access in interactive mode
+    # TODO: This random acces in interactive mode might be damaging latency for non interactive moe. review
     test_data = list(test_loader)
     total_examples = len(test_data)
 
@@ -235,8 +236,8 @@ def _evaluate_model_generic(
         batch = test_data[batch_idx]
 
         # Get images and labels
-        images = batch["pixel_values"].to(device)
-        labels = batch["labels"].to(device)
+        images = batch["pixel_values"]
+        labels = batch["labels"]
         batch_size = labels.size(0)
         total_samples += batch_size
 
@@ -248,9 +249,12 @@ def _evaluate_model_generic(
         inference_time_ms = inference_time_ns / 1_000_000  # Convert to milliseconds
 
         # Get predictions and confidence
-        confidence, predicted_classes = torch.max(predictions, dim=1)
-        correct_predictions = predicted_classes == labels
-        num_correct = correct_predictions.sum().item()
+        predicted_classes: np.ndarray = np.argmax(predictions, axis=1)
+        confidence: np.ndarray = np.max(predictions, axis=1)
+
+        labels_np = labels.numpy()
+        correct_predictions: np.ndarray = predicted_classes == labels_np
+        num_correct: int = np.sum(correct_predictions)
 
         total_correct += num_correct
 
@@ -271,7 +275,7 @@ def _evaluate_model_generic(
         # Update per-exit statistics with raw distribution data
         exit_stats[exit_key]["count"] += batch_size
         exit_stats[exit_key]["correct"] += num_correct
-        exit_stats[exit_key]["confidences"].extend(confidence.cpu().numpy().tolist())
+        exit_stats[exit_key]["confidences"].extend(confidence.tolist())
         exit_stats[exit_key]["inference_times"].append(inference_time_ms)
 
         # Store batch accuracy
@@ -280,14 +284,14 @@ def _evaluate_model_generic(
 
         # Store individual sample accuracies (1 for correct, 0 for incorrect)
         exit_stats[exit_key]["accuracies_per_sample"].extend(
-            correct_predictions.cpu().numpy().tolist()
+            correct_predictions.tolist()
         )
 
         # Update per-class statistics
         for i in range(batch_size):
-            true_class = labels[i].item()
-            is_correct = correct_predictions[i].item()
-            conf = confidence[i].item()
+            true_class = int(labels_np[i])
+            is_correct = bool(correct_predictions[i])
+            conf = float(confidence[i])
 
             # Update true class statistics
             class_stats[true_class]["count"] += 1
@@ -442,6 +446,7 @@ def evaluate_pytorch_model(
     def predictor_fn_with_profiling(images):
         """Prediction function with profiling"""
         with torch.no_grad():
+            images.to(device)
             with profile(
                 activities=[ProfilerActivity.CPU],
                 record_shapes=True,
@@ -464,9 +469,12 @@ def evaluate_pytorch_model(
             exit_layer = outputs[:, -1].item()  # Get exit layer
             return predictions, exit_layer
 
-    def predictor_fn_without_profiling(images):
+    def predictor_fn_without_profiling(
+        images: torch.Tensor,
+    ) -> Tuple[np.ndarray, float]:
         """Prediction function without profiling"""
         with torch.no_grad():
+            images.to(device)
             outputs = model(images)
             predictions = outputs[:, :-1]  # Remove exit layer index
             exit_layer = outputs[:, -1].item()  # Get exit layer
@@ -477,13 +485,12 @@ def evaluate_pytorch_model(
         predictor_fn=get_predictor_fn(),
         test_loader=test_loader,
         interactive=interactive,
-        device=device,
         args=args,
     )
 
 
 def evaluate_onnx_model(
-    onnx_session,
+    onnx_session: onnxruntime.InferenceSession,
     test_loader: DataLoader,
     interactive: bool = False,
     args=None,
@@ -504,20 +511,26 @@ def evaluate_onnx_model(
     """
     logger.info("ℹ️  Starting ONNX model evaluation...")
 
-    def predictor_fn(images):
-        """Wrapper function for ONNX model prediction"""
+    def predictor_fn(images: torch.Tensor) -> Tuple[np.ndarray, float]:
+        """
+        Returns:
+            Tuple of (predictions array, exit_layer value)
+        """
+        # Run ONNX inference
         ort_inputs = {onnx_session.get_inputs()[0].name: to_numpy(images)}
         ort_outputs = onnx_session.run(None, ort_inputs)
-        outputs = torch.from_numpy(ort_outputs[0])
+
+        # Process outputs as numpy arrays
+        outputs = ort_outputs[0]
         predictions = outputs[:, :-1]  # Remove exit layer index
-        exit_layer = outputs[:, -1].item()  # Get exit layer
+        exit_layer = float(outputs[0, -1])
+
         return predictions, exit_layer
 
     metrics = _evaluate_model_generic(
         predictor_fn=predictor_fn,
         test_loader=test_loader,
         interactive=interactive,
-        device=torch.device("cpu"),
         args=args,
     )
 

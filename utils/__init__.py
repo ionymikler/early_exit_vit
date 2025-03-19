@@ -9,6 +9,12 @@ from .logging_utils import get_logger_ready, announce, print_dict, yellow_txt
 logger = get_logger_ready("utils")
 
 
+def to_numpy(tensor: torch.Tensor) -> np.ndarray:
+    return (
+        tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+    )
+
+
 def gen_data(data_shape: tuple):
     return torch.randn(data_shape)
 
@@ -21,13 +27,6 @@ def load_and_run_onnx(onnx_filepath, _x, print_output=False):
     ort_session = onnxruntime.InferenceSession(
         onnx_filepath, providers=["CPUExecutionProvider"]
     )
-
-    def to_numpy(tensor):
-        return (
-            tensor.detach().cpu().numpy()
-            if tensor.requires_grad
-            else tensor.cpu().numpy()
-        )
 
     # compute ONNX Runtime output prediction
     ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(_x)}
@@ -51,12 +50,6 @@ def check_conda_env(conda_env_required):
         )
         return False
     return True
-
-
-def to_numpy(tensor: torch.Tensor) -> np.ndarray:
-    return (
-        tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
-    )
 
 
 __all__ = [
