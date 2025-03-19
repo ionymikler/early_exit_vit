@@ -17,12 +17,16 @@ def get_cifar100_dataset() -> datasets.DatasetDict:
     logger.info(yellow_txt("Loading CIFAR-100 dataset..."))
 
     # Load dataset
-    dataset = datasets.load_dataset(
-        path="cifar100",
-        token=None,
-        # task=task_arg,
-        cache_dir="./tmp/data/cifar100",
-    )
+    try:
+        dataset = datasets.load_dataset(
+            path="cifar100",
+            token=None,
+            # task=task_arg,
+            cache_dir="./tmp/data/cifar100",
+        )
+    except Exception as e:
+        logger.error(f"Failed to load CIFAR-100 dataset: {e}")
+        raise
 
     logger.debug(f"Dataset splits available: {dataset.keys()}")
     logger.debug(f"Training examples: {len(dataset['train'])}")

@@ -210,6 +210,7 @@ def _evaluate_model_generic(
     )
 
     batch_idx = 0
+    logger.info("🐎 Go!")
     while batch_idx < total_examples:
         if interactive:
             # Allow user to select a specific example or navigate sequentially

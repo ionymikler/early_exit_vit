@@ -26,10 +26,14 @@ def make_inference_session(
     session_options = ort.SessionOptions()
     session_options.enable_profiling = profile_do
 
-    provider = "CUDAExecutionProvider" if use_gpu else "CPUExecutionProvider"
-    logger.info(f"Using {provider} for inference.")
+    providers = (
+        ["CPUExecutionProvider", "CUDAExecutionProvider"]
+        if use_gpu
+        else ["CPUExecutionProvider"]
+    )
+    logger.info(f"Requesting {providers} for inference session")
     ort_session = ort.InferenceSession(
-        onnx_filepath, providers=[provider], sess_options=session_options
+        onnx_filepath, providers=providers, sess_options=session_options
     )
     return ort_session
 
