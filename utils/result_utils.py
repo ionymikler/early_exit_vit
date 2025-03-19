@@ -32,6 +32,12 @@ COLOR_SCHEMES = {
         "tertiary": "#228B22",  # Medium shade
         "scatter": "Greens",  # Colormap for scatter plots
     },
+    "nvidia-onnx-gpu": {
+        "primary": "#006400",  # Dark Green
+        "secondary": "#00FF00",  # Light Green
+        "tertiary": "#00008B",  # Dark Blue
+        "scatter": "Blues",  # Colormap for scatter plots
+    },
     "pytorch": {
         "primary": "#8B0000",  # Dark Red
         "secondary": "#CD5C5C",  # Indian Red

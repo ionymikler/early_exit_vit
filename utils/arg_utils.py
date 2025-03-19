@@ -233,7 +233,9 @@ def get_argsparser() -> argparse.ArgumentParser:
 
 
 def get_export_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Export the model to ONNX format")
+    parser = argparse.ArgumentParser(
+        description="Script to export the EEVIT model to ONNX"
+    )
 
     parser.add_argument(
         "--onnx-report",
@@ -253,8 +255,8 @@ def get_export_parser() -> argparse.ArgumentParser:
     parser.set_defaults(onnx_keep=False)  # Default is True
 
     parser.add_argument(
-        "--onnx-program-filepath",
-        "-f",
+        "--onnx-output-filepath",
+        "-O",
         type=str,
         default="./models/onnx/default.onnx",
         help="Path to save the ONNX model file",
