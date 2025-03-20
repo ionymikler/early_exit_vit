@@ -197,7 +197,7 @@ def get_argument_parser():
     parser.add_argument(
         "--color-scheme",
         "-c",
-        choices=list(result_utils.COLOR_SCHEMES.keys()),
+        choices=list(result_utils.COLOR_SCHEMES_BACKEND.keys()),
         help="Color scheme to use for visualizations",
     )
 

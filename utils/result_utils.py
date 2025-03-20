@@ -13,7 +13,7 @@ from .logging_utils import get_logger_ready
 logger = get_logger_ready(__name__)
 
 # Color schemes for different backends
-COLOR_SCHEMES = {
+COLOR_SCHEMES_BACKEND = {
     "onnx-cpu": {
         "primary": "#2878BD",  # Dark blue
         "secondary": "#8CC7FF",  # Lighter shade
@@ -34,9 +34,9 @@ COLOR_SCHEMES = {
     },
     "nvidia-onnx-gpu": {
         "primary": "#22577A",
-        "secondary": "#57CC99",  
-        "tertiary": "#CD5C5C",  
-        "scatter": "Blues", # Colormap for scatter plots
+        "secondary": "#57CC99",
+        "tertiary": "#CD5C5C",
+        "scatter": "Blues",  # Colormap for scatter plots
     },
     "pytorch": {
         "primary": "#8B0000",  # Dark Red
@@ -52,7 +52,7 @@ COLOR_SCHEMES = {
     },
 }
 
-HORIZONTAL_LINE_COLOR = "#8B0000" # Dark Red
+HORIZONTAL_LINE_COLOR = "#8B0000"  # Dark Red
 
 
 def save_metadata(
@@ -260,7 +260,7 @@ def plot_metrics(metrics, results_dir: str, color_scheme="default", top_n_classe
         Tuple of figures: (exit_stats_figure, class_accuracy_stats_figure, class_speed_stats_figure)
     """
     # Get color scheme
-    colors = COLOR_SCHEMES.get(color_scheme, COLOR_SCHEMES["default"])
+    colors = COLOR_SCHEMES_BACKEND.get(color_scheme, COLOR_SCHEMES_BACKEND["default"])
 
     # Extract model type and results identifier for title
     model_type, results_id = get_results_info(results_dir)
@@ -788,7 +788,7 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors):
 def choose_color_scheme_cli():
     """Command-line interface for selecting color scheme"""
     print("Available color schemes:")
-    for i, scheme in enumerate(COLOR_SCHEMES.keys(), 1):
+    for i, scheme in enumerate(COLOR_SCHEMES_BACKEND.keys(), 1):
         print(f"{i}. {scheme}")
 
     while True:
@@ -797,11 +797,11 @@ def choose_color_scheme_cli():
             # Try as a number first
             try:
                 idx = int(choice) - 1
-                if 0 <= idx < len(COLOR_SCHEMES):
-                    return list(COLOR_SCHEMES.keys())[idx]
+                if 0 <= idx < len(COLOR_SCHEMES_BACKEND):
+                    return list(COLOR_SCHEMES_BACKEND.keys())[idx]
             except ValueError:
                 # Not a number, try as a name
-                if choice in COLOR_SCHEMES:
+                if choice in COLOR_SCHEMES_BACKEND:
                     return choice
 
             print("Invalid selection. Please try again.")

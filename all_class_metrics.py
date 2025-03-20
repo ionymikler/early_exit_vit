@@ -30,7 +30,7 @@ def process_results_directory(results_dir, color_scheme=None, save_figures=False
 
     # Generate only the latency vs accuracy plot
     latency_accuracy_fig = result_utils.plot_latency_accuracy_scatter(
-        metrics, results_dir, result_utils.COLOR_SCHEMES[color_scheme]
+        metrics, results_dir, result_utils.COLOR_SCHEMES_BACKEND[color_scheme]
     )
 
     # Show plot
@@ -60,7 +60,7 @@ def get_argument_parser():
     parser.add_argument(
         "--color-scheme",
         "-c",
-        choices=list(result_utils.COLOR_SCHEMES.keys()),
+        choices=list(result_utils.COLOR_SCHEMES_BACKEND.keys()),
         help="Color scheme to use for visualization",
     )
     parser.add_argument(
