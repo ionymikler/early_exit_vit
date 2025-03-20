@@ -1,0 +1,767 @@
+{
+    "overall_accuracy": 90.36,
+    "total_samples": 10000,
+    "exit_statistics": {
+        "final": {
+            "layer_position": 12,
+            "layer_index": 11,
+            "count": 2039,
+            "percentage": 20.39
+        },
+        "exit_7": {
+            "layer_position": 8,
+            "layer_index": 7,
+            "count": 2103,
+            "percentage": 21.03
+        },
+        "exit_5": {
+            "layer_position": 6,
+            "layer_index": 5,
+            "count": 663,
+            "percentage": 6.63
+        },
+        "exit_10": {
+            "layer_position": 11,
+            "layer_index": 10,
+            "count": 316,
+            "percentage": 3.16
+        },
+        "exit_8": {
+            "layer_position": 9,
+            "layer_index": 8,
+            "count": 1087,
+            "percentage": 10.87
+        },
+        "exit_4": {
+            "layer_position": 5,
+            "layer_index": 4,
+            "count": 1105,
+            "percentage": 11.05
+        },
+        "exit_3": {
+            "layer_position": 4,
+            "layer_index": 3,
+            "count": 1149,
+            "percentage": 11.49
+        },
+        "exit_6": {
+            "layer_position": 7,
+            "layer_index": 6,
+            "count": 999,
+            "percentage": 9.99
+        },
+        "exit_9": {
+            "layer_position": 10,
+            "layer_index": 9,
+            "count": 539,
+            "percentage": 5.39
+        }
+    },
+    "speedup": 1.4809,
+    "expected_saving": 32.47,
+    "total_computation": 120000,
+    "weighted_computation": 81033,
+    "max_layer": 12,
+    "class_statistics": {
+        "0": {
+            "name": "apple",
+            "accuracy": 96.0,
+            "avg_inference_time_ms": 32.9818,
+            "avg_exit_layer": 6.29,
+            "mode_exit_layer": 3
+        },
+        "1": {
+            "name": "aquarium_fish",
+            "accuracy": 95.0,
+            "avg_inference_time_ms": 31.1852,
+            "avg_exit_layer": 5.81,
+            "mode_exit_layer": 4
+        },
+        "2": {
+            "name": "baby",
+            "accuracy": 79.0,
+            "avg_inference_time_ms": 44.3909,
+            "avg_exit_layer": 8.9,
+            "mode_exit_layer": 12
+        },
+        "3": {
+            "name": "bear",
+            "accuracy": 88.0,
+            "avg_inference_time_ms": 43.3804,
+            "avg_exit_layer": 8.52,
+            "mode_exit_layer": 7
+        },
+        "4": {
+            "name": "beaver",
+            "accuracy": 84.0,
+            "avg_inference_time_ms": 42.4863,
+            "avg_exit_layer": 8.49,
+            "mode_exit_layer": 7
+        },
+        "5": {
+            "name": "bed",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 41.9521,
+            "avg_exit_layer": 8.25,
+            "mode_exit_layer": 12
+        },
+        "6": {
+            "name": "bee",
+            "accuracy": 97.0,
+            "avg_inference_time_ms": 33.2808,
+            "avg_exit_layer": 6.29,
+            "mode_exit_layer": 3
+        },
+        "7": {
+            "name": "beetle",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 35.9232,
+            "avg_exit_layer": 6.89,
+            "mode_exit_layer": 7
+        },
+        "8": {
+            "name": "bicycle",
+            "accuracy": 99.0,
+            "avg_inference_time_ms": 29.3436,
+            "avg_exit_layer": 5.41,
+            "mode_exit_layer": 3
+        },
+        "9": {
+            "name": "bottle",
+            "accuracy": 95.0,
+            "avg_inference_time_ms": 33.41,
+            "avg_exit_layer": 6.35,
+            "mode_exit_layer": 7
+        },
+        "10": {
+            "name": "bowl",
+            "accuracy": 78.0,
+            "avg_inference_time_ms": 46.2026,
+            "avg_exit_layer": 9.43,
+            "mode_exit_layer": 12
+        },
+        "11": {
+            "name": "boy",
+            "accuracy": 73.0,
+            "avg_inference_time_ms": 49.7457,
+            "avg_exit_layer": 10.34,
+            "mode_exit_layer": 12
+        },
+        "12": {
+            "name": "bridge",
+            "accuracy": 95.0,
+            "avg_inference_time_ms": 34.8856,
+            "avg_exit_layer": 6.66,
+            "mode_exit_layer": 7
+        },
+        "13": {
+            "name": "bus",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 42.4614,
+            "avg_exit_layer": 8.42,
+            "mode_exit_layer": 7
+        },
+        "14": {
+            "name": "butterfly",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 34.1504,
+            "avg_exit_layer": 6.57,
+            "mode_exit_layer": 4
+        },
+        "15": {
+            "name": "camel",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 37.55,
+            "avg_exit_layer": 7.16,
+            "mode_exit_layer": 7
+        },
+        "16": {
+            "name": "can",
+            "accuracy": 91.0,
+            "avg_inference_time_ms": 35.3494,
+            "avg_exit_layer": 6.72,
+            "mode_exit_layer": 3
+        },
+        "17": {
+            "name": "castle",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 34.0879,
+            "avg_exit_layer": 6.41,
+            "mode_exit_layer": 3
+        },
+        "18": {
+            "name": "caterpillar",
+            "accuracy": 88.0,
+            "avg_inference_time_ms": 37.1685,
+            "avg_exit_layer": 7.28,
+            "mode_exit_layer": 7
+        },
+        "19": {
+            "name": "cattle",
+            "accuracy": 97.0,
+            "avg_inference_time_ms": 37.1228,
+            "avg_exit_layer": 7.05,
+            "mode_exit_layer": 7
+        },
+        "20": {
+            "name": "chair",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 32.4578,
+            "avg_exit_layer": 6.02,
+            "mode_exit_layer": 3
+        },
+        "21": {
+            "name": "chimpanzee",
+            "accuracy": 98.0,
+            "avg_inference_time_ms": 32.429,
+            "avg_exit_layer": 6.0,
+            "mode_exit_layer": 7
+        },
+        "22": {
+            "name": "clock",
+            "accuracy": 95.0,
+            "avg_inference_time_ms": 34.7081,
+            "avg_exit_layer": 6.59,
+            "mode_exit_layer": 4
+        },
+        "23": {
+            "name": "cloud",
+            "accuracy": 85.0,
+            "avg_inference_time_ms": 38.26,
+            "avg_exit_layer": 7.58,
+            "mode_exit_layer": 12
+        },
+        "24": {
+            "name": "cockroach",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 35.2973,
+            "avg_exit_layer": 6.74,
+            "mode_exit_layer": 6
+        },
+        "25": {
+            "name": "couch",
+            "accuracy": 87.0,
+            "avg_inference_time_ms": 40.6191,
+            "avg_exit_layer": 8.03,
+            "mode_exit_layer": 7
+        },
+        "26": {
+            "name": "cra",
+            "accuracy": 90.0,
+            "avg_inference_time_ms": 36.9654,
+            "avg_exit_layer": 7.16,
+            "mode_exit_layer": 7
+        },
+        "27": {
+            "name": "crocodile",
+            "accuracy": 90.0,
+            "avg_inference_time_ms": 40.4415,
+            "avg_exit_layer": 7.94,
+            "mode_exit_layer": 7
+        },
+        "28": {
+            "name": "cup",
+            "accuracy": 88.0,
+            "avg_inference_time_ms": 37.5198,
+            "avg_exit_layer": 7.19,
+            "mode_exit_layer": 7
+        },
+        "29": {
+            "name": "dinosaur",
+            "accuracy": 96.0,
+            "avg_inference_time_ms": 36.9371,
+            "avg_exit_layer": 7.07,
+            "mode_exit_layer": 7
+        },
+        "30": {
+            "name": "dolphin",
+            "accuracy": 87.0,
+            "avg_inference_time_ms": 42.121,
+            "avg_exit_layer": 8.38,
+            "mode_exit_layer": 12
+        },
+        "31": {
+            "name": "elephant",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 38.892,
+            "avg_exit_layer": 7.6,
+            "mode_exit_layer": 7
+        },
+        "32": {
+            "name": "flatfish",
+            "accuracy": 88.0,
+            "avg_inference_time_ms": 38.3897,
+            "avg_exit_layer": 7.58,
+            "mode_exit_layer": 7
+        },
+        "33": {
+            "name": "forest",
+            "accuracy": 80.0,
+            "avg_inference_time_ms": 41.3224,
+            "avg_exit_layer": 8.34,
+            "mode_exit_layer": 12
+        },
+        "34": {
+            "name": "fox",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 38.436,
+            "avg_exit_layer": 7.43,
+            "mode_exit_layer": 7
+        },
+        "35": {
+            "name": "girl",
+            "accuracy": 70.0,
+            "avg_inference_time_ms": 49.0292,
+            "avg_exit_layer": 10.19,
+            "mode_exit_layer": 12
+        },
+        "36": {
+            "name": "hamster",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 36.8986,
+            "avg_exit_layer": 7.14,
+            "mode_exit_layer": 12
+        },
+        "37": {
+            "name": "house",
+            "accuracy": 90.0,
+            "avg_inference_time_ms": 38.3387,
+            "avg_exit_layer": 7.4,
+            "mode_exit_layer": 12
+        },
+        "38": {
+            "name": "kangaroo",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 39.5569,
+            "avg_exit_layer": 7.66,
+            "mode_exit_layer": 7
+        },
+        "39": {
+            "name": "keyboard",
+            "accuracy": 96.0,
+            "avg_inference_time_ms": 25.6751,
+            "avg_exit_layer": 4.55,
+            "mode_exit_layer": 3
+        },
+        "40": {
+            "name": "lamp",
+            "accuracy": 97.0,
+            "avg_inference_time_ms": 38.1481,
+            "avg_exit_layer": 7.41,
+            "mode_exit_layer": 8
+        },
+        "41": {
+            "name": "lawn_mower",
+            "accuracy": 100.0,
+            "avg_inference_time_ms": 30.0073,
+            "avg_exit_layer": 5.51,
+            "mode_exit_layer": 3
+        },
+        "42": {
+            "name": "leopard",
+            "accuracy": 90.0,
+            "avg_inference_time_ms": 34.16,
+            "avg_exit_layer": 6.57,
+            "mode_exit_layer": 3
+        },
+        "43": {
+            "name": "lion",
+            "accuracy": 95.0,
+            "avg_inference_time_ms": 35.259,
+            "avg_exit_layer": 6.72,
+            "mode_exit_layer": 7
+        },
+        "44": {
+            "name": "lizard",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 42.4463,
+            "avg_exit_layer": 8.37,
+            "mode_exit_layer": 7
+        },
+        "45": {
+            "name": "lobster",
+            "accuracy": 84.0,
+            "avg_inference_time_ms": 41.1206,
+            "avg_exit_layer": 8.14,
+            "mode_exit_layer": 12
+        },
+        "46": {
+            "name": "man",
+            "accuracy": 78.0,
+            "avg_inference_time_ms": 45.5202,
+            "avg_exit_layer": 9.23,
+            "mode_exit_layer": 12
+        },
+        "47": {
+            "name": "maple_tree",
+            "accuracy": 71.0,
+            "avg_inference_time_ms": 44.7924,
+            "avg_exit_layer": 9.21,
+            "mode_exit_layer": 12
+        },
+        "48": {
+            "name": "motorcycle",
+            "accuracy": 97.0,
+            "avg_inference_time_ms": 30.489,
+            "avg_exit_layer": 5.62,
+            "mode_exit_layer": 3
+        },
+        "49": {
+            "name": "mountain",
+            "accuracy": 95.0,
+            "avg_inference_time_ms": 33.1576,
+            "avg_exit_layer": 6.28,
+            "mode_exit_layer": 4
+        },
+        "50": {
+            "name": "mouse",
+            "accuracy": 83.0,
+            "avg_inference_time_ms": 45.2908,
+            "avg_exit_layer": 9.18,
+            "mode_exit_layer": 12
+        },
+        "51": {
+            "name": "mushroom",
+            "accuracy": 97.0,
+            "avg_inference_time_ms": 33.0475,
+            "avg_exit_layer": 6.17,
+            "mode_exit_layer": 4
+        },
+        "52": {
+            "name": "oak_tree",
+            "accuracy": 75.0,
+            "avg_inference_time_ms": 48.0831,
+            "avg_exit_layer": 9.92,
+            "mode_exit_layer": 12
+        },
+        "53": {
+            "name": "orange",
+            "accuracy": 99.0,
+            "avg_inference_time_ms": 27.5958,
+            "avg_exit_layer": 4.98,
+            "mode_exit_layer": 3
+        },
+        "54": {
+            "name": "orchid",
+            "accuracy": 93.0,
+            "avg_inference_time_ms": 33.1131,
+            "avg_exit_layer": 6.32,
+            "mode_exit_layer": 3
+        },
+        "55": {
+            "name": "otter",
+            "accuracy": 86.0,
+            "avg_inference_time_ms": 46.3311,
+            "avg_exit_layer": 9.4,
+            "mode_exit_layer": 12
+        },
+        "56": {
+            "name": "palm_tree",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 30.6891,
+            "avg_exit_layer": 5.78,
+            "mode_exit_layer": 3
+        },
+        "57": {
+            "name": "pear",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 35.2701,
+            "avg_exit_layer": 6.78,
+            "mode_exit_layer": 7
+        },
+        "58": {
+            "name": "pickup_truck",
+            "accuracy": 99.0,
+            "avg_inference_time_ms": 35.4351,
+            "avg_exit_layer": 6.71,
+            "mode_exit_layer": 7
+        },
+        "59": {
+            "name": "pine_tree",
+            "accuracy": 80.0,
+            "avg_inference_time_ms": 42.6625,
+            "avg_exit_layer": 8.63,
+            "mode_exit_layer": 12
+        },
+        "60": {
+            "name": "plain",
+            "accuracy": 89.0,
+            "avg_inference_time_ms": 35.7536,
+            "avg_exit_layer": 6.98,
+            "mode_exit_layer": 3
+        },
+        "61": {
+            "name": "plate",
+            "accuracy": 86.0,
+            "avg_inference_time_ms": 41.5795,
+            "avg_exit_layer": 8.24,
+            "mode_exit_layer": 7
+        },
+        "62": {
+            "name": "poppy",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 37.656,
+            "avg_exit_layer": 7.43,
+            "mode_exit_layer": 12
+        },
+        "63": {
+            "name": "porcupine",
+            "accuracy": 83.0,
+            "avg_inference_time_ms": 37.4534,
+            "avg_exit_layer": 7.31,
+            "mode_exit_layer": 12
+        },
+        "64": {
+            "name": "possum",
+            "accuracy": 84.0,
+            "avg_inference_time_ms": 41.3269,
+            "avg_exit_layer": 8.19,
+            "mode_exit_layer": 12
+        },
+        "65": {
+            "name": "rabbit",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 41.3806,
+            "avg_exit_layer": 8.02,
+            "mode_exit_layer": 7
+        },
+        "66": {
+            "name": "raccoon",
+            "accuracy": 93.0,
+            "avg_inference_time_ms": 35.4678,
+            "avg_exit_layer": 6.74,
+            "mode_exit_layer": 7
+        },
+        "67": {
+            "name": "ray",
+            "accuracy": 90.0,
+            "avg_inference_time_ms": 41.6543,
+            "avg_exit_layer": 8.27,
+            "mode_exit_layer": 7
+        },
+        "68": {
+            "name": "road",
+            "accuracy": 98.0,
+            "avg_inference_time_ms": 27.0816,
+            "avg_exit_layer": 4.93,
+            "mode_exit_layer": 3
+        },
+        "69": {
+            "name": "rocket",
+            "accuracy": 92.0,
+            "avg_inference_time_ms": 34.6313,
+            "avg_exit_layer": 6.7,
+            "mode_exit_layer": 3
+        },
+        "70": {
+            "name": "rose",
+            "accuracy": 93.0,
+            "avg_inference_time_ms": 38.6262,
+            "avg_exit_layer": 7.67,
+            "mode_exit_layer": 12
+        },
+        "71": {
+            "name": "sea",
+            "accuracy": 89.0,
+            "avg_inference_time_ms": 39.2126,
+            "avg_exit_layer": 7.75,
+            "mode_exit_layer": 7
+        },
+        "72": {
+            "name": "seal",
+            "accuracy": 79.0,
+            "avg_inference_time_ms": 47.0553,
+            "avg_exit_layer": 9.63,
+            "mode_exit_layer": 12
+        },
+        "73": {
+            "name": "shark",
+            "accuracy": 88.0,
+            "avg_inference_time_ms": 43.3495,
+            "avg_exit_layer": 8.66,
+            "mode_exit_layer": 7
+        },
+        "74": {
+            "name": "shrew",
+            "accuracy": 84.0,
+            "avg_inference_time_ms": 43.9429,
+            "avg_exit_layer": 8.9,
+            "mode_exit_layer": 12
+        },
+        "75": {
+            "name": "skunk",
+            "accuracy": 98.0,
+            "avg_inference_time_ms": 29.3714,
+            "avg_exit_layer": 5.38,
+            "mode_exit_layer": 4
+        },
+        "76": {
+            "name": "skyscraper",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 29.3406,
+            "avg_exit_layer": 5.4,
+            "mode_exit_layer": 3
+        },
+        "77": {
+            "name": "snail",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 37.7879,
+            "avg_exit_layer": 7.35,
+            "mode_exit_layer": 7
+        },
+        "78": {
+            "name": "snake",
+            "accuracy": 88.0,
+            "avg_inference_time_ms": 37.6194,
+            "avg_exit_layer": 7.33,
+            "mode_exit_layer": 12
+        },
+        "79": {
+            "name": "spider",
+            "accuracy": 99.0,
+            "avg_inference_time_ms": 36.1762,
+            "avg_exit_layer": 6.9,
+            "mode_exit_layer": 7
+        },
+        "80": {
+            "name": "squirrel",
+            "accuracy": 89.0,
+            "avg_inference_time_ms": 41.4267,
+            "avg_exit_layer": 8.24,
+            "mode_exit_layer": 7
+        },
+        "81": {
+            "name": "streetcar",
+            "accuracy": 90.0,
+            "avg_inference_time_ms": 40.6577,
+            "avg_exit_layer": 7.98,
+            "mode_exit_layer": 7
+        },
+        "82": {
+            "name": "sunflower",
+            "accuracy": 98.0,
+            "avg_inference_time_ms": 25.1731,
+            "avg_exit_layer": 4.56,
+            "mode_exit_layer": 3
+        },
+        "83": {
+            "name": "sweet_pepper",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 35.6054,
+            "avg_exit_layer": 6.78,
+            "mode_exit_layer": 7
+        },
+        "84": {
+            "name": "table",
+            "accuracy": 91.0,
+            "avg_inference_time_ms": 38.6942,
+            "avg_exit_layer": 7.52,
+            "mode_exit_layer": 7
+        },
+        "85": {
+            "name": "tank",
+            "accuracy": 98.0,
+            "avg_inference_time_ms": 34.2085,
+            "avg_exit_layer": 6.49,
+            "mode_exit_layer": 7
+        },
+        "86": {
+            "name": "telephone",
+            "accuracy": 91.0,
+            "avg_inference_time_ms": 35.3884,
+            "avg_exit_layer": 6.89,
+            "mode_exit_layer": 12
+        },
+        "87": {
+            "name": "television",
+            "accuracy": 97.0,
+            "avg_inference_time_ms": 32.7355,
+            "avg_exit_layer": 6.14,
+            "mode_exit_layer": 7
+        },
+        "88": {
+            "name": "tiger",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 34.7593,
+            "avg_exit_layer": 6.73,
+            "mode_exit_layer": 3
+        },
+        "89": {
+            "name": "tractor",
+            "accuracy": 97.0,
+            "avg_inference_time_ms": 33.0032,
+            "avg_exit_layer": 6.15,
+            "mode_exit_layer": 7
+        },
+        "90": {
+            "name": "train",
+            "accuracy": 96.0,
+            "avg_inference_time_ms": 37.0023,
+            "avg_exit_layer": 7.08,
+            "mode_exit_layer": 7
+        },
+        "91": {
+            "name": "trout",
+            "accuracy": 94.0,
+            "avg_inference_time_ms": 31.3195,
+            "avg_exit_layer": 5.92,
+            "mode_exit_layer": 3
+        },
+        "92": {
+            "name": "tulip",
+            "accuracy": 82.0,
+            "avg_inference_time_ms": 40.3531,
+            "avg_exit_layer": 8.0,
+            "mode_exit_layer": 7
+        },
+        "93": {
+            "name": "turtle",
+            "accuracy": 93.0,
+            "avg_inference_time_ms": 39.9154,
+            "avg_exit_layer": 7.86,
+            "mode_exit_layer": 7
+        },
+        "94": {
+            "name": "wardrobe",
+            "accuracy": 96.0,
+            "avg_inference_time_ms": 29.8357,
+            "avg_exit_layer": 5.49,
+            "mode_exit_layer": 3
+        },
+        "95": {
+            "name": "whale",
+            "accuracy": 84.0,
+            "avg_inference_time_ms": 40.1508,
+            "avg_exit_layer": 7.94,
+            "mode_exit_layer": 12
+        },
+        "96": {
+            "name": "willow_tree",
+            "accuracy": 70.0,
+            "avg_inference_time_ms": 45.3065,
+            "avg_exit_layer": 9.28,
+            "mode_exit_layer": 12
+        },
+        "97": {
+            "name": "wolf",
+            "accuracy": 95.0,
+            "avg_inference_time_ms": 34.7361,
+            "avg_exit_layer": 6.64,
+            "mode_exit_layer": 7
+        },
+        "98": {
+            "name": "woman",
+            "accuracy": 78.0,
+            "avg_inference_time_ms": 46.8867,
+            "avg_exit_layer": 9.58,
+            "mode_exit_layer": 12
+        },
+        "99": {
+            "name": "worm",
+            "accuracy": 90.0,
+            "avg_inference_time_ms": 36.0288,
+            "avg_exit_layer": 6.91,
+            "mode_exit_layer": 7
+        }
+    }
+}

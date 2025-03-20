@@ -1,0 +1,13 @@
+args:
+  config_path: ./config/run_args.yaml
+  dry_run: false
+  interactive: false
+  num_examples: null
+  onnx_program_filepath: ./models/onnx/EEVIT.onnx
+  profile_do: false
+  save_metrics: true
+  skip_conda_env_check: false
+  suffix: th99
+  use_gpu: true
+model_type: pytorch_gpu
+timestamp: '250311_140022'

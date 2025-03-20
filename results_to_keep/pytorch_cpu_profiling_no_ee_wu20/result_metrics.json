@@ -1,0 +1,1560 @@
+{
+    "overall_accuracy": 86.0,
+    "total_samples": 50,
+    "exit_statistics": {
+        "final": {
+            "count": 50,
+            "accuracy": 86.0,
+            "percentage_samples": 100.0,
+            "average_confidence": 0.8848,
+            "avg_inference_time_ms": 309.6113,
+            "std_inference_time_ms": 77.156,
+            "min_inference_time_ms": 241.6653,
+            "max_inference_time_ms": 697.3254,
+            "inference_time_values": [
+                442.905969,
+                243.43889,
+                374.362466,
+                384.795938,
+                302.501454,
+                273.885051,
+                335.900282,
+                371.915336,
+                355.053665,
+                250.606705,
+                275.469115,
+                265.46822,
+                259.951414,
+                261.302581,
+                276.429719,
+                374.075541,
+                262.271362,
+                290.575781,
+                421.256265,
+                249.626517,
+                249.736542,
+                332.389578,
+                264.676092,
+                259.569599,
+                249.164832,
+                325.393258,
+                259.93204,
+                269.096399,
+                350.026583,
+                316.345317,
+                265.613349,
+                267.352073,
+                265.728595,
+                262.703841,
+                243.578148,
+                260.663831,
+                244.779503,
+                241.665316,
+                332.392835,
+                242.7072,
+                303.448667,
+                402.530085,
+                367.663511,
+                697.325352,
+                336.88792,
+                346.139587,
+                296.901127,
+                288.727086,
+                401.821814,
+                263.811235
+            ],
+            "confidence_values": [
+                0.9978162050247192,
+                0.9224385023117065,
+                0.6951794624328613,
+                0.3833162486553192,
+                0.9967908263206482,
+                0.999430239200592,
+                0.996415376663208,
+                0.9985247254371643,
+                0.982666015625,
+                0.9982931017875671,
+                0.5740371942520142,
+                0.9555677175521851,
+                0.9996799230575562,
+                0.9546120166778564,
+                0.9983009696006775,
+                0.9993721842765808,
+                0.9119768142700195,
+                0.859936535358429,
+                0.7025737166404724,
+                0.9964860677719116,
+                0.9964656829833984,
+                0.9876969456672668,
+                0.9878339767456055,
+                0.9481016397476196,
+                0.9605956673622131,
+                0.9981396198272705,
+                0.9778274893760681,
+                0.9965004920959473,
+                0.9995442032814026,
+                0.9976224303245544,
+                0.9919776916503906,
+                0.9977534413337708,
+                0.6703358292579651,
+                0.9992534518241882,
+                0.99513840675354,
+                0.46261802315711975,
+                0.9725043773651123,
+                0.9940312504768372,
+                0.9245947599411011,
+                0.9461527466773987,
+                0.38163459300994873,
+                0.9559603929519653,
+                0.9535890221595764,
+                0.9995736479759216,
+                0.5563080310821533,
+                0.997763991355896,
+                0.5549688339233398,
+                0.9994159936904907,
+                0.11131685227155685,
+                0.99893718957901
+            ],
+            "accuracy_values": [
+                true,
+                true,
+                true,
+                false,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                false,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                false,
+                true,
+                true,
+                false,
+                true,
+                true,
+                true,
+                true,
+                false,
+                true,
+                true,
+                true,
+                false,
+                true,
+                true,
+                true,
+                false,
+                true
+            ],
+            "batch_accuracy_values": [
+                100.0,
+                100.0,
+                100.0,
+                0.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                0.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                0.0,
+                100.0,
+                100.0,
+                0.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                0.0,
+                100.0,
+                100.0,
+                100.0,
+                0.0,
+                100.0,
+                100.0,
+                100.0,
+                0.0,
+                100.0
+            ]
+        }
+    },
+    "class_statistics": {
+        "0": {
+            "name": "apple",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 697.3254,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 697.3254,
+            "max_inference_time_ms": 697.3254,
+            "avg_confidence": 0.9996,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9996,
+            "max_confidence": 0.9996,
+            "inference_times": [
+                697.325352
+            ],
+            "confidences": [
+                0.9995736479759216
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "1": {
+            "name": "aquarium_fish",
+            "count": 2,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 2
+            },
+            "avg_inference_time_ms": 246.6023,
+            "std_inference_time_ms": 3.0242,
+            "min_inference_time_ms": 243.5781,
+            "max_inference_time_ms": 249.6265,
+            "avg_confidence": 0.9958,
+            "std_confidence": 0.0007,
+            "min_confidence": 0.9951,
+            "max_confidence": 0.9965,
+            "inference_times": [
+                249.626517,
+                243.578148
+            ],
+            "confidences": [
+                0.9964860677719116,
+                0.99513840675354
+            ],
+            "accuracies": [
+                1,
+                1
+            ],
+            "exit_values": [
+                12,
+                12
+            ]
+        },
+        "7": {
+            "name": "beetle",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 325.3933,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 325.3933,
+            "max_inference_time_ms": 325.3933,
+            "avg_confidence": 0.9981,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9981,
+            "max_confidence": 0.9981,
+            "inference_times": [
+                325.393258
+            ],
+            "confidences": [
+                0.9981396198272705
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "8": {
+            "name": "bicycle",
+            "count": 3,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 3
+            },
+            "avg_inference_time_ms": 309.3315,
+            "std_inference_time_ms": 45.1056,
+            "min_inference_time_ms": 267.3521,
+            "max_inference_time_ms": 371.9153,
+            "avg_confidence": 0.9986,
+            "std_confidence": 0.0007,
+            "min_confidence": 0.9978,
+            "max_confidence": 0.9994,
+            "inference_times": [
+                371.915336,
+                267.352073,
+                288.727086
+            ],
+            "confidences": [
+                0.9985247254371643,
+                0.9977534413337708,
+                0.9994159936904907
+            ],
+            "accuracies": [
+                1,
+                1,
+                1
+            ],
+            "exit_values": [
+                12,
+                12,
+                12
+            ]
+        },
+        "10": {
+            "name": "bowl",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 265.4682,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 265.4682,
+            "max_inference_time_ms": 265.4682,
+            "avg_confidence": 0.9556,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9556,
+            "max_confidence": 0.9556,
+            "inference_times": [
+                265.46822
+            ],
+            "confidences": [
+                0.9555677175521851
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "11": {
+            "name": "boy",
+            "count": 2,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 2
+            },
+            "avg_inference_time_ms": 280.7886,
+            "std_inference_time_ms": 16.1125,
+            "min_inference_time_ms": 264.6761,
+            "max_inference_time_ms": 296.9011,
+            "avg_confidence": 0.7714,
+            "std_confidence": 0.2164,
+            "min_confidence": 0.555,
+            "max_confidence": 0.9878,
+            "inference_times": [
+                264.676092,
+                296.901127
+            ],
+            "confidences": [
+                0.9878339767456055,
+                0.5549688339233398
+            ],
+            "accuracies": [
+                1,
+                1
+            ],
+            "exit_values": [
+                12,
+                12
+            ]
+        },
+        "12": {
+            "name": "bridge",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 249.1648,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 249.1648,
+            "max_inference_time_ms": 249.1648,
+            "avg_confidence": 0.9606,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9606,
+            "max_confidence": 0.9606,
+            "inference_times": [
+                249.164832
+            ],
+            "confidences": [
+                0.9605956673622131
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "15": {
+            "name": "camel",
+            "count": 1,
+            "accuracy": 0.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 336.8879,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 336.8879,
+            "max_inference_time_ms": 336.8879,
+            "avg_confidence": 0.5563,
+            "std_confidence": 0.0,
+            "min_confidence": 0.5563,
+            "max_confidence": 0.5563,
+            "inference_times": [
+                336.88792
+            ],
+            "confidences": [
+                0.5563080310821533
+            ],
+            "accuracies": [
+                0
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "19": {
+            "name": "cattle",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 374.3625,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 374.3625,
+            "max_inference_time_ms": 374.3625,
+            "avg_confidence": 0.6952,
+            "std_confidence": 0.0,
+            "min_confidence": 0.6952,
+            "max_confidence": 0.6952,
+            "inference_times": [
+                374.362466
+            ],
+            "confidences": [
+                0.6951794624328613
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "24": {
+            "name": "cockroach",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 276.4297,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 276.4297,
+            "max_inference_time_ms": 276.4297,
+            "avg_confidence": 0.9983,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9983,
+            "max_confidence": 0.9983,
+            "inference_times": [
+                276.429719
+            ],
+            "confidences": [
+                0.9983009696006775
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "25": {
+            "name": "couch",
+            "count": 1,
+            "accuracy": 0.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 401.8218,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 401.8218,
+            "max_inference_time_ms": 401.8218,
+            "avg_confidence": 0.1113,
+            "std_confidence": 0.0,
+            "min_confidence": 0.1113,
+            "max_confidence": 0.1113,
+            "inference_times": [
+                401.821814
+            ],
+            "confidences": [
+                0.11131685227155685
+            ],
+            "accuracies": [
+                0
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "28": {
+            "name": "cup",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 355.0537,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 355.0537,
+            "max_inference_time_ms": 355.0537,
+            "avg_confidence": 0.9827,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9827,
+            "max_confidence": 0.9827,
+            "inference_times": [
+                355.053665
+            ],
+            "confidences": [
+                0.982666015625
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "30": {
+            "name": "dolphin",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 421.2563,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 421.2563,
+            "max_inference_time_ms": 421.2563,
+            "avg_confidence": 0.7026,
+            "std_confidence": 0.0,
+            "min_confidence": 0.7026,
+            "max_confidence": 0.7026,
+            "inference_times": [
+                421.256265
+            ],
+            "confidences": [
+                0.7025737166404724
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "34": {
+            "name": "fox",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 273.8851,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 273.8851,
+            "max_inference_time_ms": 273.8851,
+            "avg_confidence": 0.9994,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9994,
+            "max_confidence": 0.9994,
+            "inference_times": [
+                273.885051
+            ],
+            "confidences": [
+                0.999430239200592
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "36": {
+            "name": "hamster",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 250.6067,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 250.6067,
+            "max_inference_time_ms": 250.6067,
+            "avg_confidence": 0.9983,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9983,
+            "max_confidence": 0.9983,
+            "inference_times": [
+                250.606705
+            ],
+            "confidences": [
+                0.9982931017875671
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "44": {
+            "name": "lizard",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 367.6635,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 367.6635,
+            "max_inference_time_ms": 367.6635,
+            "avg_confidence": 0.9536,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9536,
+            "max_confidence": 0.9536,
+            "inference_times": [
+                367.663511
+            ],
+            "confidences": [
+                0.9535890221595764
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "46": {
+            "name": "man",
+            "count": 2,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 2
+            },
+            "avg_inference_time_ms": 262.4876,
+            "std_inference_time_ms": 0.2162,
+            "min_inference_time_ms": 262.2714,
+            "max_inference_time_ms": 262.7038,
+            "avg_confidence": 0.9556,
+            "std_confidence": 0.0436,
+            "min_confidence": 0.912,
+            "max_confidence": 0.9993,
+            "inference_times": [
+                262.271362,
+                262.703841
+            ],
+            "confidences": [
+                0.9119768142700195,
+                0.9992534518241882
+            ],
+            "accuracies": [
+                1,
+                1
+            ],
+            "exit_values": [
+                12,
+                12
+            ]
+        },
+        "49": {
+            "name": "mountain",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 442.906,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 442.906,
+            "max_inference_time_ms": 442.906,
+            "avg_confidence": 0.9978,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9978,
+            "max_confidence": 0.9978,
+            "inference_times": [
+                442.905969
+            ],
+            "confidences": [
+                0.9978162050247192
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "50": {
+            "name": "mouse",
+            "count": 1,
+            "accuracy": 0.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 275.4691,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 275.4691,
+            "max_inference_time_ms": 275.4691,
+            "avg_confidence": 0.574,
+            "std_confidence": 0.0,
+            "min_confidence": 0.574,
+            "max_confidence": 0.574,
+            "inference_times": [
+                275.469115
+            ],
+            "confidences": [
+                0.5740371942520142
+            ],
+            "accuracies": [
+                0
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "52": {
+            "name": "oak_tree",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 243.4389,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 243.4389,
+            "max_inference_time_ms": 243.4389,
+            "avg_confidence": 0.9224,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9224,
+            "max_confidence": 0.9224,
+            "inference_times": [
+                243.43889
+            ],
+            "confidences": [
+                0.9224385023117065
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "53": {
+            "name": "orange",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 346.1396,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 346.1396,
+            "max_inference_time_ms": 346.1396,
+            "avg_confidence": 0.9978,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9978,
+            "max_confidence": 0.9978,
+            "inference_times": [
+                346.139587
+            ],
+            "confidences": [
+                0.997763991355896
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "55": {
+            "name": "otter",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 244.7795,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 244.7795,
+            "max_inference_time_ms": 244.7795,
+            "avg_confidence": 0.9725,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9725,
+            "max_confidence": 0.9725,
+            "inference_times": [
+                244.779503
+            ],
+            "confidences": [
+                0.9725043773651123
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "56": {
+            "name": "palm_tree",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 249.7365,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 249.7365,
+            "max_inference_time_ms": 249.7365,
+            "avg_confidence": 0.9965,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9965,
+            "max_confidence": 0.9965,
+            "inference_times": [
+                249.736542
+            ],
+            "confidences": [
+                0.9964656829833984
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "58": {
+            "name": "pickup_truck",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 374.0755,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 374.0755,
+            "max_inference_time_ms": 374.0755,
+            "avg_confidence": 0.9994,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9994,
+            "max_confidence": 0.9994,
+            "inference_times": [
+                374.075541
+            ],
+            "confidences": [
+                0.9993721842765808
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "59": {
+            "name": "pine_tree",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 263.8112,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 263.8112,
+            "max_inference_time_ms": 263.8112,
+            "avg_confidence": 0.9989,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9989,
+            "max_confidence": 0.9989,
+            "inference_times": [
+                263.811235
+            ],
+            "confidences": [
+                0.99893718957901
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "60": {
+            "name": "plain",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 242.7072,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 242.7072,
+            "max_inference_time_ms": 242.7072,
+            "avg_confidence": 0.9462,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9462,
+            "max_confidence": 0.9462,
+            "inference_times": [
+                242.7072
+            ],
+            "confidences": [
+                0.9461527466773987
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "63": {
+            "name": "porcupine",
+            "count": 2,
+            "accuracy": 50.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 2
+            },
+            "avg_inference_time_ms": 307.8776,
+            "std_inference_time_ms": 42.149,
+            "min_inference_time_ms": 265.7286,
+            "max_inference_time_ms": 350.0266,
+            "avg_confidence": 0.8349,
+            "std_confidence": 0.1646,
+            "min_confidence": 0.6703,
+            "max_confidence": 0.9995,
+            "inference_times": [
+                350.026583,
+                265.728595
+            ],
+            "confidences": [
+                0.9995442032814026,
+                0.6703358292579651
+            ],
+            "accuracies": [
+                1,
+                0
+            ],
+            "exit_values": [
+                12,
+                12
+            ]
+        },
+        "67": {
+            "name": "ray",
+            "count": 2,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 2
+            },
+            "avg_inference_time_ms": 288.1387,
+            "std_inference_time_ms": 28.2066,
+            "min_inference_time_ms": 259.932,
+            "max_inference_time_ms": 316.3453,
+            "avg_confidence": 0.9877,
+            "std_confidence": 0.0099,
+            "min_confidence": 0.9778,
+            "max_confidence": 0.9976,
+            "inference_times": [
+                259.93204,
+                316.345317
+            ],
+            "confidences": [
+                0.9778274893760681,
+                0.9976224303245544
+            ],
+            "accuracies": [
+                1,
+                1
+            ],
+            "exit_values": [
+                12,
+                12
+            ]
+        },
+        "69": {
+            "name": "rocket",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 332.3896,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 332.3896,
+            "max_inference_time_ms": 332.3896,
+            "avg_confidence": 0.9877,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9877,
+            "max_confidence": 0.9877,
+            "inference_times": [
+                332.389578
+            ],
+            "confidences": [
+                0.9876969456672668
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "70": {
+            "name": "rose",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 261.3026,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 261.3026,
+            "max_inference_time_ms": 261.3026,
+            "avg_confidence": 0.9546,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9546,
+            "max_confidence": 0.9546,
+            "inference_times": [
+                261.302581
+            ],
+            "confidences": [
+                0.9546120166778564
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "73": {
+            "name": "shark",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 265.6133,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 265.6133,
+            "max_inference_time_ms": 265.6133,
+            "avg_confidence": 0.992,
+            "std_confidence": 0.0,
+            "min_confidence": 0.992,
+            "max_confidence": 0.992,
+            "inference_times": [
+                265.613349
+            ],
+            "confidences": [
+                0.9919776916503906
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "75": {
+            "name": "skunk",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 259.5696,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 259.5696,
+            "max_inference_time_ms": 259.5696,
+            "avg_confidence": 0.9481,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9481,
+            "max_confidence": 0.9481,
+            "inference_times": [
+                259.569599
+            ],
+            "confidences": [
+                0.9481016397476196
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "76": {
+            "name": "skyscraper",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 402.5301,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 402.5301,
+            "max_inference_time_ms": 402.5301,
+            "avg_confidence": 0.956,
+            "std_confidence": 0.0,
+            "min_confidence": 0.956,
+            "max_confidence": 0.956,
+            "inference_times": [
+                402.530085
+            ],
+            "confidences": [
+                0.9559603929519653
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "80": {
+            "name": "squirrel",
+            "count": 1,
+            "accuracy": 0.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 303.4487,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 303.4487,
+            "max_inference_time_ms": 303.4487,
+            "avg_confidence": 0.3816,
+            "std_confidence": 0.0,
+            "min_confidence": 0.3816,
+            "max_confidence": 0.3816,
+            "inference_times": [
+                303.448667
+            ],
+            "confidences": [
+                0.38163459300994873
+            ],
+            "accuracies": [
+                0
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "81": {
+            "name": "streetcar",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 335.9003,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 335.9003,
+            "max_inference_time_ms": 335.9003,
+            "avg_confidence": 0.9964,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9964,
+            "max_confidence": 0.9964,
+            "inference_times": [
+                335.900282
+            ],
+            "confidences": [
+                0.996415376663208
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "82": {
+            "name": "sunflower",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 241.6653,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 241.6653,
+            "max_inference_time_ms": 241.6653,
+            "avg_confidence": 0.994,
+            "std_confidence": 0.0,
+            "min_confidence": 0.994,
+            "max_confidence": 0.994,
+            "inference_times": [
+                241.665316
+            ],
+            "confidences": [
+                0.9940312504768372
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "85": {
+            "name": "tank",
+            "count": 2,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 2
+            },
+            "avg_inference_time_ms": 285.7989,
+            "std_inference_time_ms": 16.7025,
+            "min_inference_time_ms": 269.0964,
+            "max_inference_time_ms": 302.5015,
+            "avg_confidence": 0.9966,
+            "std_confidence": 0.0001,
+            "min_confidence": 0.9965,
+            "max_confidence": 0.9968,
+            "inference_times": [
+                302.501454,
+                269.096399
+            ],
+            "confidences": [
+                0.9967908263206482,
+                0.9965004920959473
+            ],
+            "accuracies": [
+                1,
+                1
+            ],
+            "exit_values": [
+                12,
+                12
+            ]
+        },
+        "86": {
+            "name": "telephone",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 290.5758,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 290.5758,
+            "max_inference_time_ms": 290.5758,
+            "avg_confidence": 0.8599,
+            "std_confidence": 0.0,
+            "min_confidence": 0.8599,
+            "max_confidence": 0.8599,
+            "inference_times": [
+                290.575781
+            ],
+            "confidences": [
+                0.859936535358429
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "87": {
+            "name": "television",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 259.9514,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 259.9514,
+            "max_inference_time_ms": 259.9514,
+            "avg_confidence": 0.9997,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9997,
+            "max_confidence": 0.9997,
+            "inference_times": [
+                259.951414
+            ],
+            "confidences": [
+                0.9996799230575562
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "96": {
+            "name": "willow_tree",
+            "count": 1,
+            "accuracy": 0.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 384.7959,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 384.7959,
+            "max_inference_time_ms": 384.7959,
+            "avg_confidence": 0.3833,
+            "std_confidence": 0.0,
+            "min_confidence": 0.3833,
+            "max_confidence": 0.3833,
+            "inference_times": [
+                384.795938
+            ],
+            "confidences": [
+                0.3833162486553192
+            ],
+            "accuracies": [
+                0
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "97": {
+            "name": "wolf",
+            "count": 1,
+            "accuracy": 0.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 260.6638,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 260.6638,
+            "max_inference_time_ms": 260.6638,
+            "avg_confidence": 0.4626,
+            "std_confidence": 0.0,
+            "min_confidence": 0.4626,
+            "max_confidence": 0.4626,
+            "inference_times": [
+                260.663831
+            ],
+            "confidences": [
+                0.46261802315711975
+            ],
+            "accuracies": [
+                0
+            ],
+            "exit_values": [
+                12
+            ]
+        },
+        "98": {
+            "name": "woman",
+            "count": 1,
+            "accuracy": 100.0,
+            "avg_exit_layer": 12.0,
+            "std_exit_layer": 0.0,
+            "mode_exit_layer": 12,
+            "exit_distribution": {
+                "final": 1
+            },
+            "avg_inference_time_ms": 332.3928,
+            "std_inference_time_ms": 0.0,
+            "min_inference_time_ms": 332.3928,
+            "max_inference_time_ms": 332.3928,
+            "avg_confidence": 0.9246,
+            "std_confidence": 0.0,
+            "min_confidence": 0.9246,
+            "max_confidence": 0.9246,
+            "inference_times": [
+                332.392835
+            ],
+            "confidences": [
+                0.9245947599411011
+            ],
+            "accuracies": [
+                1
+            ],
+            "exit_values": [
+                12
+            ]
+        }
+    }
+}
