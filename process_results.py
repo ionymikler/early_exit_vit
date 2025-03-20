@@ -52,18 +52,23 @@ def calculate_advanced_metrics(metrics):
         exit_layer = (
             max_layer if exit_key == "final" else int(exit_key.split("_")[1]) + 1
         )
-        sample_count = exit_data.get("count", 0)
-        weighted_sum += exit_layer * sample_count
 
-        # Add this data to advanced metrics
+        # Add additional calculated metrics for this exit
         advanced_metrics["exit_statistics"][exit_key] = {
+            "count": exit_data.get("count", 0),
+            "avg_accuracy": exit_data.get("accuracy", 0),
+            "avg_inference_time_ms": exit_data.get("avg_inference_time_ms", 0),
+            "percentage": exit_data.get("percentage_samples", 0),
             "layer_position": exit_layer,  # 1-indexed layer position
             "layer_index": max_layer - 1
             if exit_key == "final"
             else int(exit_key.split("_")[1]),  # 0-indexed
-            "count": sample_count,
-            "percentage": exit_data.get("percentage_samples", 0),
         }
+
+        # Calculate the weighted sum for speedup metric
+        weighted_sum += (
+            exit_layer * advanced_metrics["exit_statistics"][exit_key]["count"]
+        )
 
     # Calculate the speedup metric as (total samples * max layers) / weighted sum
     if weighted_sum > 0:

@@ -9,8 +9,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Dict, Any, Tuple
 
-# Define color palette for the runs (up to 5 distinct colors)
-COLORS = ["#4285F4", "#EA4335", "#FBBC05", "#34A853", "#8E44AD"]
+# Define color palette for the runs (up to 4 distinct colors)
+COLORS = [
+    "#57B4BA",  # Light Teal
+    "#015551",  # Dark Teal
+    "#FE4F2D",  # Red Orange
+    "#FDFBEE",  # Frosting Cream
+]
+
 
 # Constants for plotting
 PLOT_TITLE_FONTSIZE = 16
@@ -104,39 +110,18 @@ def get_metrics_by_exit(
         # Handle each exit point for this run
         for exit_point in all_exits:
             if exit_point in exit_stats:
-                # For standard metrics format
-                if "count" in exit_stats[exit_point]:
-                    exit_metrics["sample_counts"][exit_point].append(
-                        exit_stats[exit_point]["count"]
-                    )
+                exit_metrics["sample_counts"][exit_point].append(
+                    exit_stats[exit_point]["count"]
+                )
 
-                    # Check for both formats of accuracy
-                    if "accuracy" in exit_stats[exit_point]:
-                        exit_metrics["accuracies"][exit_point].append(
-                            exit_stats[exit_point]["accuracy"]
-                        )
-                    else:
-                        # Try to calculate from correct/count
-                        correct = exit_stats[exit_point].get("correct", 0)
-                        count = exit_stats[exit_point].get(
-                            "count", 1
-                        )  # Avoid division by zero
-                        accuracy = (correct / count * 100) if count > 0 else 0
-                        exit_metrics["accuracies"][exit_point].append(accuracy)
+                exit_metrics["accuracies"][exit_point].append(
+                    exit_stats[exit_point]["avg_accuracy"]
+                )
 
-                    # Handle different naming conventions for inference time
-                    if "avg_inference_time_ms" in exit_stats[exit_point]:
-                        exit_metrics["inference_times"][exit_point].append(
-                            exit_stats[exit_point]["avg_inference_time_ms"]
-                        )
-                    else:
-                        # Default to 0 if not found
-                        exit_metrics["inference_times"][exit_point].append(0)
-                else:
-                    # Handle missing data points with zeros
-                    exit_metrics["sample_counts"][exit_point].append(0)
-                    exit_metrics["accuracies"][exit_point].append(0)
-                    exit_metrics["inference_times"][exit_point].append(0)
+                exit_metrics["inference_times"][exit_point].append(
+                    exit_stats[exit_point]["avg_inference_time_ms"]
+                )
+
             else:
                 # Exit point not present in this run
                 exit_metrics["sample_counts"][exit_point].append(0)
@@ -439,22 +424,6 @@ def plot_inference_time_by_exit(
     return fig
 
 
-def save_figure(fig, output_path):
-    """Save figure if user agrees after viewing it"""
-    plt.figure(fig.number)
-    plt.draw()
-
-    save_choice = input("Save this figure? (y/n): ").lower()
-    if save_choice.startswith("y"):
-        # Create parent directory if it doesn't exist
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-        fig.savefig(output_path, dpi=300, bbox_inches="tight")
-        print(f"Saved figure to {output_path}")
-    else:
-        print("Figure not saved.")
-
-
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
@@ -504,12 +473,23 @@ def main():
     # Plot inference time by exit
     time_plot = plot_inference_time_by_exit(exit_metrics, run_names, args.title_suffix)  # noqa F841
 
-    # Keep figures displayed until user closes them
-    plt.show()
+    # Prompt user to save images
+    sample_plot.show()
+    accuracy_plot.show()
+    time_plot.show()
 
-    # Create plots directory inside the first result directory
-    plots_dir = os.path.join("results", "plots")
-    os.makedirs(plots_dir, exist_ok=True)
+    save_images = (
+        input("Do you want to save the plots as images? (y/n): ").strip().lower()
+    )
+    if save_images == "y":
+        # Create plots directory inside the first result directory
+        plots_dir = os.path.join("results", "combined_benchamrks_plots")
+        os.makedirs(plots_dir, exist_ok=True)
+
+        sample_plot.savefig(os.path.join(plots_dir, "sample_distribution.png"))
+        accuracy_plot.savefig(os.path.join(plots_dir, "accuracy_by_exit.png"))
+        time_plot.savefig(os.path.join(plots_dir, "inference_time_by_exit.png"))
+        print(f"Plots saved in '{plots_dir}'")
 
 
 if __name__ == "__main__":
