@@ -10,13 +10,22 @@ import matplotlib.pyplot as plt
 from typing import List, Dict, Any, Tuple
 
 # Define color palette for the runs (up to 4 distinct colors)
-COLORS = [
-    "#57B4BA",  # Light Teal
-    "#015551",  # Dark Teal
-    "#FE4F2D",  # Red Orange
-    "#FDFBEE",  # Frosting Cream
+COLORS_PALETTES = [
+    [
+        "#57B4BA",
+        "#015551",
+        "#FE4F2D",
+        "#FDFBEE",
+    ],  # Light Teal, Dark Teal, Red Orange, Frosting Cream
+    [
+        "#FF6500",
+        "#FF8A08",
+        "#5CB338",
+        "#16C47F",
+    ],  # Orange, Light Orange, Green, Light Green
 ]
 
+COLORS = COLORS_PALETTES[0]
 
 # Constants for plotting
 PLOT_TITLE_FONTSIZE = 16
@@ -26,14 +35,41 @@ BAR_WIDTH = 0.15  # Will be adjusted based on number of runs
 FIGURE_SIZE = (15, 10)
 
 
+def find_metric_files_in_directory(directory: str) -> List[str]:
+    """
+    Recursively find all directories containing advanced_metrics.json files
+    in the given directory.
+
+    Args:
+        directory: The root directory to search in
+
+    Returns:
+        List of directories containing metric files
+    """
+    metric_dirs = []
+
+    # Check if the provided directory itself contains metrics
+    if os.path.isfile(os.path.join(directory, "advanced_metrics.json")):
+        metric_dirs.append(directory)
+        return metric_dirs
+
+    # If not, look for subdirectories containing metrics
+    for root, dirs, files in os.walk(directory):
+        if "advanced_metrics.json" in files:
+            metric_dirs.append(root)
+
+    return metric_dirs
+
+
 def load_metrics_from_dirs(
-    directories: List[str],
+    directories: List[str], recursive: bool = False
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
     """
     Load metrics from multiple directories.
 
     Args:
         directories: List of directory paths containing metrics files
+        recursive: If True, search for metrics files in subdirectories
 
     Returns:
         Tuple of (list of metrics dictionaries, list of run names)
@@ -41,22 +77,29 @@ def load_metrics_from_dirs(
     metrics_list = []
     run_names = []
 
-    for dir_path in directories:
+    # Expand directories if recursive mode is enabled
+    expanded_dirs = []
+    if recursive:
+        for directory in directories:
+            if os.path.isdir(directory):
+                subdirs = find_metric_files_in_directory(directory)
+                expanded_dirs.extend(subdirs)
+            else:
+                expanded_dirs.append(directory)
+    else:
+        expanded_dirs = directories
+
+    print(f"Found {len(expanded_dirs)} directories with metrics files")
+
+    for dir_path in expanded_dirs:
         # Use the directory name as the run name
-        run_name = os.path.basename(os.path.normpath(dir_path))
+        run_name = os.path.basename(os.path.normpath(dir_path)).replace("_", " ")
 
-        # Check for advanced metrics
-        advanced_metrics_path = os.path.join(dir_path, "advanced_metrics.json")
-        standard_metrics_path = os.path.join(dir_path, "result_metrics.json")
-
-        metrics_path = (
-            advanced_metrics_path
-            if os.path.exists(advanced_metrics_path)
-            else standard_metrics_path
-        )
+        # Look only for advanced metrics
+        metrics_path = os.path.join(dir_path, "advanced_metrics.json")
 
         if not os.path.exists(metrics_path):
-            print(f"Warning: No metrics file found in {dir_path}")
+            print(f"Warning: No advanced_metrics.json found in {dir_path}")
             continue
 
         try:
@@ -67,6 +110,11 @@ def load_metrics_from_dirs(
                 print(f"Loaded metrics from {metrics_path}")
         except Exception as e:
             print(f"Error loading metrics from {metrics_path}: {e}")
+
+    # Sort both metrics_list and run_names alphabetically by run_names
+    sorted_pairs = sorted(zip(run_names, metrics_list), key=lambda x: x[0])
+    run_names = [pair[0] for pair in sorted_pairs]
+    metrics_list = [pair[1] for pair in sorted_pairs]
 
     return metrics_list, run_names
 
@@ -110,18 +158,18 @@ def get_metrics_by_exit(
         # Handle each exit point for this run
         for exit_point in all_exits:
             if exit_point in exit_stats:
+                # Advanced metrics use consistent field names
                 exit_metrics["sample_percentages"][exit_point].append(
-                    exit_stats[exit_point]["percentage"]
+                    exit_stats[exit_point].get("percentage", 0)
                 )
 
                 exit_metrics["accuracies"][exit_point].append(
-                    exit_stats[exit_point]["avg_accuracy"]
+                    exit_stats[exit_point].get("avg_accuracy", 0)
                 )
 
                 exit_metrics["inference_times"][exit_point].append(
-                    exit_stats[exit_point]["avg_inference_time_ms"]
+                    exit_stats[exit_point].get("avg_inference_time_ms", 0)
                 )
-
             else:
                 # Exit point not present in this run
                 exit_metrics["sample_percentages"][exit_point].append(0)
@@ -238,6 +286,7 @@ def plot_sample_distribution(
 
 def plot_accuracy_latency_scatter(
     exit_metrics: Dict[str, Dict[str, List[Any]]],
+    metrics_list: List[Dict[str, Any]],
     run_names: List[str],
     title_suffix: str = "",
 ) -> plt.Figure:
@@ -246,6 +295,7 @@ def plot_accuracy_latency_scatter(
 
     Args:
         exit_metrics: Dictionary with metrics organized by exit point
+        metrics_list: List of complete metrics dictionaries for overall stats
         run_names: Names of the runs to display in the legend
         title_suffix: Optional suffix for the plot title
 
@@ -259,7 +309,7 @@ def plot_accuracy_latency_scatter(
     fig, ax = plt.subplots(figsize=FIGURE_SIZE)
 
     # Marker styles for different runs
-    markers = ["o", "s", "^", "D", "v", "<", ">", "p", "*", "h"]
+    markers = ["o", "s", "^", "D", "v", "<", ">", "p", "X", "h"]
 
     # Create a scatter plot for each run
     for i, run_name in enumerate(run_names):
@@ -291,11 +341,10 @@ def plot_accuracy_latency_scatter(
         if not run_accuracies:
             continue
 
-        # Plot scatter points for this run
+        # Plot scatter points for this run (without label for legend)
         scatter = ax.scatter(  # noqa F841
             run_times,
             run_accuracies,
-            label=run_name,
             color=COLORS[i % len(COLORS)],
             marker=markers[i % len(markers)],
             s=100,  # Marker size
@@ -310,6 +359,7 @@ def plot_accuracy_latency_scatter(
                 xytext=(7, 0),
                 textcoords="offset points",
                 fontsize=9,
+                bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"),
                 ha="left",
                 va="center",
             )
@@ -331,67 +381,71 @@ def plot_accuracy_latency_scatter(
                 linewidth=1.5,
             )
 
-    # Calculate the Pareto frontier (optimal trade-offs)
-    if len(run_names) > 1:
-        # Collect all data points
-        all_times = []
-        all_accs = []
-        all_labels = []
+    # Add overall average data points
+    for i, run_name in enumerate(run_names):
+        if i < len(metrics_list):
+            # Get overall metrics
+            overall_accuracy = metrics_list[i].get("overall_accuracy", 0)
 
-        for i, run_name in enumerate(run_names):
-            for j, exit_name in enumerate(exits):
-                if i < len(accuracies[exit_name]):
-                    acc = accuracies[exit_name][i]
-                    time_ms = times[exit_name][i]
+            # Calculate weighted average inference time
+            total_time = 0
+            total_samples = 0
+            exit_stats = metrics_list[i].get("exit_statistics", {})
 
-                    if acc > 0 and time_ms > 0:
-                        all_times.append(time_ms)
-                        all_accs.append(acc)
-                        all_labels.append(f"{run_name} - {exit_name}")
+            for exit_name, stats in exit_stats.items():
+                exit_count = stats.get("count", 0)
+                exit_time = stats.get("avg_inference_time_ms", 0)
+                total_time += exit_count * exit_time
+                total_samples += exit_count
 
-        # Find the Pareto frontier
-        pareto_times = []
-        pareto_accs = []
-        pareto_labels = []
+            overall_time = total_time / total_samples if total_samples > 0 else 0
 
-        # Convert to numpy arrays for easier manipulation
-        points = np.column_stack([all_times, all_accs])
+            # Skip if no valid data
+            if overall_accuracy <= 0 or overall_time <= 0:
+                continue
 
-        if len(points) > 0:
-            # Sort by time (x-axis)
-            sorted_indices = np.argsort(points[:, 0])
-            sorted_points = points[sorted_indices]
-            sorted_labels = [all_labels[i] for i in sorted_indices]
+            # Plot overall point with a larger marker (without label for legend)
+            ax.scatter(
+                overall_time,
+                overall_accuracy,
+                color=COLORS[i % len(COLORS)],
+                marker="*",  # Use star marker to distinguish
+                s=250,  # Larger marker size
+                alpha=1.0,
+                zorder=0,  # Ensure it's on top
+                edgecolors="black",
+            )
 
-            # Start with the first point
-            max_acc = sorted_points[0, 1]
-            pareto_times.append(sorted_points[0, 0])
-            pareto_accs.append(max_acc)
-            pareto_labels.append(sorted_labels[0])
+    # Create custom legend elements
+    legend_elements = []
+    for i, run_name in enumerate(run_names):
+        # Regular exit point marker
+        legend_elements.append(
+            plt.Line2D(
+                [0],
+                [0],
+                marker=markers[i % len(markers)],
+                color="w",
+                markerfacecolor=COLORS[i % len(COLORS)],
+                markersize=10,
+                label=run_name,
+            )
+        )
 
-            # Iterate through the sorted points
-            for i in range(1, len(sorted_points)):
-                # If this point has higher accuracy, it's part of the Pareto frontier
-                if sorted_points[i, 1] > max_acc:
-                    max_acc = sorted_points[i, 1]
-                    pareto_times.append(sorted_points[i, 0])
-                    pareto_accs.append(max_acc)
-                    pareto_labels.append(sorted_labels[i])
-
-            # Plot the Pareto frontier
-            if len(pareto_times) > 1:
-                ax.plot(
-                    pareto_times,
-                    pareto_accs,
-                    "-",
-                    color="black",
-                    alpha=0.7,
-                    linewidth=2,
-                    label="Pareto Frontier",
-                )
-
-                # Add shaded area under Pareto frontier
-                ax.fill_between(pareto_times, 0, pareto_accs, color="gray", alpha=0.1)
+        # Overall marker for this run
+        legend_elements.append(
+            plt.Line2D(
+                [0],
+                [0],
+                marker="*",
+                color="w",
+                markerfacecolor=COLORS[i % len(COLORS)],
+                markersize=15,
+                markeredgecolor="black",
+                markeredgewidth=1.5,
+                label=f"{run_name} (Overall)",
+            )
+        )
 
     # Add a grid
     ax.grid(True, linestyle="--", alpha=0.7)
@@ -409,8 +463,8 @@ def plot_accuracy_latency_scatter(
     if ax.get_ylim()[0] > 0:
         ax.set_ylim(bottom=0)
 
-    # Add legend
-    ax.legend(fontsize=LEGEND_FONTSIZE)
+    # Add custom legend
+    ax.legend(handles=legend_elements, fontsize=LEGEND_FONTSIZE)
 
     plt.tight_layout()
 
@@ -438,6 +492,45 @@ def parse_arguments():
         help="Optional suffix to add to plot titles",
     )
 
+    parser.add_argument(
+        "--recursive",
+        "-r",
+        action="store_true",
+        help="Search for metrics in subdirectories",
+    )
+
+    parser.add_argument(
+        "--save-dir",
+        "-s",
+        type=str,
+        default="results/combined_benchmarks_plots",
+        help="Directory to save plots in",
+    )
+
+    parser.add_argument(
+        "--auto-save",
+        "-a",
+        action="store_true",
+        help="Automatically save plots without asking",
+    )
+
+    parser.add_argument(
+        "--color-palette",
+        "-c",
+        type=int,
+        choices=[0, 1],
+        default=0,
+        help="Color palette to use (0 or 1)",
+    )
+
+    parser.add_argument(
+        "--file-prefix",
+        "-p",
+        type=str,
+        default="",
+        help="Prefix to add to output filenames",
+    )
+
     return parser.parse_args()
 
 
@@ -445,8 +538,12 @@ def main():
     """Main function to run the script"""
     args = parse_arguments()
 
+    # Set the color palette
+    global COLORS
+    COLORS = COLORS_PALETTES[args.color_palette]
+
     # Load metrics from all directories
-    metrics_list, run_names = load_metrics_from_dirs(args.directories)
+    metrics_list, run_names = load_metrics_from_dirs(args.directories, args.recursive)
 
     if not metrics_list:
         print("No valid metrics files found. Exiting.")
@@ -462,26 +559,37 @@ def main():
 
     # Plot accuracy vs latency scatter plot
     scatter_plot = plot_accuracy_latency_scatter(
-        exit_metrics, run_names, args.title_suffix
+        exit_metrics, metrics_list, run_names, args.title_suffix
     )
 
-    # Prompt user to save images
+    # Show plots
     sample_plot.show()
     scatter_plot.show()
 
-    save_images = (
-        input("Do you want to save the plots as images? (y/n): ").strip().lower()
-    )
-    if save_images == "y":
-        # Create plots directory inside the first result directory
-        plots_dir = os.path.join("results", "combined_benchmarks_plots")
-        os.makedirs(plots_dir, exist_ok=True)
-
-        sample_plot.savefig(os.path.join(plots_dir, "combined_sample_distribution.png"))
-        scatter_plot.savefig(
-            os.path.join(plots_dir, "combined_accuracy_latency_scatter.png")
+    # Determine whether to save plots
+    save_images = args.auto_save
+    if not save_images:
+        save_images = (
+            input("Do you want to save the plots as images? (y/n): ").strip().lower()
+            == "y"
         )
+
+    if save_images:
+        # Create plots directory
+        plots_dir = args.save_dir
+        os.makedirs(plots_dir, exist_ok=True)
+        file_prefix = args.file_prefix + "_" if args.file_prefix else ""
+        sample_plot.savefig(
+            os.path.join(plots_dir, f"{file_prefix}sample_distribution.png"), dpi=300
+        )
+        scatter_plot.savefig(
+            os.path.join(plots_dir, f"{file_prefix}accuracy_latency_scatter.png"),
+            dpi=300,
+        )
+
         print(f"Plots saved in '{plots_dir}'")
+
+    plt.show()
 
 
 if __name__ == "__main__":
