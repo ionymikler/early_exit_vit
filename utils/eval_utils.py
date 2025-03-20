@@ -450,12 +450,12 @@ def evaluate_pytorch_model(
     ) -> Tuple[np.ndarray, float]:
         """Prediction function without profiling"""
         with torch.no_grad():
-            images.to(device)
-            outputs = model(images)
+            images = images.to(device)
+            outputs: torch.Tensor = model(images)
             predictions = outputs[:, :-1]  # Remove exit layer index
             exit_layer = outputs[:, -1].item()  # Get exit layer
 
-            return predictions, exit_layer
+            return to_numpy(predictions), exit_layer
 
     return _evaluate_model_generic(
         predictor_fn=get_predictor_fn(),

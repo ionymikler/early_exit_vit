@@ -19,7 +19,7 @@ model:
   mlp_dim: 3072 # 'intermediate_size' in LGVIT
   dim_head: 64 # computed as config.hidden_size / config.num_attention_heads in LGVIT
   num_layers_transformer: 12 # 'num_hidden_layers' in LGViT 
-  enable_export: True # if 'True' the model will be created for onnx export (the flow control will be done with torch.cond)
+  enable_export: False # if 'True' the model will be created for onnx export (the flow control will be done with torch.cond)
 
   early_exit_config:
     enabled: True
