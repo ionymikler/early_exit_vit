@@ -492,9 +492,17 @@ def evaluate_onnx_model(
         Returns:
             Tuple of (predictions array, exit_layer value)
         """
-        # Run ONNX inference
-        ort_inputs = {onnx_session.get_inputs()[0].name: to_numpy(images)}
-        ort_outputs = onnx_session.run(None, ort_inputs)
+        # NOTE: Didn't note much improvement in latency with binding. Perhaps doing it wrong.
+        io_binding = onnx_session.io_binding()
+        # OnnxRuntime will copy the data over to the CUDA device if 'input' is consumed by nodes on the CUDA device
+        io_binding.bind_cpu_input("image", to_numpy(images))
+        io_binding.bind_output("getitem_24")
+        onnx_session.run_with_iobinding(io_binding)
+        ort_outputs = io_binding.copy_outputs_to_cpu()
+
+        # # Run ONNX inference
+        # ort_inputs = {onnx_session.get_inputs()[0].name: to_numpy(images)}
+        # ort_outputs = onnx_session.run(None, ort_inputs)
 
         # Process outputs as numpy arrays
         outputs = ort_outputs[0]
