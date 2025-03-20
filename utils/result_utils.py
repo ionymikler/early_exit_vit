@@ -17,38 +17,37 @@ COLOR_SCHEMES_BACKEND = {
     "onnx-cpu": {
         "primary": "#2878BD",  # Dark blue
         "secondary": "#8CC7FF",  # Lighter shade
-        "tertiary": "#5AA7FF",  # Medium shade
         "scatter": "Blues",  # Colormap for scatter plots
     },
     "onnx-gpu": {
         "primary": "#4B0082",  # Indigo
         "secondary": "#8A2BE2",  # Blue Violet
-        "tertiary": "#9370DB",  # Medium Purple
         "scatter": "Purples",  # Colormap for scatter plots
     },
     "nvidia-onnx-cpu": {
         "primary": "#483D8B",  # Dark Slate Blue
         "secondary": "#66CDAA",  # Lighter shade
-        "tertiary": "#228B22",  # Medium shade
         "scatter": "Greens",  # Colormap for scatter plots
     },
     "nvidia-onnx-gpu": {
         "primary": "#22577A",
         "secondary": "#57CC99",
-        "tertiary": "#CD5C5C",
         "scatter": "Blues",  # Colormap for scatter plots
     },
     "pytorch": {
         "primary": "#8B0000",  # Dark Red
         "secondary": "#CD5C5C",  # Indian Red
-        "tertiary": "#F08080",  # Light Coral
         "scatter": "Reds",  # Colormap for scatter plots
     },
     "default": {
         "primary": "#808080",  # Gray
         "secondary": "#A9A9A9",  # Dark Gray
-        "tertiary": "#D3D3D3",  # Light Gray
         "scatter": "Greys",  # Colormap for scatter plots
+    },
+    "custom": {
+        "primary": "#57B4BA",  # Light Teal
+        "secondary": "#B4EBE6",  # Lighter shade
+        "scatter": "cool",  # Colormap for scatter plots
     },
 }
 
