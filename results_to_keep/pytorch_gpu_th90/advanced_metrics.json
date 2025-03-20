@@ -3,58 +3,76 @@
     "total_samples": 10000,
     "exit_statistics": {
         "exit_9": {
-            "layer_position": 10,
-            "layer_index": 9,
             "count": 317,
-            "percentage": 3.17
+            "avg_accuracy": 78.8644,
+            "avg_inference_time_ms": 47.6999,
+            "percentage": 3.17,
+            "layer_position": 10,
+            "layer_index": 9
         },
         "exit_7": {
-            "layer_position": 8,
-            "layer_index": 7,
             "count": 1539,
-            "percentage": 15.39
+            "avg_accuracy": 89.2138,
+            "avg_inference_time_ms": 38.5327,
+            "percentage": 15.39,
+            "layer_position": 8,
+            "layer_index": 7
         },
         "exit_5": {
-            "layer_position": 6,
-            "layer_index": 5,
             "count": 878,
-            "percentage": 8.78
+            "avg_accuracy": 94.3052,
+            "avg_inference_time_ms": 29.0238,
+            "percentage": 8.78,
+            "layer_position": 6,
+            "layer_index": 5
         },
         "exit_3": {
-            "layer_position": 4,
-            "layer_index": 3,
             "count": 3234,
-            "percentage": 32.34
+            "avg_accuracy": 97.248,
+            "avg_inference_time_ms": 19.0184,
+            "percentage": 32.34,
+            "layer_position": 4,
+            "layer_index": 3
         },
         "final": {
-            "layer_position": 12,
-            "layer_index": 11,
             "count": 711,
-            "percentage": 7.11
+            "avg_accuracy": 46.4135,
+            "avg_inference_time_ms": 56.3596,
+            "percentage": 7.11,
+            "layer_position": 12,
+            "layer_index": 11
         },
         "exit_8": {
-            "layer_position": 9,
-            "layer_index": 8,
             "count": 675,
-            "percentage": 6.75
+            "avg_accuracy": 84.8889,
+            "avg_inference_time_ms": 43.0695,
+            "percentage": 6.75,
+            "layer_position": 9,
+            "layer_index": 8
         },
         "exit_4": {
-            "layer_position": 5,
-            "layer_index": 4,
             "count": 1481,
-            "percentage": 14.81
+            "avg_accuracy": 94.6658,
+            "avg_inference_time_ms": 23.942,
+            "percentage": 14.81,
+            "layer_position": 5,
+            "layer_index": 4
         },
         "exit_10": {
-            "layer_position": 11,
-            "layer_index": 10,
             "count": 174,
-            "percentage": 1.74
+            "avg_accuracy": 68.9655,
+            "avg_inference_time_ms": 52.3158,
+            "percentage": 1.74,
+            "layer_position": 11,
+            "layer_index": 10
         },
         "exit_6": {
-            "layer_position": 7,
-            "layer_index": 6,
             "count": 991,
-            "percentage": 9.91
+            "avg_accuracy": 92.8355,
+            "avg_inference_time_ms": 33.8263,
+            "percentage": 9.91,
+            "layer_position": 7,
+            "layer_index": 6
         }
     },
     "speedup": 1.8591,
