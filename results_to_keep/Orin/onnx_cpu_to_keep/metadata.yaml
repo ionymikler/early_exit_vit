@@ -1,0 +1,14 @@
+args:
+  config_path: ./config/run_args.yaml
+  dry_run: false
+  interactive: false
+  num_examples: null
+  onnx_model_name: EEVIT.onnx
+  profile_do: false
+  save_metrics: true
+  skip_conda_env_check: false
+  suffix: null
+  use_gpu: false
+config: null
+model_type: onnx_cpu
+timestamp: '250320_221502'
