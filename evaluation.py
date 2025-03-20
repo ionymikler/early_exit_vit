@@ -25,7 +25,7 @@ logger = logging_utils.get_logger_ready("evaluation")
 
 def main():
     logger.info(logging_utils.yellow_txt("Starting evaluation..."))
-    args = arg_utils.get_argsparser().parse_args()
+    args = arg_utils.get_eval_argsparser().parse_args()
     device = torch.device("cuda" if args.use_gpu else "cpu")
 
     if not args.skip_conda_env_check and not check_conda_env("eevit"):
@@ -72,7 +72,8 @@ def main():
 
             return predictions, exit_layer
 
-    warmup_model(warmup_predictor_fn, test_loader)
+    if args.profile_do:
+        warmup_model(warmup_predictor_fn, test_loader)
 
     metrics = evaluate_pytorch_model(
         model=model,

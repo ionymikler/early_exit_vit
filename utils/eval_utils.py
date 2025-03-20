@@ -16,7 +16,7 @@ from utils import (
 )
 from utils.arg_utils import get_config_dict
 
-logger = logging_utils.get_logger_ready(__name__)
+logger = logging_utils.get_logger_ready(__name__, level="DEBUG")
 
 
 def _calculate_per_class_statistics(
@@ -152,28 +152,23 @@ def _evaluate_model_generic(
 ) -> dict:
     """
     Generic evaluation function that works with both PyTorch and ONNX models.
+    Memory-efficient implementation that processes one batch at a time.
     Enhanced to collect full distributions of accuracy and latency data.
-    Includes a warmup phase to ensure more accurate performance measurements.
-    In interactive mode, allows selecting specific examples by index.
 
     Args:
         predictor_fn: A function that takes a batch of images and returns predictions and exit layer
                     The function should return a tuple (predictions, exit_layer)
         test_loader: DataLoader for test set
-        device: Device to run on
         interactive: If True, shows detailed results for each image and waits for user input
         args: Command-line arguments used for evaluation (for metadata)
 
     Returns:
         dict: Dictionary containing detailed evaluation metrics including per-class statistics
     """
-
     # Start actual evaluation
     logger.info("Starting evaluation...")
     if interactive:
-        logger.info(
-            "Enter index number to evaluate specific example, Enter to continue to next image, or 'q' to quit"
-        )
+        logger.info("Press Enter to continue to next image, or 'q' to quit")
 
     # Use fixed number of classes for CIFAR-100
     num_classes = 100
@@ -197,45 +192,20 @@ def _evaluate_model_generic(
     total_samples = 0
     total_correct = 0
 
-    # Create a list from the DataLoader for random access in interactive mode
-    # TODO: This random acces in interactive mode might be damaging latency for non interactive moe. review
-    test_data = list(test_loader)
-    total_examples = len(test_data)
+    # Get total number of batches for progress tracking
+    total_batches = len(test_loader)
 
     # Create progress bar for non-interactive mode
     pbar = (
         None
         if interactive
-        else tqdm(range(total_examples), desc="Evaluating", unit="batch")
+        else tqdm(total=total_batches, desc="Evaluating", unit="batch")
     )
 
-    batch_idx = 0
     logger.info("🐎 Go!")
-    while batch_idx < total_examples:
-        if interactive:
-            # Allow user to select a specific example or navigate sequentially
-            user_input = input(
-                f"\nEnter example index (0-{total_examples-1}), press Enter for next ({batch_idx}), or 'q' to quit: "
-            )
 
-            if user_input.lower() == "q":
-                print("\nExiting interactive evaluation...")
-                break
-
-            if user_input.strip():
-                try:
-                    selected_idx = int(user_input)
-                    if 0 <= selected_idx < total_examples:
-                        batch_idx = selected_idx
-                    else:
-                        print(
-                            f"Index out of range (0-{total_examples-1}). Using next example."
-                        )
-                except ValueError:
-                    print("Invalid input. Using next example.")
-
-        batch = test_data[batch_idx]
-
+    # Process each batch from the DataLoader
+    for batch_idx, batch in enumerate(test_loader):
         # Get images and labels
         images = batch["pixel_values"]
         labels = batch["labels"]
@@ -250,12 +220,12 @@ def _evaluate_model_generic(
         inference_time_ms = inference_time_ns / 1_000_000  # Convert to milliseconds
 
         # Get predictions and confidence
-        predicted_classes: np.ndarray = np.argmax(predictions, axis=1)
-        confidence: np.ndarray = np.max(predictions, axis=1)
+        predicted_classes = np.argmax(predictions, axis=1)
+        confidence = np.max(predictions, axis=1)
 
         labels_np = labels.numpy()
-        correct_predictions: np.ndarray = predicted_classes == labels_np
-        num_correct: int = np.sum(correct_predictions)
+        correct_predictions = predicted_classes == labels_np
+        num_correct = np.sum(correct_predictions)
 
         total_correct += num_correct
 
@@ -303,36 +273,41 @@ def _evaluate_model_generic(
                 1 if is_correct else 0
             )  # Store binary accuracy
 
-            # Update exit layer counters (adding on the go)
+            # Update exit layer counters
             if exit_key not in class_stats[true_class]["exit_by_layer"]:
                 class_stats[true_class]["exit_by_layer"][exit_key] = 0
             class_stats[true_class]["exit_by_layer"][exit_key] += 1
 
         if interactive:
-            label_name = batch["label_names"][0]  # Since batch size is 1
+            # Display details for interactive mode (assuming batch_size=1 for interactive)
+            label_name = batch["label_names"][0]
             predicted_name = dataset_utils.get_label_name(
-                test_loader.dataset, predicted_classes.item()
+                test_loader.dataset, predicted_classes[0]
             )
 
             print("\n" + "=" * 50)
-            print(f"Image {batch_idx} of {total_examples-1}")
-            print(f"True label: {label_name} (class {labels.item()})")
-            print(f"Predicted: {predicted_name} (class {predicted_classes.item()})")
-            print(f"Confidence: {confidence.item():.2%}")
+            print(f"Image {batch_idx} of {total_batches-1}")
+            print(f"True label: {label_name} (class {labels[0].item()})")
+            print(f"Predicted: {predicted_name} (class {predicted_classes[0]})")
+            print(f"Confidence: {confidence[0]:.2%}")
             print(f"Exit layer: {exit_layer if exit_layer != -1 else 'Final layer'}")
-            print(
-                f"Inference time: {inference_time_ms:.2f} ms (incorrect when profiling)"
-            )
+            print(f"Inference time: {inference_time_ms:.2f} ms")
             print("=" * 50)
+
+            # Ask whether to continue
+            user_input = input("\nPress Enter to continue, or 'q' to quit: ")
+            if user_input.lower() == "q":
+                break
         else:
+            # Update progress bar for non-interactive mode
             current_accuracy = 100 * total_correct / total_samples
             pbar.set_postfix({"acc": f"{current_accuracy:.2f}%"})
             pbar.update(1)
 
-        # Move to next example
-        batch_idx += 1
+    if not interactive:
+        pbar.close()
 
-    overall_accuracy = 100 * total_correct / total_samples
+    overall_accuracy = 100 * total_correct / total_samples if total_samples > 0 else 0
 
     # Process per-exit statistics and compute aggregated metrics
     metrics = {

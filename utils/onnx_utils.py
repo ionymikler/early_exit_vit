@@ -46,7 +46,7 @@ def export_and_save(
     onnx_program = export_model(model, _x, report)
     # onnx_program.optimize()
 
-    onnx_filepath = f"./models/onnx/{output_filename}.onnx"
+    onnx_filepath = f"./models/onnx/{output_filename}"
     onnx_program.save(onnx_filepath)
     logger.info(f"ONNX model saved at: {onnx_filepath}")
 

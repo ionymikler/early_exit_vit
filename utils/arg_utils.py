@@ -177,7 +177,7 @@ def _get_base_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_argsparser() -> argparse.ArgumentParser:
+def get_eval_argsparser(onnx_eval: bool = False) -> argparse.ArgumentParser:
     parser = _get_base_parser()
 
     ### EVALUATION ARGUMENTS ###
@@ -219,15 +219,6 @@ def get_argsparser() -> argparse.ArgumentParser:
         help="Custom suffix to append to results directory instead of timestamp",
     )
 
-    # ONNX evaluation arguments
-    parser.add_argument(
-        "--onnx-program-filepath",
-        "-f",
-        type=str,
-        default="./models/onnx/EEVIT.onnx",
-        help="Path to save the ONNX model file",
-    )
-
     parser.add_argument(
         "--profile-do",
         "-p",
@@ -235,6 +226,16 @@ def get_argsparser() -> argparse.ArgumentParser:
         default=False,
         help="Enable profiling for the ONNX model",
     )
+
+    if onnx_eval:
+        # ONNX evaluation arguments
+        parser.add_argument(
+            "--onnx-model-name",
+            "-f",
+            type=str,
+            default="EEVIT.onnx",
+            help="Name of the ONNX model file (Default: 'EEVIT.onnx')",
+        )
 
     return parser
 

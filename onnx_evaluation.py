@@ -13,6 +13,7 @@ from utils.eval_utils import evaluate_onnx_model, check_before_profiling, warmup
 from typing import Tuple
 import numpy as np
 from utils import check_conda_env, to_numpy
+from pathlib import Path
 
 logger = logging_utils.get_logger_ready("onnx_evaluation")
 
@@ -36,7 +37,7 @@ def make_inference_session(
 
 def main():
     logger.info(logging_utils.yellow_txt("Starting ONNX evaluation..."))
-    args = arg_utils.get_argsparser().parse_args()
+    args = arg_utils.get_eval_argsparser(onnx_eval=True).parse_args()
     # device = torch.device("cuda" if args.use_gpu else "cpu")
     if not args.skip_conda_env_check and not check_conda_env("onnx_eval"):
         exit()
@@ -54,7 +55,8 @@ def main():
 
     # We either create a new ONNX model or use an existing one
     try:
-        onnx_filepath = args.onnx_program_filepath
+        model_dir = "./models/onnx/"
+        onnx_filepath = Path(model_dir, args.onnx_model_name)
     except AttributeError as e:
         logger.error(f"Could not find ONNX model file. {e}")
         exit()
@@ -85,7 +87,8 @@ def main():
 
         return predictions, exit_layer
 
-    warmup_model(warmup_predictor_fn, test_dataloader)
+    if args.profile_do:
+        warmup_model(warmup_predictor_fn, test_dataloader)
 
     # evaluate
     ort_session = make_inference_session(onnx_filepath, args.profile_do, args.use_gpu)
