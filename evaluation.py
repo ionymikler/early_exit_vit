@@ -11,7 +11,7 @@ from utils import (
     check_conda_env,
 )
 
-from utils.eval_utils import (
+from utils.eval_utils.eval_utils import (
     evaluate_pytorch_model,
     check_before_profiling,
     warmup_model,
