@@ -2,12 +2,17 @@ import json
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+from colorama import Fore, Style
+
 import sys
 import os
-import shutil  # noqa F401
 from argparse import Namespace
+from pathlib import Path
 from torch.profiler import profile as Profile
 from datetime import datetime
+from typing import Dict, Any, Optional, Tuple
+
 from .logging_utils import get_logger_ready
 
 logger = get_logger_ready(__name__)
@@ -182,7 +187,7 @@ def save_pytorch_profiler_output(profile: Profile, results_dir: str):
     logger.debug(f"PyTorch profiler output saved to {output_path}")
 
 
-def load_metrics_from_dir(results_dir: str):
+def load_metrics(results_dir: str) -> Dict[str, Any]:
     """
     Load metrics from the standard metrics file in a results directory.
 
@@ -191,14 +196,158 @@ def load_metrics_from_dir(results_dir: str):
 
     Returns:
         Dictionary containing metrics data
-    """
-    metrics_file = os.path.join(results_dir, "result_metrics.json")
 
-    if not os.path.exists(metrics_file):
+    Raises:
+        FileNotFoundError: If the results directory or metrics file is not found
+        ValueError: If there is an error loading the metrics file
+    """
+    results_path = Path(results_dir)
+    if not results_path.exists() or not results_path.is_dir():
+        raise FileNotFoundError(f"Results directory not found: {results_dir}")
+
+    metrics_file = results_path / "result_metrics.json"
+    if not metrics_file.exists():
         raise FileNotFoundError(f"Metrics file not found in directory: {metrics_file}")
 
-    with open(metrics_file, "r") as f:
-        return json.load(f)
+    try:
+        with open(metrics_file, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        raise ValueError(f"Error loading metrics file: {e}")
+
+
+def print_detailed_statistics(metrics):
+    """
+    Print detailed statistics to the terminal for each exit and the whole model.
+
+    Args:
+        metrics: Original metrics dictionary
+        advanced_metrics: Advanced metrics dictionary with calculated values
+    """
+    # Define some color formatting for better terminal output
+    HEADER = Fore.CYAN
+    VALUE = Fore.GREEN
+    RESET = Style.RESET_ALL
+    BOLD = Style.BRIGHT
+
+    def _print_header(header: str, with_frame: bool = False):
+        if with_frame:
+            print("\n" + "=" * 80)
+        print(f"\n{HEADER}{BOLD}{header}{RESET}")
+        if with_frame:
+            print("=" * 80)
+
+    # Print a header separator
+    _print_header("EEVIT MODEL EVALUATION RESULTS", with_frame=True)
+
+    # 1. Overall model statistics
+    _print_header("OVERALL MODEL STATISTICS:")
+    print(f"- Overall Accuracy: {VALUE}{metrics['overall_accuracy']:.2f}%{RESET}")
+    print(f"- Total Samples: {VALUE}{metrics['total_samples']}{RESET}")
+    print(f"- Speedup Factor: {VALUE}{metrics['speedup']:.2f}x{RESET}")
+    print(f"- Computation Saved: {VALUE}{metrics['expected_saving']:.2f}%{RESET}")
+
+    # 2. Exit point statistics
+    print(f"\n{HEADER}{BOLD}EXIT POINT STATISTICS:{RESET}")
+    print("-" * 80)
+    print(
+        f"{'Exit Point':<15} {'Samples':<10} {'Percentage':<12} {'Accuracy':<12} {'Latency (ms)':<15} {'Exit Layer':<10}"
+    )
+    print("-" * 80)
+
+    # Sort exit points for consistent display
+    def exit_sort_key(exit_name):
+        if exit_name == "final":
+            return float("inf")  # Final exit should appear last
+        else:
+            parts = exit_name.split("_")
+            return int(parts[1]) if len(parts) > 1 else float("inf")
+
+    exit_stats = metrics["exit_statistics"]
+    for exit_key in sorted(exit_stats.keys(), key=exit_sort_key):
+        stats = exit_stats[exit_key]
+
+        # Format exit name for display
+        if exit_key == "final":
+            exit_name = "Final Layer"
+        else:
+            parts = exit_key.split("_")
+            exit_name = f"Exit {parts[1]}" if len(parts) > 1 else exit_key
+
+        # Get statistics
+        sample_count = stats.get("count", 0)
+        percentage = stats.get("percentage_samples", 0)
+        accuracy = stats.get("accuracy", 0)
+        latency = stats.get("avg_inference_time_ms", 0)
+        std_latency = stats.get("std_inference_time_ms", 0)
+
+        # Print formatted row
+        print(
+            f"{exit_name:<15} {sample_count:<10} {percentage:>8.1f}%     {accuracy:>8.2f}%     {latency:>6.2f} ± {std_latency:<6.2f}"
+        )
+
+    print("-" * 80)
+
+    # 3. Print sample distribution summary
+    print(f"\n{HEADER}{BOLD}SAMPLE DISTRIBUTION SUMMARY:{RESET}")
+    early_exit_samples = metrics["total_samples"] - (
+        exit_stats.get("final", {}).get("count", 0)
+    )
+    early_exit_percentage = (
+        (early_exit_samples / metrics["total_samples"]) * 100
+        if metrics["total_samples"] > 0
+        else 0
+    )
+
+    print(
+        f"  - Early Exit Samples: {VALUE}{early_exit_samples}{RESET} ({early_exit_percentage:.1f}% of total)"
+    )
+    print(
+        f"  - Final Layer Samples: {VALUE}{exit_stats.get('final', {}).get('count', 0)}{RESET} ({100 - early_exit_percentage:.1f}% of total)"
+    )
+
+    # 4. Classes overview (just summary, not per-class)
+    if "class_statistics" in metrics:
+        class_stats = metrics["class_statistics"]
+        print(f"\n{HEADER}{BOLD}CLASS STATISTICS SUMMARY:{RESET}")
+        print(f"  - Total Classes: {VALUE}{len(class_stats)}{RESET}")
+
+        # Find classes with highest and lowest accuracy
+        if class_stats:
+            sorted_by_acc = sorted(
+                class_stats.items(), key=lambda x: x[1].get("accuracy", 0), reverse=True
+            )
+            highest_acc_class = sorted_by_acc[0]
+            lowest_acc_class = sorted_by_acc[-1]
+
+            print(
+                f"  - Highest Accuracy Class: {VALUE}{highest_acc_class[1]['name']}{RESET} ({highest_acc_class[1]['accuracy']:.2f}%)"
+            )
+            print(
+                f"  - Lowest Accuracy Class: {VALUE}{lowest_acc_class[1]['name']}{RESET} ({lowest_acc_class[1]['accuracy']:.2f}%)"
+            )
+
+            # Find classes with earliest and latest exits on average
+            sorted_by_exit = sorted(
+                class_stats.items(), key=lambda x: x[1].get("avg_exit_layer", 0)
+            )
+            earliest_exit_class = sorted_by_exit[0]
+            latest_exit_class = sorted_by_exit[-1]
+
+            print(
+                f"  - Earliest Average Exit: {VALUE}{earliest_exit_class[1]['name']}{RESET} (Layer {earliest_exit_class[1]['avg_exit_layer']:.2f})"
+            )
+            print(
+                f"  - Latest Average Exit: {VALUE}{latest_exit_class[1]['name']}{RESET} (Layer {latest_exit_class[1]['avg_exit_layer']:.2f})"
+            )
+
+    # 5. Performance summary
+    print(f"\n{HEADER}{BOLD}PERFORMANCE SUMMARY:{RESET}")
+    print(
+        f"  - Average Inference Time: {VALUE}{metrics.get('avg_inference_time_ms', 'N/A'):.2f} ms{RESET}"
+    )
+
+    print("\n" + "=" * 80)
 
 
 def get_results_info(results_dir: str):
@@ -225,27 +374,23 @@ def get_results_info(results_dir: str):
             metadata = yaml.safe_load(f)
 
         # Extract model_type directly from metadata
-        model_type = metadata.get("model_type", "unknown_model")
+        model_type = metadata["model_type"]
 
         # Get timestamp or suffix for the identifier
-        timestamp = metadata.get("timestamp", "")
-
-        # Check if suffix was provided in the arguments
-        suffix = None
         if "args" in metadata and isinstance(metadata["args"], dict):
-            suffix = metadata["args"].get("suffix")
-
-        # Use suffix if available, otherwise use timestamp
-        identifier = suffix if suffix else timestamp
+            identifier = metadata["args"].get("suffix")
+        else:
+            identifier = metadata.get("timestamp", "")
 
         return model_type, f"results_{identifier}"
 
     except Exception as e:
         logger.warning(f"Error reading metadata file: {e}")
-        return "unknown_model", "unknown_results"
 
 
-def plot_metrics(metrics, results_dir: str, color_scheme="default", top_n_classes=10):
+def plot_metrics(
+    metrics, results_dir: str, color_scheme_key="default", top_n_classes=10
+):
     """
     Plot metrics for model evaluation, including both exit statistics and class statistics.
 
@@ -259,7 +404,7 @@ def plot_metrics(metrics, results_dir: str, color_scheme="default", top_n_classe
         Tuple of figures: (exit_stats_figure, class_accuracy_stats_figure, class_speed_stats_figure)
     """
     # Get color scheme
-    colors = COLOR_SCHEMES_BACKEND.get(color_scheme, COLOR_SCHEMES_BACKEND["default"])
+    colors = COLOR_SCHEMES_BACKEND[color_scheme_key]
 
     # Extract model type and results identifier for title
     model_type, results_id = get_results_info(results_dir)
@@ -268,22 +413,29 @@ def plot_metrics(metrics, results_dir: str, color_scheme="default", top_n_classe
     logger.info(f"Using title for plots: {title}")
 
     # Create exit statistics visualization (now with column charts)
-    exit_fig = plot_exit_statistics(metrics, title, colors)
+    exit_stats_fig = plot_exit_statistics(metrics, title, colors)
 
     # Create class statistics visualizations if available
     class_accuracy_fig = None
     class_speed_fig = None
 
-    if "class_statistics" in metrics and metrics["class_statistics"]:
-        # Use the unified function with different sorting criteria
-        class_accuracy_fig = plot_class_statistics_unified(
-            metrics, title, colors, sort_by="accuracy", top_n_classes=top_n_classes
-        )
-        class_speed_fig = plot_class_statistics_unified(
-            metrics, title, colors, sort_by="speed", top_n_classes=top_n_classes
-        )
+    if "class_statistics" not in metrics and not metrics["class_statistics"]:
+        raise ValueError("Class statistics not found in metrics")
 
-    return exit_fig, class_accuracy_fig, class_speed_fig
+    class_accuracy_fig = plot_class_statistics_unified(
+        metrics, title, colors, sort_by="accuracy", top_n_classes=top_n_classes
+    )
+    class_speed_fig = plot_class_statistics_unified(
+        metrics, title, colors, sort_by="speed", top_n_classes=top_n_classes
+    )
+
+    if "confusion_matrix" not in metrics:
+        raise ValueError("confusion_matrix not found in metrics")
+
+    confusion_fig = plot_confusion_matrix(
+        metrics, title, normalize=True, top_n_classes=top_n_classes
+    )
+    return exit_stats_fig, class_accuracy_fig, class_speed_fig, confusion_fig
 
 
 def plot_exit_statistics(metrics, title: str, colors):
@@ -779,6 +931,117 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors):
     )
 
     ax.legend()
+    plt.tight_layout()
+
+    return fig
+
+
+def plot_confusion_matrix(
+    metrics: Dict[str, Any],
+    title: str,
+    normalize: bool = True,
+    top_n_classes: Optional[int] = None,
+    include_accuracy: bool = True,
+    figsize: Tuple[int, int] = (12, 10),
+) -> plt.Figure:
+    """
+    Create a visualization of the confusion matrix.
+
+    Args:
+        metrics: Dictionary containing evaluation metrics including confusion_matrix
+        title: Title for the plot
+        normalize: Whether to normalize the confusion matrix by row (true class)
+        top_n_classes: If provided, only show this many classes with the highest counts
+        include_accuracy: Whether to include class accuracy in the y-axis labels
+        figsize: Figure size as (width, height) tuple
+
+    Returns:
+        Figure object
+    """
+    # Extract confusion matrix and class statistics
+    confusion_matrix = np.array(metrics["confusion_matrix"])
+    class_stats = metrics["class_statistics"]
+
+    # If class names are available, use them, otherwise use indices
+    class_names = []
+    for i in range(confusion_matrix.shape[0]):
+        if str(i) in class_stats:
+            class_names.append(class_stats[str(i)].get("name", f"Class {i}"))
+        else:
+            class_names.append(f"Class {i}")
+
+    # Normalize if requested
+    if normalize:
+        # Normalize by row (sum of each row = 1)
+        row_sums = confusion_matrix.sum(axis=1, keepdims=True)
+        # Avoid division by zero
+        row_sums[row_sums == 0] = 1
+        norm_confusion_matrix = confusion_matrix / row_sums
+    else:
+        norm_confusion_matrix = confusion_matrix
+
+    # If top_n_classes is specified, select the classes with highest counts
+    if top_n_classes and top_n_classes < len(class_names):
+        # Sum occurrences for each class (true + predicted)
+        class_counts = confusion_matrix.sum(axis=1) + confusion_matrix.sum(axis=0)
+        # Get indices of top N classes
+        top_indices = np.argsort(class_counts)[-top_n_classes:]
+        # Select only rows and columns for these classes
+        norm_confusion_matrix = norm_confusion_matrix[top_indices][:, top_indices]
+        class_names = [class_names[i] for i in top_indices]
+
+    # Create the figure
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Create the heatmap using seaborn
+    sns.heatmap(
+        norm_confusion_matrix,
+        annot=True,
+        fmt=".2f" if normalize else "d",
+        cmap="viridis" if normalize else "YlGnBu",
+        xticklabels=class_names,
+        yticklabels=class_names,
+        ax=ax,
+    )
+
+    # If including accuracy in labels and class stats are available
+    if include_accuracy:
+        # Create new yticklabels with accuracy information
+        new_ylabels = []
+        for i, label in enumerate(class_names):
+            class_id = str(i) if top_n_classes is None else str(top_indices[i])
+            if class_id in class_stats:
+                accuracy = class_stats[class_id].get("accuracy", 0)
+                new_ylabels.append(f"{label} ({accuracy:.1f}%)")
+            else:
+                new_ylabels.append(label)
+
+        ax.set_yticklabels(new_ylabels)
+
+    # Set title and axis labels
+    ax.set_title(
+        f"{title} - {'Normalized ' if normalize else ''}Confusion Matrix",
+        fontsize=14,
+        pad=20,
+    )
+    ax.set_xlabel("Predicted Class", fontsize=12, labelpad=10)
+    ax.set_ylabel("True Class", fontsize=12, labelpad=10)
+
+    # Add a text box with overall accuracy
+    overall_accuracy = metrics.get("overall_accuracy", 0)
+    ax.text(
+        0.5,
+        1.1,
+        f"Overall Accuracy: {overall_accuracy:.2f}%",
+        transform=ax.transAxes,
+        ha="center",
+        fontsize=12,
+        bbox=dict(facecolor="white", alpha=0.8, boxstyle="round,pad=0.5"),
+    )
+
+    # Rotate x-tick labels for better readability
+    plt.xticks(rotation=45, ha="right")
+
     plt.tight_layout()
 
     return fig

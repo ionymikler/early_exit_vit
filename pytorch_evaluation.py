@@ -11,11 +11,8 @@ from utils import (
     check_conda_env,
 )
 
-from utils.eval_utils.eval_utils import (
-    evaluate_pytorch_model,
-    check_before_profiling,
-    warmup_model,
-)
+from utils.evaluation import evaluate_pytorch_model
+from utils.profiling import warmup_model, check_before_profiling
 from typing import Tuple
 import numpy as np
 

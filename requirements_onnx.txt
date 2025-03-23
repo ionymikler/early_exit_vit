@@ -4,3 +4,4 @@ datasets==2.15.0
 numpy
 colorama
 matplotlib
+seaborn

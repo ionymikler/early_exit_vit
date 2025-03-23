@@ -20,7 +20,7 @@ def process_results_directory(results_dir, color_scheme=None, save_figures=False
         return
 
     try:
-        metrics = result_utils.load_metrics_from_dir(results_dir)
+        metrics = result_utils.load_metrics(results_dir)
     except Exception as e:
         logger.error(f"Error loading metrics file: {e}")
         return
