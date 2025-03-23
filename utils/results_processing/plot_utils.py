@@ -49,6 +49,11 @@ COLOR_SCHEMES_BACKEND = {
         "secondary": "#B4EBE6",  # Lighter shade
         "scatter": "cool",  # Colormap for scatter plots
     },
+    "99Luftballons": {
+        "primary": "#FF4500",  # Orange Red
+        "secondary": "#FFA07A",  # Lighter shade
+        "scatter": "autumn",  # Colormap for scatter plots
+    },
     "custom": {
         "primary": "#57B4BA",  # Light Teal
         "secondary": "#B4EBE6",  # Lighter shade
@@ -247,6 +252,7 @@ def plot_exit_statistics(metrics, title: str, colors):
             f"{int(height)}\n({percentage:.1f}%)",
             ha="center",
             va="bottom",
+            # bbox=dict(facecolor="white", alpha=0.8),
         )
 
     # 2. Accuracy Column Chart with Error Bars
@@ -355,16 +361,6 @@ def plot_exit_statistics(metrics, title: str, colors):
     ax4.set_title("Accuracy vs Inference Time")
     ax4.set_xlabel("Inference Time (ms)")
     ax4.set_ylabel("Accuracy (%)")
-
-    # Add correlation coefficient
-    correlation = np.corrcoef(inference_times, accuracies)[0, 1]
-    ax4.text(
-        0.05,
-        0.95,
-        f"Correlation: {correlation:.2f}",
-        transform=ax4.transAxes,
-        bbox=dict(facecolor="white", alpha=0.8),
-    )
 
     plt.tight_layout(rect=[0, 0, 1, 0.96])
 
