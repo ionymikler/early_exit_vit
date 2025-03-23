@@ -7,13 +7,8 @@ from torch.utils.data import DataLoader
 import utils.logging_utils as logging_utils
 import utils.dataset_utils as dataset_utils
 import utils.arg_utils as arg_utils
-import utils.result_utils as result_utils
+import utils.results_processing.result_utils as result_utils
 
-# from utils.eval_utils.eval_utils import (
-#     evaluate_onnx_model,
-#     check_before_profiling,
-#     warmup_model,
-# )
 from utils.evaluation import evaluate_onnx_model
 from utils.profiling import warmup_model, check_before_profiling
 

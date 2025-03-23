@@ -7,7 +7,6 @@ from utils import (
     dataset_utils,
     arg_utils,
     model_utils,
-    result_utils,
     check_conda_env,
 )
 
@@ -15,6 +14,8 @@ from utils.evaluation import evaluate_pytorch_model
 from utils.profiling import warmup_model, check_before_profiling
 from typing import Tuple
 import numpy as np
+
+from utils.results_processing import result_utils
 
 
 logger = logging_utils.get_logger_ready("evaluation")

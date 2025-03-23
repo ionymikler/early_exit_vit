@@ -1,24 +1,24 @@
-import json
-import yaml
+"""
+Plotting utilities for visualization of model evaluation results.
+"""
+
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from colorama import Fore, Style
-
-import sys
-import os
-from argparse import Namespace
-from pathlib import Path
-from torch.profiler import profile as Profile
-from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 
-from .logging_utils import get_logger_ready
+from ..logging_utils import get_logger_ready
 
 logger = get_logger_ready(__name__)
 
 # Color schemes for different backends
 COLOR_SCHEMES_BACKEND = {
+    "teal": {
+        "primary": "#57B4BA",  # Light Teal
+        "secondary": "#B4EBE6",  # Lighter shade
+        "scatter": "cool",  # Colormap for scatter plots
+    },
     "onnx-cpu": {
         "primary": "#2878BD",  # Dark blue
         "secondary": "#8CC7FF",  # Lighter shade
@@ -45,9 +45,9 @@ COLOR_SCHEMES_BACKEND = {
         "scatter": "Reds",  # Colormap for scatter plots
     },
     "default": {
-        "primary": "#808080",  # Gray
-        "secondary": "#A9A9A9",  # Dark Gray
-        "scatter": "Greys",  # Colormap for scatter plots
+        "primary": "#57B4BA",  # Light Teal (same as teal)
+        "secondary": "#B4EBE6",  # Lighter shade
+        "scatter": "cool",  # Colormap for scatter plots
     },
     "custom": {
         "primary": "#57B4BA",  # Light Teal
@@ -57,99 +57,6 @@ COLOR_SCHEMES_BACKEND = {
 }
 
 HORIZONTAL_LINE_COLOR = "#8B0000"  # Dark Red
-
-
-def save_metadata(
-    results_dir: str, model_type: str, args: Namespace, config: dict = None
-):
-    """
-    Save evaluation metadata to a YAML file.
-
-    Args:
-        results_dir: Directory to save metadata to
-        model_type: Type of model ('pytorch' or 'onnx')
-        args: Command-line arguments used for evaluation
-        config: Configuration dictionary
-    """
-    if args is None:
-        return
-
-    try:
-        # Convert args to dictionary
-        args_dict = vars(args)
-
-        # Create metadata object
-        timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
-        metadata = {
-            "timestamp": timestamp,
-            "model_type": model_type,
-            "args": args_dict,
-            "config": config,
-        }
-
-        metadata_file = f"{results_dir}/metadata.yaml"
-        with open(metadata_file, "w") as f:
-            yaml.dump(metadata, f, default_flow_style=False)
-
-        logger.info(f"Metadata saved to {metadata_file}")
-    except Exception as e:
-        logger.error(f"Failed to save metadata: {e}")
-
-
-def make_results_dir(model_type: str, profiling: bool, suffix: str = None) -> str:
-    """
-    Create a subdirectory for results with datetime and model type.
-    If directory already exists, append a counter to create a unique one.
-
-    Args:
-        model_type: Type of model ('pytorch' or 'onnx')
-        profiling: Whether profiling is enabled
-        suffix: Optional suffix to use instead of timestamp
-
-    Returns:
-        Path to the results directory
-    """
-    base_dir = f"results/{model_type}"
-    if profiling:
-        base_dir += "_profiling"
-
-    # Use provided suffix or generate timestamp
-    if suffix:
-        base_results_dir = f"{base_dir}_{suffix}"
-    else:
-        base_results_dir = f'{base_dir}_{datetime.now().strftime("%y%m%d_%H%M%S")}'
-
-    # Create a unique directory if the initial one already exists
-    results_dir = base_results_dir
-    counter = 1
-
-    while os.path.exists(results_dir):
-        results_dir = f"{base_results_dir}_{counter}"
-        counter += 1
-
-    # Create the directory
-    os.makedirs(results_dir)
-    logger.info(f"Created results directory: {results_dir}")
-
-    return results_dir
-
-
-def save_metrics(metrics, results_dir: str):
-    """
-    Save metrics to JSON file with a standardized name.
-
-    Args:
-        metrics: Dictionary containing evaluation metrics
-        results_dir: Directory to save results to
-        files_prefix: Optional prefix for the output files (not used for standard metrics file)
-    """
-    # Save metrics to JSON file with standardized name
-    metrics_file = f"{results_dir}/result_metrics.json"
-
-    with open(metrics_file, "w") as f:
-        json.dump(metrics, f, indent=4)
-
-    logger.info(f"Metrics saved to {metrics_file}")
 
 
 def save_figure(fig, results_dir: str, metric_name: str):
@@ -164,190 +71,6 @@ def save_figure(fig, results_dir: str, metric_name: str):
     save_path = f"{results_dir}/{metric_name}.png"
     fig.savefig(save_path, bbox_inches="tight", dpi=300)
     logger.info(f"Figure saved to: {save_path}")
-
-
-def save_pytorch_profiler_output(profile: Profile, results_dir: str):
-    """
-    Save PyTorch profiler output to results directory.
-
-    Args:
-        profile: PyTorch profiler instance
-        results_dir: Directory to save profiler output to
-    """
-    base_output_path = f"{results_dir}/pytorch_profiler_trace"
-    output_path = f"{base_output_path}_1.json"
-    counter = 2
-
-    # Check if file exists and find the minimum available number
-    while os.path.exists(output_path):
-        output_path = f"{base_output_path}_{counter}.json"
-        counter += 1
-
-    profile.export_chrome_trace(output_path)
-    logger.debug(f"PyTorch profiler output saved to {output_path}")
-
-
-def load_metrics(results_dir: str) -> Dict[str, Any]:
-    """
-    Load metrics from the standard metrics file in a results directory.
-
-    Args:
-        results_dir: Path to results directory
-
-    Returns:
-        Dictionary containing metrics data
-
-    Raises:
-        FileNotFoundError: If the results directory or metrics file is not found
-        ValueError: If there is an error loading the metrics file
-    """
-    results_path = Path(results_dir)
-    if not results_path.exists() or not results_path.is_dir():
-        raise FileNotFoundError(f"Results directory not found: {results_dir}")
-
-    metrics_file = results_path / "result_metrics.json"
-    if not metrics_file.exists():
-        raise FileNotFoundError(f"Metrics file not found in directory: {metrics_file}")
-
-    try:
-        with open(metrics_file, "r") as f:
-            return json.load(f)
-    except Exception as e:
-        raise ValueError(f"Error loading metrics file: {e}")
-
-
-def print_detailed_statistics(metrics):
-    """
-    Print detailed statistics to the terminal for each exit and the whole model.
-
-    Args:
-        metrics: Original metrics dictionary
-        advanced_metrics: Advanced metrics dictionary with calculated values
-    """
-    # Define some color formatting for better terminal output
-    HEADER = Fore.CYAN
-    VALUE = Fore.GREEN
-    RESET = Style.RESET_ALL
-    BOLD = Style.BRIGHT
-
-    def _print_header(header: str, with_frame: bool = False):
-        if with_frame:
-            print("\n" + "=" * 80)
-        print(f"\n{HEADER}{BOLD}{header}{RESET}")
-        if with_frame:
-            print("=" * 80)
-
-    # Print a header separator
-    _print_header("EEVIT MODEL EVALUATION RESULTS", with_frame=True)
-
-    # 1. Overall model statistics
-    _print_header("OVERALL MODEL STATISTICS:")
-    print(f"- Overall Accuracy: {VALUE}{metrics['overall_accuracy']:.2f}%{RESET}")
-    print(f"- Total Samples: {VALUE}{metrics['total_samples']}{RESET}")
-    print(f"- Speedup Factor: {VALUE}{metrics['speedup']:.2f}x{RESET}")
-    print(f"- Computation Saved: {VALUE}{metrics['expected_saving']:.2f}%{RESET}")
-
-    # 2. Exit point statistics
-    print(f"\n{HEADER}{BOLD}EXIT POINT STATISTICS:{RESET}")
-    print("-" * 80)
-    print(
-        f"{'Exit Point':<15} {'Samples':<10} {'Percentage':<12} {'Accuracy':<12} {'Latency (ms)':<15} {'Exit Layer':<10}"
-    )
-    print("-" * 80)
-
-    # Sort exit points for consistent display
-    def exit_sort_key(exit_name):
-        if exit_name == "final":
-            return float("inf")  # Final exit should appear last
-        else:
-            parts = exit_name.split("_")
-            return int(parts[1]) if len(parts) > 1 else float("inf")
-
-    exit_stats = metrics["exit_statistics"]
-    for exit_key in sorted(exit_stats.keys(), key=exit_sort_key):
-        stats = exit_stats[exit_key]
-
-        # Format exit name for display
-        if exit_key == "final":
-            exit_name = "Final Layer"
-        else:
-            parts = exit_key.split("_")
-            exit_name = f"Exit {parts[1]}" if len(parts) > 1 else exit_key
-
-        # Get statistics
-        sample_count = stats.get("count", 0)
-        percentage = stats.get("percentage_samples", 0)
-        accuracy = stats.get("accuracy", 0)
-        latency = stats.get("avg_inference_time_ms", 0)
-        std_latency = stats.get("std_inference_time_ms", 0)
-
-        # Print formatted row
-        print(
-            f"{exit_name:<15} {sample_count:<10} {percentage:>8.1f}%     {accuracy:>8.2f}%     {latency:>6.2f} ± {std_latency:<6.2f}"
-        )
-
-    print("-" * 80)
-
-    # 3. Print sample distribution summary
-    print(f"\n{HEADER}{BOLD}SAMPLE DISTRIBUTION SUMMARY:{RESET}")
-    early_exit_samples = metrics["total_samples"] - (
-        exit_stats.get("final", {}).get("count", 0)
-    )
-    early_exit_percentage = (
-        (early_exit_samples / metrics["total_samples"]) * 100
-        if metrics["total_samples"] > 0
-        else 0
-    )
-
-    print(
-        f"  - Early Exit Samples: {VALUE}{early_exit_samples}{RESET} ({early_exit_percentage:.1f}% of total)"
-    )
-    print(
-        f"  - Final Layer Samples: {VALUE}{exit_stats.get('final', {}).get('count', 0)}{RESET} ({100 - early_exit_percentage:.1f}% of total)"
-    )
-
-    # 4. Classes overview (just summary, not per-class)
-    if "class_statistics" in metrics:
-        class_stats = metrics["class_statistics"]
-        print(f"\n{HEADER}{BOLD}CLASS STATISTICS SUMMARY:{RESET}")
-        print(f"  - Total Classes: {VALUE}{len(class_stats)}{RESET}")
-
-        # Find classes with highest and lowest accuracy
-        if class_stats:
-            sorted_by_acc = sorted(
-                class_stats.items(), key=lambda x: x[1].get("accuracy", 0), reverse=True
-            )
-            highest_acc_class = sorted_by_acc[0]
-            lowest_acc_class = sorted_by_acc[-1]
-
-            print(
-                f"  - Highest Accuracy Class: {VALUE}{highest_acc_class[1]['name']}{RESET} ({highest_acc_class[1]['accuracy']:.2f}%)"
-            )
-            print(
-                f"  - Lowest Accuracy Class: {VALUE}{lowest_acc_class[1]['name']}{RESET} ({lowest_acc_class[1]['accuracy']:.2f}%)"
-            )
-
-            # Find classes with earliest and latest exits on average
-            sorted_by_exit = sorted(
-                class_stats.items(), key=lambda x: x[1].get("avg_exit_layer", 0)
-            )
-            earliest_exit_class = sorted_by_exit[0]
-            latest_exit_class = sorted_by_exit[-1]
-
-            print(
-                f"  - Earliest Average Exit: {VALUE}{earliest_exit_class[1]['name']}{RESET} (Layer {earliest_exit_class[1]['avg_exit_layer']:.2f})"
-            )
-            print(
-                f"  - Latest Average Exit: {VALUE}{latest_exit_class[1]['name']}{RESET} (Layer {latest_exit_class[1]['avg_exit_layer']:.2f})"
-            )
-
-    # 5. Performance summary
-    print(f"\n{HEADER}{BOLD}PERFORMANCE SUMMARY:{RESET}")
-    print(
-        f"  - Average Inference Time: {VALUE}{metrics.get('avg_inference_time_ms', 'N/A'):.2f} ms{RESET}"
-    )
-
-    print("\n" + "=" * 80)
 
 
 def get_results_info(results_dir: str):
@@ -388,9 +111,7 @@ def get_results_info(results_dir: str):
         logger.warning(f"Error reading metadata file: {e}")
 
 
-def plot_metrics(
-    metrics, results_dir: str, color_scheme_key="default", top_n_classes=10
-):
+def plot_metrics(metrics, results_dir: str, color_scheme_key="teal", top_n_classes=10):
     """
     Plot metrics for model evaluation, including both exit statistics and class statistics.
 
@@ -654,7 +375,7 @@ def plot_class_statistics_unified(
     metrics, title: str, colors, sort_by: str = "accuracy", top_n_classes: int = 10
 ):
     """
-    Plot class-specific statistics showing top and bottom performers by specified criteria.
+    Plot exit mode distribution for top and bottom classes by specified criteria.
 
     Args:
         metrics: Dictionary containing evaluation metrics with class_statistics
@@ -666,6 +387,8 @@ def plot_class_statistics_unified(
     Returns:
         Figure object
     """
+    import matplotlib.patches as mpatches  # Import patches for legend
+
     class_stats = metrics["class_statistics"]
 
     # Calculate how many classes to show from top and bottom
@@ -678,8 +401,7 @@ def plot_class_statistics_unified(
         all_sorted_classes = sorted(
             class_stats.items(), key=lambda x: x[1]["accuracy"], reverse=True
         )
-        subtitle = "Class Performance Analysis by Accuracy"
-        legend_text = f"Showing top {half_n + remainder if remainder else half_n} and bottom {half_n} classes by accuracy"
+        subtitle = "Exit Modes by Class Performance (Accuracy)"
     else:  # sort_by == "speed"
         # Low inference time = faster = better, so reverse=False
         all_sorted_classes = sorted(
@@ -687,180 +409,128 @@ def plot_class_statistics_unified(
             key=lambda x: x[1]["avg_inference_time_ms"],
             reverse=False,
         )
-        subtitle = "Class Performance Analysis by Speed"
-        legend_text = f"Showing fastest {half_n + remainder if remainder else half_n} and slowest {half_n} classes"
+        subtitle = "Exit Modes by Class Performance (Speed)"
 
     # Get top and bottom classes
     top_classes = all_sorted_classes[: half_n + remainder]
     bottom_classes = all_sorted_classes[-half_n:]
 
-    # Combine them, with top classes first
-    sorted_classes = top_classes + bottom_classes
-
-    # Extract data for plotting
-    class_ids = [int(class_id) for class_id, _ in sorted_classes]
-    class_names = [stats["name"] for _, stats in sorted_classes]
-    class_accuracies = [stats["accuracy"] for _, stats in sorted_classes]
-    std_exits = [stats["std_exit_layer"] for _, stats in sorted_classes]
-    mode_exits = [stats["mode_exit_layer"] for _, stats in sorted_classes]
-    avg_times = [stats["avg_inference_time_ms"] for _, stats in sorted_classes]
-    std_times = [stats["std_inference_time_ms"] for _, stats in sorted_classes]
-    avg_confidences = [stats["avg_confidence"] for _, stats in sorted_classes]
-
-    # Create figure with subplots - 2x2 grid
-    fig = plt.figure(figsize=(15, 12))
+    # Create a figure with a single subplot for exit modes
+    fig, ax = plt.subplots(figsize=(14, 8))
     fig.suptitle(f"{title} - {subtitle}", fontsize=16, y=0.98)
-    gs = fig.add_gridspec(2, 2, hspace=0.4, wspace=0.3)
 
-    # Shortened class names for display
-    short_names = [
-        name[:15] + ("..." if len(name) > 15 else "") for name in class_names
-    ]
-
-    # Create colors for bars - different colors for top and bottom classes
+    # Prepare data for plotting
+    class_names = []
+    mode_exits = []
     bar_colors = []
-    for i in range(len(sorted_classes)):
-        if i < half_n + remainder:  # Top classes
-            bar_colors.append(colors["primary"])
-        else:  # Bottom classes
-            bar_colors.append("lightgray")
+    class_metrics = []  # Store the metric value (accuracy or inference time)
 
-    x = range(len(class_ids))
+    # Add top classes
+    for i, (class_id, stats) in enumerate(top_classes):
+        class_names.append(stats["name"][:20])  # Truncate long names
+        mode_exits.append(stats["mode_exit_layer"])
+        bar_colors.append(colors["primary"])
+        # Store the relevant metric
+        if sort_by == "accuracy":
+            class_metrics.append(f"{stats['accuracy']:.1f}%")
+        else:
+            class_metrics.append(f"{stats['avg_inference_time_ms']:.1f}ms")
 
-    # 1. Class Accuracy (TOP LEFT)
-    ax1 = fig.add_subplot(gs[0, 0])
-    bars = ax1.bar(x, class_accuracies, color=bar_colors)
-    ax1.set_title("Accuracy by Class")
-    ax1.set_ylabel("Accuracy (%)")
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(short_names, rotation=45, ha="right")
-    ax1.axhline(
-        y=metrics["overall_accuracy"],
-        color=HORIZONTAL_LINE_COLOR,
-        linestyle="--",
-        label=f"Overall Accuracy ({metrics['overall_accuracy']:.1f}%)",
-    )
-    # Add a vertical separator between top and bottom classes
-    if half_n + remainder < len(sorted_classes):
-        ax1.axvline(
-            x=half_n + remainder - 0.5, color="black", linestyle="--", alpha=0.3
+    # Add bottom classes
+    for i, (class_id, stats) in enumerate(bottom_classes):
+        class_names.append(stats["name"][:20])  # Truncate long names
+        mode_exits.append(stats["mode_exit_layer"])
+        bar_colors.append("lightgray")
+        # Store the relevant metric
+        if sort_by == "accuracy":
+            class_metrics.append(f"{stats['accuracy']:.1f}%")
+        else:
+            class_metrics.append(f"{stats['avg_inference_time_ms']:.1f}ms")
+
+    # Create bar chart
+    bars = ax.bar(range(len(class_names)), mode_exits, color=bar_colors)
+
+    # Add a vertical line to separate top and bottom classes
+    if half_n + remainder < len(class_names):
+        ax.axvline(
+            x=half_n + remainder - 0.5,
+            color="black",
+            linestyle="--",
+            alpha=0.5,
+            label="Divide between top and bottom classes",
         )
 
-    # Set y-axis limit to 120 for better label visibility
-    ax1.set_ylim(0, 120)
-
-    # Add accuracy values on top of bars
+    # Add class metric values below class names
     for i, bar in enumerate(bars):
-        height = bar.get_height()
-        ax1.text(
+        # Add class metric (accuracy or latency) below the class name
+        ax.text(
             bar.get_x() + bar.get_width() / 2.0,
-            height,
-            f"{height:.1f}%",
+            -0.8,
+            class_metrics[i],
             ha="center",
-            va="bottom",
-        )
-    ax1.legend()
-
-    # 2. Inference Time with Error Bars (TOP RIGHT)
-    ax2 = fig.add_subplot(gs[0, 1])
-    bars = ax2.bar(x, avg_times, color=bar_colors, yerr=std_times, capsize=5)
-    ax2.set_title("Inference Time by Class")
-    ax2.set_ylabel("Time (ms)")
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(short_names, rotation=45, ha="right")
-    # Add a vertical separator
-    if half_n + remainder < len(sorted_classes):
-        ax2.axvline(
-            x=half_n + remainder - 0.5, color="black", linestyle="--", alpha=0.3
+            va="top",
+            fontsize=9,
+            color=colors["primary"] if i < half_n + remainder else "dimgray",
+            rotation=45,
         )
 
-    # Add time values on top of bars
-    for i, bar in enumerate(bars):
+        # Add the exit layer value on top of the bar
         height = bar.get_height()
-        ax2.text(
+        ax.text(
             bar.get_x() + bar.get_width() / 2.0,
-            height,
-            f"{avg_times[i]:.1f}ms",
+            height + 0.1,  # Position slightly above the bar
+            f"{mode_exits[i]}",  # Just the number, not "Exit X"
             ha="center",
             va="bottom",
+            fontsize=9,
+            fontweight="bold",
         )
 
-    # 3. Average Exit Layer with Error Bars (BOTTOM LEFT)
-    ax3 = fig.add_subplot(gs[1, 0])
-    bars = ax3.bar(x, mode_exits, color=bar_colors, yerr=std_exits, capsize=5)
-    ax3.set_title("Most Common Exit Layer by Class")
-    ax3.set_ylabel("Exit Layer")
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(short_names, rotation=45, ha="right")
-    # Add separator
-    if half_n + remainder < len(sorted_classes):
-        ax3.axvline(
-            x=half_n + remainder - 0.5, color="black", linestyle="--", alpha=0.3
-        )
-
-    # Add exit layer values on top of bars
-    for i, bar in enumerate(bars):
-        height = bar.get_height()
-        ax3.text(
-            bar.get_x() + bar.get_width() / 3.0,
-            height,
-            f"{mode_exits[i]}",
-            ha="center",
-            va="bottom",
-        )
-
-    # 4. Confidence Distribution (BOTTOM RIGHT)
-    ax4 = fig.add_subplot(gs[1, 1])
-    bars = ax4.bar(x, avg_confidences, color=bar_colors)
-    ax4.set_title("Average Confidence by Class")
-    ax4.set_ylabel("Confidence")
-    ax4.set_xticks(x)
-    ax4.set_xticklabels(short_names, rotation=45, ha="right")
-    # Add separator
-    if half_n + remainder < len(sorted_classes):
-        ax4.axvline(
-            x=half_n + remainder - 0.5, color="black", linestyle="--", alpha=0.3
-        )
-
-    # Add confidence values on top of bars
-    for i, bar in enumerate(bars):
-        height = bar.get_height()
-        ax4.text(
-            bar.get_x() + bar.get_width() / 2.0,
-            height,
-            f"{avg_confidences[i]:.2f}",
-            ha="center",
-            va="bottom",
-        )
-
-    # Add a legend explaining the classes
-    ax4.text(
-        0.95,
-        0.05,
-        legend_text,
-        transform=ax4.transAxes,
-        ha="right",
-        bbox=dict(facecolor="white", alpha=0.8),
-        fontsize=9,
+    # Set labels and title
+    ax.set_title("Most Common Exit Layer by Class", fontsize=14)
+    ax.set_ylabel("Exit Layer")
+    ax.set_xlabel(
+        f"Classes (sorted by {'accuracy' if sort_by == 'accuracy' else 'speed'})"
     )
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    # Set x-ticks with class names
+    ax.set_xticks(range(len(class_names)))
+    ax.set_xticklabels(class_names, rotation=45, ha="right")
+
+    # Add gridlines
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+
+    # Add legend for top vs bottom - use mpatches instead of plt.Patch
+    legend_elements = [
+        mpatches.Patch(
+            facecolor=colors["primary"], label=f"Top {half_n + remainder} Classes"
+        ),
+        mpatches.Patch(facecolor="lightgray", label=f"Bottom {half_n} Classes"),
+    ]
+    ax.legend(handles=legend_elements, loc="upper right")
+
+    plt.tight_layout(rect=[0, 0.05, 1, 0.95])
 
     return fig
 
 
-def plot_latency_accuracy_scatter(metrics, results_dir, colors):
+def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10):
     """
-    Create a scatter plot showing the relationship between accuracy and latency for each class.
+    Create a scatter plot showing the relationship between accuracy and latency for the
+    top and bottom classes by accuracy and speed.
 
     Args:
         metrics (dict): Metrics dictionary containing class statistics
         results_dir (str): Directory where results are stored
         colors (dict): Color scheme to use
+        top_n_classes (int): Total number of classes to display (half top, half bottom)
 
     Returns:
         matplotlib.figure.Figure: Scatter plot figure
     """
+    # Import patches for legend
+    import matplotlib.lines as mlines
+
     # Extract model type and results identifier for title
     model_type, results_id = get_results_info(results_dir)
 
@@ -870,26 +540,72 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors):
     # Extract class-level metrics
     class_stats = metrics.get("class_statistics", {})
 
+    # Calculate how many classes to show from top and bottom
+    half_n = top_n_classes // 2
+    remainder = top_n_classes % 2  # In case top_n_classes is odd
+
+    # Sort classes by accuracy (high to low)
+    sorted_by_acc = sorted(
+        class_stats.items(), key=lambda x: x[1]["accuracy"], reverse=True
+    )
+
+    # Sort classes by speed (fast to slow)
+    sorted_by_speed = sorted(
+        class_stats.items(), key=lambda x: x[1]["avg_inference_time_ms"], reverse=False
+    )
+
+    # Get top and bottom classes by accuracy
+    top_acc_classes = sorted_by_acc[: half_n + remainder]
+    bottom_acc_classes = sorted_by_acc[-half_n:]
+
+    # Get top and bottom classes by speed
+    top_speed_classes = sorted_by_speed[: half_n + remainder]
+    bottom_speed_classes = sorted_by_speed[-half_n:]
+
+    # Combine all selected classes and remove duplicates
+    selected_classes = {}
+    for class_id, stats in (
+        top_acc_classes + bottom_acc_classes + top_speed_classes + bottom_speed_classes
+    ):
+        selected_classes[class_id] = stats
+
     # Prepare data for plotting
     class_names = []
     accuracies = []
     latencies = []
+    class_types = []  # To track if class is in top/bottom acc/speed
 
-    for class_id, stats in class_stats.items():
+    for class_id, stats in selected_classes.items():
         class_names.append(stats["name"])
         accuracies.append(stats["accuracy"])
         latencies.append(stats["avg_inference_time_ms"])
 
+        # Determine class type for coloring
+        class_type = 0  # Default
+        if (class_id, stats) in top_acc_classes:
+            class_type = 1  # Top accuracy
+        elif (class_id, stats) in bottom_acc_classes:
+            class_type = 2  # Bottom accuracy
+        elif (class_id, stats) in top_speed_classes:
+            class_type = 3  # Top speed
+        elif (class_id, stats) in bottom_speed_classes:
+            class_type = 4  # Bottom speed
+        class_types.append(class_type)
+
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 8))
 
+    # Define colors for different class types
+    color_map = plt.cm.get_cmap(colors["scatter"], 5)
+
     # Create scatter plot
-    scatter = ax.scatter(
+    scatter = ax.scatter(  # noqa F841
         latencies,
         accuracies,
-        c=range(len(class_names)),  # Color gradient
-        cmap=colors["scatter"],
+        c=class_types,  # Color by class type
+        cmap=color_map,
         s=100,  # Marker size
+        alpha=0.8,
     )
 
     # Add labels for each point
@@ -904,12 +620,50 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors):
         )
 
     # Customize the plot
-    ax.set_title(f"{title} - Class Latency vs Accuracy")
+    ax.set_title(f"{title} - Class Latency vs Accuracy (Top/Bottom Classes)")
     ax.set_xlabel("Average Inference Time (ms)")
     ax.set_ylabel("Accuracy (%)")
 
-    # Add colorbar
-    plt.colorbar(scatter, ax=ax, label="Class Index")
+    # Create legend for class types - use mlines instead of plt.Line2D
+    legend_elements = [
+        mlines.Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=color_map(1),
+            markersize=10,
+            label="Top Accuracy",
+        ),
+        mlines.Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor="#444444",
+            markersize=10,
+            label="Bottom Accuracy",
+        ),
+        mlines.Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=color_map(3),
+            markersize=10,
+            label="Top Speed",
+        ),
+        mlines.Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor="#AAAAAA",
+            markersize=10,
+            label="Bottom Speed",
+        ),
+    ]
+    ax.legend(handles=legend_elements, loc="upper right")
 
     # Add overall metrics
     overall_accuracy = metrics.get("overall_accuracy", "N/A")
@@ -921,16 +675,16 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors):
     )
 
     # Calculate and display correlation
-    correlation = np.corrcoef(latencies, accuracies)[0, 1]
-    ax.text(
-        0.05,
-        0.95,
-        f"Correlation: {correlation:.2f}",
-        transform=ax.transAxes,
-        bbox=dict(facecolor="white", alpha=0.8),
-    )
+    if latencies and accuracies:
+        correlation = np.corrcoef(latencies, accuracies)[0, 1]
+        ax.text(
+            0.05,
+            0.05,  # Moved to bottom left
+            f"Correlation: {correlation:.2f}",
+            transform=ax.transAxes,
+            bbox=dict(facecolor="white", alpha=0.8),
+        )
 
-    ax.legend()
     plt.tight_layout()
 
     return fig
@@ -1047,6 +801,338 @@ def plot_confusion_matrix(
     return fig
 
 
+def plot_top_class_exit_distribution(metrics, title: str, colors):
+    """
+    Plot the exit distribution for the top fastest and most accurate classes together.
+
+    Args:
+        metrics: Dictionary containing evaluation metrics
+        title: Title for the plot
+        colors: Color scheme to use
+
+    Returns:
+        Figure object
+    """
+    class_stats = metrics.get("class_statistics", {})
+    if not class_stats:
+        raise ValueError("Class statistics not found in metrics")
+
+    # Sort classes by accuracy and speed
+    sorted_by_acc = sorted(
+        class_stats.items(), key=lambda x: x[1].get("accuracy", 0), reverse=True
+    )
+    sorted_by_speed = sorted(
+        class_stats.items(),
+        key=lambda x: x[1].get("avg_inference_time_ms", float("inf")),
+    )
+
+    # Get top and bottom class from each category
+    top_acc_class = sorted_by_acc[0] if sorted_by_acc else None
+    bottom_acc_class = sorted_by_acc[-1] if len(sorted_by_acc) > 1 else None
+    top_speed_class = sorted_by_speed[0] if sorted_by_speed else None
+    bottom_speed_class = sorted_by_speed[-1] if len(sorted_by_speed) > 1 else None
+
+    # Check if we have enough data
+    if not (
+        top_acc_class and bottom_acc_class and top_speed_class and bottom_speed_class
+    ):
+        raise ValueError("Could not find enough classes for plotting")
+
+    # Create figure with subplots - 1x2 grid for top performers
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    fig.suptitle(f"{title} - Exit Distribution for Top Classes", fontsize=16, y=0.98)
+
+    # Define colormap for consistency with scatter plot
+    color_map = plt.cm.get_cmap(colors["scatter"], 5)
+
+    # Plot exit distribution for most accurate class - using color 1 from color_map
+    _plot_class_exit_distribution(
+        ax1,
+        top_acc_class[1],
+        "Most Accurate Class",
+        color_map(1),  # Use accuracy color from scatter plot
+        top_acc_class[1]["name"],
+        show_accuracy=True,
+    )
+
+    # Plot exit distribution for fastest class - using color 3 from color_map
+    _plot_class_exit_distribution(
+        ax2,
+        top_speed_class[1],
+        "Fastest Class",
+        color_map(3),  # Use speed color from scatter plot
+        top_speed_class[1]["name"],
+        show_speed=True,
+    )
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    return fig
+
+
+def _plot_class_exit_distribution(
+    ax,
+    class_data,
+    title_prefix,
+    color,
+    class_name,
+    show_accuracy=False,
+    show_speed=False,
+):
+    """
+    Helper function to plot exit distribution for a class
+
+    Args:
+        ax: Matplotlib axes to plot on
+        class_data: Class statistics
+        title_prefix: Prefix for the plot title
+        color: Color to use for the bars
+        class_name: Name of the class
+        show_accuracy: Whether to display the accuracy value in title
+        show_speed: Whether to display the speed value in title
+    """
+    # Get exit distribution
+    exit_dist = class_data.get("exit_distribution", {})
+    if not exit_dist:
+        ax.text(0.5, 0.5, "No exit data available", ha="center", va="center")
+        ax.set_title(f"{title_prefix}: {class_name}")
+        return
+
+    # Sort exit keys for consistent ordering
+    def exit_sort_key(exit_name):
+        if exit_name == "final":
+            return float("inf")  # Final exit should appear last
+        else:
+            parts = exit_name.split("_")
+            return int(parts[1]) if len(parts) > 1 else float("inf")
+
+    # Prepare data for plotting
+    exits = []
+    counts = []
+
+    for exit_key in sorted(exit_dist.keys(), key=exit_sort_key):
+        # Format exit name
+        if exit_key == "final":
+            exit_name = "Final"
+        else:
+            parts = exit_key.split("_")
+            exit_name = f"Exit {parts[1]}" if len(parts) > 1 else exit_key
+
+        exits.append(exit_name)
+        counts.append(exit_dist[exit_key])
+
+    # Create bar chart
+    bars = ax.bar(exits, counts, color=color)
+
+    # Add count and percentage labels on top of bars
+    total_samples = sum(counts)
+    for bar in bars:
+        height = bar.get_height()
+        percentage = (height / total_samples) * 100 if total_samples > 0 else 0
+        ax.text(
+            bar.get_x() + bar.get_width() / 2.0,
+            height,
+            f"{int(height)}\n({percentage:.1f}%)",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+
+    # Create enhanced title with metrics if requested
+    title = f"{title_prefix}: {class_name}"
+    if show_accuracy and "accuracy" in class_data:
+        title += f" (Accuracy: {class_data['accuracy']:.1f}%)"
+    if show_speed and "avg_inference_time_ms" in class_data:
+        title += f" (Latency: {class_data['avg_inference_time_ms']:.1f}ms)"
+
+    # Set titles and labels
+    ax.set_title(title)
+    ax.set_xlabel("Exit Point")
+    ax.set_ylabel("Sample Count")
+
+    # Add grid lines for readability
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Rotate x-tick labels if many exits
+    if len(exits) > 4:
+        ax.set_xticklabels(exits, rotation=45, ha="right")
+
+
+def plot_class_statistics_combined(
+    metrics, title: str, colors, top_n_classes: int = 10
+):
+    """
+    Plot exit mode distribution for top and bottom classes by both accuracy and speed in a single plot.
+
+    Args:
+        metrics: Dictionary containing evaluation metrics with class_statistics
+        title: Title for the plot
+        colors: Color scheme to use
+        top_n_classes: Total number of classes to highlight (half top, half bottom) per category
+
+    Returns:
+        Figure object
+    """
+    import matplotlib.patches as mpatches  # Import patches for legend
+
+    class_stats = metrics["class_statistics"]
+
+    # Calculate how many classes to show from top and bottom
+    half_n = (
+        top_n_classes // 4
+    )  # We'll show fewer from each category since we're combining
+    remainder = top_n_classes % 4
+
+    # Sort by accuracy (high to low)
+    sorted_by_acc = sorted(
+        class_stats.items(), key=lambda x: x[1]["accuracy"], reverse=True
+    )
+
+    # Sort by speed (fast to slow)
+    sorted_by_speed = sorted(
+        class_stats.items(),
+        key=lambda x: x[1]["avg_inference_time_ms"],
+        reverse=False,
+    )
+
+    # Get top and bottom classes by both criteria
+    top_acc_classes = sorted_by_acc[: half_n + remainder]
+    bottom_acc_classes = sorted_by_acc[-half_n:]
+    top_speed_classes = sorted_by_speed[:half_n]
+    bottom_speed_classes = sorted_by_speed[-half_n:]
+
+    # Create a figure with a single subplot
+    fig, ax = plt.subplots(figsize=(16, 8))
+    fig.suptitle(
+        f"{title} - Exit Modes by Class Performance (Combined)", fontsize=16, y=0.98
+    )
+
+    # Define color map for consistency with scatter plot
+    color_map = plt.cm.get_cmap(colors["scatter"], 5)
+
+    # Create a dictionary to track which classes we've already processed
+    # to avoid duplicates
+    processed_classes = {}
+
+    # Prepare data for plotting - organize all classes
+    class_data = []
+
+    # Add top accuracy classes
+    for i, (class_id, stats) in enumerate(top_acc_classes):
+        if class_id not in processed_classes:
+            processed_classes[class_id] = True
+            class_data.append(
+                {
+                    "name": stats["name"][:20],  # Truncate long names
+                    "exit_mode": stats["mode_exit_layer"],
+                    "category": "Top Accuracy",
+                    "color": color_map(1),  # Color for top accuracy
+                    "metric": f"{stats['accuracy']:.1f}%",
+                }
+            )
+
+    # Add bottom accuracy classes
+    for i, (class_id, stats) in enumerate(bottom_acc_classes):
+        if class_id not in processed_classes:
+            processed_classes[class_id] = True
+            class_data.append(
+                {
+                    "name": stats["name"][:20],
+                    "exit_mode": stats["mode_exit_layer"],
+                    "category": "Bottom Accuracy",
+                    "color": "#444444",  # Color for bottom accuracy
+                    "metric": f"{stats['accuracy']:.1f}%",
+                }
+            )
+
+    # Add top speed classes
+    for i, (class_id, stats) in enumerate(top_speed_classes):
+        if class_id not in processed_classes:
+            processed_classes[class_id] = True
+            class_data.append(
+                {
+                    "name": stats["name"][:20],
+                    "exit_mode": stats["mode_exit_layer"],
+                    "category": "Top Speed",
+                    "color": color_map(3),  # Color for top speed
+                    "metric": f"{stats['avg_inference_time_ms']:.1f}ms",
+                }
+            )
+
+    # Add bottom speed classes
+    for i, (class_id, stats) in enumerate(bottom_speed_classes):
+        if class_id not in processed_classes:
+            processed_classes[class_id] = True
+            class_data.append(
+                {
+                    "name": stats["name"][:20],
+                    "exit_mode": stats["mode_exit_layer"],
+                    "category": "Bottom Speed",
+                    "color": "#AAAAAA",  # Color for bottom speed
+                    "metric": f"{stats['avg_inference_time_ms']:.1f}ms",
+                }
+            )
+
+    # Create bar chart - extract data from our prepared list
+    class_names = [item["name"] for item in class_data]
+    exit_modes = [item["exit_mode"] for item in class_data]
+    bar_colors = [item["color"] for item in class_data]
+    class_metrics = [item["metric"] for item in class_data]
+
+    # Create bars
+    bars = ax.bar(range(len(class_names)), exit_modes, color=bar_colors)
+
+    # Add metrics and exit mode values
+    for i, bar in enumerate(bars):
+        # Add metric value below class name
+        ax.text(
+            bar.get_x() + bar.get_width() / 2.0,
+            bar.get_height() + 0.2,
+            class_metrics[i],
+            ha="center",
+            va="top",
+            fontsize=9,
+            color=bar_colors[i],
+            rotation=45,
+        )
+
+        # Add exit mode value on top of bar
+        height = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2.0,
+            height + 0.1,
+            f"{exit_modes[i]}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold",
+        )
+
+    # Set labels and title
+    ax.set_title("Most Common Exit Layer by Class Performance", fontsize=14)
+    ax.set_ylabel("Exit Layer")
+    ax.set_xlabel("Classes")
+
+    # Set x-ticks with class names
+    ax.set_xticks(range(len(class_names)))
+    ax.set_xticklabels(class_names, rotation=45, ha="right")
+
+    # Add gridlines
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+
+    # Add legend for categories
+    legend_elements = [
+        mpatches.Patch(facecolor=color_map(1), label="Top Accuracy"),
+        mpatches.Patch(facecolor="#444444", label="Bottom Accuracy"),
+        mpatches.Patch(facecolor=color_map(3), label="Top Speed"),
+        mpatches.Patch(facecolor="#AAAAAA", label="Bottom Speed"),
+    ]
+    ax.legend(handles=legend_elements, loc="upper right")
+
+    plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+
+    return fig
+
+
 def choose_color_scheme_cli():
     """Command-line interface for selecting color scheme"""
     print("Available color schemes:")
@@ -1055,7 +1141,12 @@ def choose_color_scheme_cli():
 
     while True:
         try:
-            choice = input("Select a color scheme (number or name): ")
+            choice = input("Select a color scheme (number or name) [default: teal]: ")
+
+            # If empty input, use default
+            if not choice.strip():
+                return "teal"
+
             # Try as a number first
             try:
                 idx = int(choice) - 1
@@ -1068,5 +1159,5 @@ def choose_color_scheme_cli():
 
             print("Invalid selection. Please try again.")
         except (KeyboardInterrupt, EOFError):
-            print("\nOperation cancelled.")
-            sys.exit(1)
+            print("\nOperation cancelled. Using default color scheme.")
+            return "teal"
