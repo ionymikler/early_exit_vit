@@ -5,6 +5,6 @@ onnxscript==0.1.0.dev20241226
 numpy==1.26.4
 torch==2.6.0
 einops
-
+seaborn
 # for evaluation
 datasets==2.15.0

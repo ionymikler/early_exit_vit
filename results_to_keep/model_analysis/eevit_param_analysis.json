@@ -1,0 +1,540 @@
+{
+  "total_parameters": 100686468,
+  "num_layers": 12,
+  "num_attention_layers": 12,
+  "main_components": {
+    "patch_embedding": {
+      "parameters": 742656,
+      "percentage": 0.7375926624022604
+    },
+    "transformer": {
+      "parameters": 85056000,
+      "percentage": 84.47609861535713,
+      "components": {
+        "attention": {
+          "parameters": 28366848,
+          "percentage": 33.35079006772009
+        },
+        "mlp": {
+          "parameters": 56687616,
+          "percentage": 66.64740406320541
+        },
+        "other": {
+          "parameters": 1536,
+          "percentage": 0.0018058690744920994
+        }
+      }
+    },
+    "highway_exits": {
+      "parameters": 14810912,
+      "percentage": 14.709933017016747
+    },
+    "classifier": {
+      "parameters": 76900,
+      "percentage": 0.07637570522386385
+    }
+  },
+  "layers": {
+    "0": {
+      "total_parameters": 7087872,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 33.351392350200456,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 66.64860764979954,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      }
+    },
+    "1": {
+      "total_parameters": 7087872,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 33.351392350200456,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 66.64860764979954,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      }
+    },
+    "2": {
+      "total_parameters": 7087872,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 33.351392350200456,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 66.64860764979954,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      }
+    },
+    "3": {
+      "total_parameters": 8358244,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 28.28230427348137,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 56.518665882450904,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 1270372,
+        "percentage_of_layer": 15.199029844067724
+      }
+    },
+    "4": {
+      "total_parameters": 8358244,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 28.28230427348137,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 56.518665882450904,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 1270372,
+        "percentage_of_layer": 15.199029844067724
+      }
+    },
+    "5": {
+      "total_parameters": 8349028,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 28.313523442489352,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 56.581053507066926,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 1261156,
+        "percentage_of_layer": 15.105423050443717
+      }
+    },
+    "6": {
+      "total_parameters": 8349028,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 28.313523442489352,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 56.581053507066926,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 1261156,
+        "percentage_of_layer": 15.105423050443717
+      }
+    },
+    "7": {
+      "total_parameters": 9524836,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 24.818317081784926,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 49.59631850879112,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 2436964,
+        "percentage_of_layer": 25.58536440942395
+      }
+    },
+    "8": {
+      "total_parameters": 9524836,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 24.818317081784926,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 49.59631850879112,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 2436964,
+        "percentage_of_layer": 25.58536440942395
+      }
+    },
+    "9": {
+      "total_parameters": 9524836,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 24.818317081784926,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 49.59631850879112,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 2436964,
+        "percentage_of_layer": 25.58536440942395
+      }
+    },
+    "10": {
+      "total_parameters": 9524836,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 24.818317081784926,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 49.59631850879112,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      },
+      "highway": {
+        "parameters": 2436964,
+        "percentage_of_layer": 25.58536440942395
+      }
+    },
+    "11": {
+      "total_parameters": 7087872,
+      "attention": {
+        "total": 2363904,
+        "percentage_of_layer": 33.351392350200456,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_attention": 0.0649772579597141
+          },
+          "qkv": {
+            "parameters": 1771776,
+            "percentage_of_attention": 74.95126705653021
+          },
+          "attention_output": {
+            "parameters": 590592,
+            "percentage_of_attention": 24.98375568551007
+          }
+        }
+      },
+      "mlp": {
+        "total": 4723968,
+        "percentage_of_layer": 66.64860764979954,
+        "components": {
+          "norm": {
+            "parameters": 1536,
+            "percentage_of_mlp": 0.03251503820516989
+          },
+          "intermediate": {
+            "parameters": 2362368,
+            "percentage_of_mlp": 50.0081287595513
+          },
+          "output": {
+            "parameters": 2360064,
+            "percentage_of_mlp": 49.95935620224354
+          }
+        }
+      }
+    }
+  },
+  "has_highway_params": true
+}

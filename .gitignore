@@ -7,3 +7,4 @@ models/
 scratch/
 tmp/
 results/
+.vscode/
