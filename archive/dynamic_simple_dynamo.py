@@ -213,8 +213,8 @@ def load_and_run_onnx(onnx_filepath, _x):
 def main():
     TASK = "export"  # 'train' or 'export'
 
-    # model = TwoLayerNet(input_size=2, hidden_size=3, output_size=1)
-    model = TwoLayerNetDynamic(input_size=1, hidden_size=3, output_size=1)
+    model = TwoLayerNet(input_size=2, hidden_size=3, output_size=1)
+    # model = TwoLayerNetDynamic(input_size=1, hidden_size=3, output_size=1)
     model.to(DEVICE)
 
     if TASK == "train":
