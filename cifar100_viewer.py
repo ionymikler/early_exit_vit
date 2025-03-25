@@ -10,6 +10,7 @@ from datasets import load_dataset
 from typing import List, Tuple
 import os
 from PIL import Image
+import math
 
 
 def get_cifar100_dataset():
@@ -109,7 +110,7 @@ def save_individual_images(images: List[Tuple], save_dir: str):
 
 def display_images(
     images: List[Tuple],
-    rows: int = 3,
+    rows: int = None,
     cols: int = 5,
     title: str = None,
     save_figure_path: str = None,
@@ -121,17 +122,35 @@ def display_images(
 
     Args:
         images: List of tuples containing (image, label_name, image_idx)
-        rows: Number of rows in the grid
-        cols: Number of columns in the grid
+        rows: Number of rows in the grid (calculated automatically if None)
+        cols: Number of columns in the grid (default is 5)
         title: Optional title for the figure
         save_figure_path: Path to save the figure (if None, figure is not saved)
         save_individual: Whether to save individual images
         save_dir: Directory to save individual images to (if None, user will be prompted)
     """
-    fig, axes = plt.subplots(rows, cols, figsize=(15, 9))
+    # Calculate number of rows based on number of images and columns
+    if rows is None:
+        rows = math.ceil(len(images) / cols)
 
+    # Create a figure with the appropriate size
+    # Scale figure size based on number of images
+    fig_width = min(15, cols * 3)  # Max width of 15, otherwise 3 units per column
+    fig_height = min(12, rows * 3)  # Max height of 12, otherwise 3 units per row
+
+    fig, axes = plt.subplots(rows, cols, figsize=(fig_width, fig_height))
+
+    # Increase font size for title
     if title:
-        fig.suptitle(title, fontsize=16)
+        fig.suptitle(title, fontsize=20)  # Increased from default
+
+    # Handle case where there's only one row or column
+    if rows == 1 and cols == 1:
+        axes = np.array([axes])
+    elif rows == 1:
+        axes = axes.reshape(1, -1)
+    elif cols == 1:
+        axes = axes.reshape(-1, 1)
 
     # Flatten axes array for easier indexing
     axes = axes.flatten()
@@ -139,15 +158,24 @@ def display_images(
     for i, (img, label_name, img_idx) in enumerate(images):
         if i < len(axes):
             axes[i].imshow(img)
-            axes[i].set_title(f"Label: {label_name}\nID: {img_idx}")
+            # Increase font size for labels
+            axes[i].set_title(f"Label: {label_name}\nID: {img_idx}", fontsize=14)
             axes[i].axis("off")
 
     # Hide any unused subplots
     for i in range(len(images), len(axes)):
         axes[i].axis("off")
 
+    # Apply tight layout first
+
+    # Then adjust the top margin to make room for the title
+    # Use a larger margin when title is present to prevent overlap
+    plt.subplots_adjust(top=0.85)  # Increased space for title (was 0.9)
+    # if title:
+    # else:
+    #     plt.subplots_adjust(top=0.95)
+
     plt.tight_layout()
-    plt.subplots_adjust(top=0.9)  # Adjust for title if present
 
     # Save whole figure if save_figure_path is provided
     if save_figure_path:
@@ -254,13 +282,12 @@ def interactive_mode():
             images = get_images_by_label(dataset, label_idx, split, count)
 
             if images:
-                # Calculate appropriate grid dimensions
-                cols = min(5, count)
-                rows = (count + cols - 1) // cols  # Ceiling division
+                # Always use 5 columns, rows will be calculated automatically
+                cols = 5
 
                 display_images(
                     images,
-                    rows=rows,
+                    rows=None,  # Auto-calculate rows
                     cols=cols,
                     title=f"Class {label_idx}: {class_names[label_idx]} ({split} split)",
                     save_figure_path=save_fig_path,
@@ -284,6 +311,13 @@ def main():
     )
     parser.add_argument(
         "--count", type=int, default=15, help="Number of images to display"
+    )
+    parser.add_argument(
+        "-d",
+        "--directory",
+        type=str,
+        default="results/cifar100_viewer",
+        help="Directory to save figures (default: results/cifar100_viewer)",
     )
     parser.add_argument(
         "--save-figure",
@@ -316,18 +350,18 @@ def main():
         images = get_images_by_label(dataset, args.label, args.split, args.count)
 
         if images:
-            cols = min(5, args.count)
-            rows = (args.count + cols - 1) // cols
+            # Always use 5 columns
+            cols = 5
 
+            # Create path for saving the figure if needed
             save_fig_path = None
             if args.save_figure:
                 class_name = class_names[args.label].replace(" ", "_").lower()
-                save_dir = "results/cifar100_viewer"
-                save_fig_path = f"{save_dir}/{class_name}_sample.png"
+                save_fig_path = f"{args.directory}/{class_name}_sample.png"
 
             display_images(
                 images,
-                rows=rows,
+                rows=None,  # Auto-calculate rows
                 cols=cols,
                 title=f"Class {args.label}: {class_names[args.label]} ({args.split} split)",
                 save_figure_path=save_fig_path,
@@ -340,4 +374,9 @@ def main():
 
 
 if __name__ == "__main__":
+    # Import numpy here to avoid importing it when not needed
+    # Import numpy here to avoid circular imports if this script
+    # is imported as a module elsewhere
+    import numpy as np
+
     main()
