@@ -153,6 +153,8 @@ def _create_highway_mapping(
     lgvit_exit_positions = list(map(int, s.split(",")))
 
     for idx in range(len(lgvit_exit_positions)):
+        if idx > len(eevit_exit_positions) - 1:
+            continue
         eevit_idx = eevit_exit_positions[idx]
         # lgvit_idx = lgvit_exit_positions[idx]
 

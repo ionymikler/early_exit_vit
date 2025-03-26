@@ -43,29 +43,30 @@ def get_transforms(split: str = "train", size: int = 224) -> transforms.Compose:
         size: Size to resize images to
     """
     normalize = transforms.Normalize(
-        # TODO: Check these values
         mean=[0.485, 0.456, 0.406],  # taken from lgvit image_processor
         std=[0.229, 0.224, 0.225],  # taken from lgvit image_processor
     )
 
-    if split == "train":
-        transform = transforms.Compose(
+    transform_dict = {
+        "train": transforms.Compose(
             [
                 transforms.RandomResizedCrop(size),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 normalize,
             ]
-        )
-    else:
-        transform = transforms.Compose(
+        ),
+        "test": transforms.Compose(
             [
                 transforms.Resize(size),
                 transforms.CenterCrop(size),
                 transforms.ToTensor(),
                 normalize,
             ]
-        )
+        ),
+    }
+
+    transform = transform_dict[split]
 
     return transform
 
