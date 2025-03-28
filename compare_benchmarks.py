@@ -28,10 +28,11 @@ COLORS_PALETTES = [
 COLORS = COLORS_PALETTES[0]
 
 # Constants for plotting
-PLOT_TITLE_FONTSIZE = 26
-AXIS_LABEL_FONTSIZE = 20
-LEGEND_FONTSIZE = 18
+FONT_SIZE_PLOT_TITLE = 26
+FONT_AXIS_LABEL = 20
+FONT_SIZE_LEGEND = 18
 FONT_SIZE_ANNOTATION = 18  # Text annotations (values on bars, etc)
+FONT_SIZE_TICK_LABEL = 16
 
 BAR_WIDTH = 0.15  # Will be adjusted based on number of runs
 FIGURE_SIZE = (15, 12)
@@ -120,10 +121,6 @@ def load_metrics_from_dirs(
             metrics = json.load(f)
             metrics_list.append(metrics)
 
-            # Use directory name as run name, stripping timestamp if present
-            # run_name = os.path.basename(os.path.normpath(dir_path))
-            # run_name = run_name.split('_')
-            # run_name = run_name[0] if len(run_name) > 1 else run_name[0]
             metadata_path = os.path.join(dir_path, "metadata.yaml")
             metadata = _load_run_metadata(metadata_path)
             run_name = _get_run_name_from_metadata(metadata)
@@ -275,10 +272,10 @@ def plot_sample_distribution(
     # Customize the plot
     ax.set_title(
         f"Sample Distribution Across Exit Points{title_suffix}",
-        fontsize=PLOT_TITLE_FONTSIZE,
+        fontsize=FONT_SIZE_PLOT_TITLE,
     )
-    ax.set_xlabel("Exit Point", fontsize=AXIS_LABEL_FONTSIZE)
-    ax.set_ylabel("Percentage of Total Samples (%)", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_xlabel("Exit Point", fontsize=FONT_AXIS_LABEL)
+    ax.set_ylabel("Percentage of Total Samples (%)", fontsize=FONT_AXIS_LABEL)
 
     # Set x-tick labels to be more readable
     x_labels = []
@@ -291,10 +288,13 @@ def plot_sample_distribution(
             x_labels.append(f"Exit {parts[1]}" if len(parts) > 1 else exit_name)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(x_labels, rotation=45, ha="right")
+    ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=FONT_SIZE_TICK_LABEL)
+    ax.set_yticklabels(
+        [f"{y:.0f}%" for y in ax.get_yticks()], fontsize=FONT_SIZE_TICK_LABEL
+    )
 
     # Add legend
-    ax.legend(fontsize=LEGEND_FONTSIZE)
+    ax.legend(fontsize=FONT_SIZE_LEGEND)
 
     # Add grid
     ax.grid(axis="y", linestyle="--", alpha=0.7)
@@ -403,14 +403,19 @@ def plot_accuracy_latency_scatter(
             )
 
     # Add legend
-    ax.legend(fontsize=LEGEND_FONTSIZE)
+    ax.legend(fontsize=FONT_SIZE_LEGEND)
 
     # Customize the plot
     ax.set_title(
-        f"Accuracy vs Latency by Exit Point{title_suffix}", fontsize=PLOT_TITLE_FONTSIZE
+        f"Accuracy vs Latency by Exit Point{title_suffix}",
+        fontsize=FONT_SIZE_PLOT_TITLE,
     )
-    ax.set_xlabel("Inference Time (ms)", fontsize=AXIS_LABEL_FONTSIZE)
-    ax.set_ylabel("Accuracy (%)", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_xlabel("Inference Time (ms)", fontsize=FONT_AXIS_LABEL)
+    ax.set_ylabel("Accuracy (%)", fontsize=FONT_AXIS_LABEL)
+
+    # Set tick sizes
+    ax.tick_params(axis="x", labelsize=FONT_SIZE_TICK_LABEL)
+    ax.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
     # Add grid
     ax.grid(True, linestyle="--", alpha=0.7)

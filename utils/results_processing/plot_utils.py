@@ -274,7 +274,7 @@ def plot_exit_statistics(metrics, title: str, colors):
         exits,
         accuracies,
         color=colors["secondary"],
-        yerr=accuracy_stds,
+        # yerr=accuracy_stds,
         capsize=5,
         # error_kw={"ecolor": "black", "capthick": 1.5},
     )
@@ -318,7 +318,7 @@ def plot_exit_statistics(metrics, title: str, colors):
         exits,
         inference_times,
         color=colors["primary"],
-        yerr=inference_time_stds,
+        # yerr=inference_time_stds,
         capsize=5,
         error_kw={"ecolor": "black", "capthick": 1.5},
     )
