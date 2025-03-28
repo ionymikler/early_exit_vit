@@ -41,7 +41,7 @@ class HighwayConv1_1(nn.Module):
     def __init__(self, ee_config: EarlyExitsConfig, kwargs: dict):
         super().__init__()
         in_features = ee_config.embed_depth
-        out_features = kwargs.get("out_feautes", in_features)
+        out_features = kwargs.get("out_features", in_features)
         hidden_features = kwargs.get("hidden_features", in_features)
 
         self.conv1 = nn.Sequential(
@@ -128,13 +128,12 @@ class GlobalSparseAttn(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
+        # down sample ratio
         self.sr = sr_ratio
         if self.sr > 1:
             self.sampler = nn.AvgPool2d(1, sr_ratio)
         else:
             self.sampler = nn.Identity()
-            self.upsample = nn.Identity()
-            self.norm = nn.Identity()
 
     def forward(self, x, H: int, W: int):
         B, N, C = x.shape

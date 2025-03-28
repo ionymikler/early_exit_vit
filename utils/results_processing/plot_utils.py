@@ -44,11 +44,6 @@ COLOR_SCHEMES_BACKEND = {
         "secondary": "#CD5C5C",  # Indian Red
         "scatter": "Reds",  # Colormap for scatter plots
     },
-    "default": {
-        "primary": "#57B4BA",  # Light Teal (same as teal)
-        "secondary": "#B4EBE6",  # Lighter shade
-        "scatter": "cool",  # Colormap for scatter plots
-    },
     "99Luftballons": {
         "primary": "#FF4500",  # Orange Red
         "secondary": "#FFA07A",  # Lighter shade
@@ -62,6 +57,15 @@ COLOR_SCHEMES_BACKEND = {
 }
 
 HORIZONTAL_LINE_COLOR = "#8B0000"  # Dark Red
+
+# Standardized font sizes for consistent visualizations
+FONT_SIZE_FIGURE_TITLE = 20  # Main figure titles
+FONT_SIZE_SUBPLOT_TITLE = 18  # Individual subplot titles
+FONT_SIZE_AXIS_LABEL = 16  # Axis labels (x and y)
+FONT_SIZE_TICK_LABEL = 14  # Tick labels on axes
+FONT_SIZE_LEGEND = 14  # Legend text
+FONT_SIZE_ANNOTATION = 14  # Text annotations (values on bars, etc)
+FONT_SIZE_SMALL_ANNOTATION = 12  # Smaller annotations where space is limited
 
 
 def save_figure(fig, results_dir: str, metric_name: str):
@@ -229,17 +233,24 @@ def plot_exit_statistics(metrics, title: str, colors):
     )
 
     # Create figure with subplots
-    fig = plt.figure(figsize=(15, 10))
-    fig.suptitle(f"{title} - Exit Statistics Analysis", fontsize=16, y=0.98)
-    gs = fig.add_gridspec(2, 2, hspace=0.3, wspace=0.3)
+    fig = plt.figure(figsize=(15, 12))  # Increased height from 10 to 12
+    fig.suptitle(
+        f"{title} - Exit Statistics Analysis", fontsize=FONT_SIZE_FIGURE_TITLE, y=0.98
+    )
+
+    # Increase spacing between subplots
+    gs = fig.add_gridspec(2, 2, hspace=0.4, wspace=0.4)  # Increased from 0.3 to 0.4
 
     # 1. Sample Distribution (Bar Chart)
     ax1 = fig.add_subplot(gs[0, 0])
     bars = ax1.bar(exits, counts, color=colors["primary"])
-    ax1.set_title("Sample Distribution Across Exits")
-    ax1.set_xlabel("Exit Point")
-    ax1.set_ylabel("Number of Samples")
-    ax1.tick_params(axis="x", rotation=45)
+    ax1.set_title(
+        "Sample Distribution Across Exits", fontsize=FONT_SIZE_SUBPLOT_TITLE, pad=15
+    )  # Added padding
+    ax1.set_xlabel("Exit Point", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax1.set_ylabel("Number of Samples", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax1.tick_params(axis="x", rotation=45, labelsize=FONT_SIZE_TICK_LABEL)
+    ax1.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
     # Add percentage labels
     total_samples = metrics["total_samples"]
@@ -252,6 +263,7 @@ def plot_exit_statistics(metrics, title: str, colors):
             f"{int(height)}\n({percentage:.1f}%)",
             ha="center",
             va="bottom",
+            fontsize=FONT_SIZE_ANNOTATION,
             # bbox=dict(facecolor="white", alpha=0.8),
         )
 
@@ -275,6 +287,7 @@ def plot_exit_statistics(metrics, title: str, colors):
             f"{height:.1f}%",
             ha="center",
             va="bottom",
+            fontsize=FONT_SIZE_ANNOTATION,
             fontweight="bold",
         )
 
@@ -286,12 +299,16 @@ def plot_exit_statistics(metrics, title: str, colors):
         label=f"Overall Accuracy ({metrics['overall_accuracy']:.1f}%)",
     )
 
-    ax2.set_title("Accuracy by Exit Point")
-    ax2.set_xlabel("Exit Point")
-    ax2.set_ylabel("Accuracy (%)")
+    ax2.set_title(
+        "Accuracy by Exit Point", fontsize=FONT_SIZE_SUBPLOT_TITLE, pad=15
+    )  # Added padding
+    ax2.set_xlabel("Exit Point", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax2.set_ylabel("Accuracy (%)", fontsize=FONT_SIZE_AXIS_LABEL)
     ax2.set_ylim(0, max(accuracies) * 1.15)  # Give some headroom for error bars
     ax2.grid(axis="y", linestyle="--", alpha=0.7)
-    ax2.legend()
+    ax2.legend(fontsize=FONT_SIZE_LEGEND)
+    ax2.tick_params(axis="x", rotation=45, labelsize=FONT_SIZE_TICK_LABEL)
+    ax2.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
     # 3. Inference Time Column Chart with Error Bars
     ax3 = fig.add_subplot(gs[1, 0])
@@ -315,6 +332,7 @@ def plot_exit_statistics(metrics, title: str, colors):
             f"{height:.1f}ms",
             ha="center",
             va="center",
+            fontsize=FONT_SIZE_ANNOTATION,
             fontweight="bold",
             color="black",  # Black text for contrast with white background
             bbox=dict(
@@ -330,12 +348,16 @@ def plot_exit_statistics(metrics, title: str, colors):
         label=f"Overall Avg. Time ({overall_avg_inference_time:.1f}ms)",
     )
 
-    ax3.set_title("Inference Time by Exit Point")
-    ax3.set_ylabel("Time (ms)")
-    ax3.set_xlabel("Exit Point")
+    ax3.set_title(
+        "Inference Time by Exit Point", fontsize=FONT_SIZE_SUBPLOT_TITLE, pad=15
+    )  # Added padding
+    ax3.set_ylabel("Time (ms)", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax3.set_xlabel("Exit Point", fontsize=FONT_SIZE_AXIS_LABEL)
     ax3.set_ylim(0, max(inference_times) * 1.15)  # Give some headroom for error bars
     ax3.grid(axis="y", linestyle="--", alpha=0.7)
-    ax3.legend()
+    ax3.legend(fontsize=FONT_SIZE_LEGEND)
+    ax3.tick_params(axis="x", rotation=45, labelsize=FONT_SIZE_TICK_LABEL)
+    ax3.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
     # 4. Accuracy vs Speed Scatter Plot
     ax4 = fig.add_subplot(gs[1, 1])
@@ -356,13 +378,19 @@ def plot_exit_statistics(metrics, title: str, colors):
             (inference_times[i], accuracies[i]),
             xytext=(5, 5),
             textcoords="offset points",
+            fontsize=FONT_SIZE_ANNOTATION,
         )
 
-    ax4.set_title("Accuracy vs Inference Time")
-    ax4.set_xlabel("Inference Time (ms)")
-    ax4.set_ylabel("Accuracy (%)")
+    ax4.set_title(
+        "Accuracy vs Inference Time", fontsize=FONT_SIZE_SUBPLOT_TITLE, pad=15
+    )  # Added padding
+    ax4.set_xlabel("Inference Time (ms)", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax4.set_ylabel("Accuracy (%)", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax4.tick_params(axis="x", labelsize=FONT_SIZE_TICK_LABEL)
+    ax4.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    # Adjust layout with more space
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Slightly adjusted the rect parameter
 
     return fig
 
