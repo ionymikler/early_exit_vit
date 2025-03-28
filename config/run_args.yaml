@@ -25,7 +25,7 @@ model:
     enabled: True
     # Same as the pre-trained model
     exit_strategy: confidence
-    confidence_threshold: 0.99 # overrides the threshold for all early exits
+    confidence_threshold: 0.9 # overrides the threshold for all early exits
 
     embed_depth: *model__embed_depth
     num_classes: *dataset__num_clases

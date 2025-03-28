@@ -5,7 +5,6 @@ import argparse
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import statistics
-import numpy as np
 
 """
 This script processes PyTorch profiler trace files to calculate the average attention layer 
@@ -254,10 +253,30 @@ def prompt_for_layer(all_timestamps):
 
 def plot_layer_timeline(all_timestamps, layers_to_plot, output_dir=None):
     """Create a timeline plot showing latency over different runs for selected layers."""
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(14, 10))  # Increased figure size for better readability
 
-    # Define a colormap for multiple layers
-    colors = plt.cm.tab10.colors
+    # Distinct color palette for layers
+    # Carefully selected to be visually distinct and consistent
+    LAYER_COLORS = {
+        "Layer_0": "#1F77B4",  # Deep Blue
+        "Layer_1": "#FF7F0E",  # Bright Orange
+        "Layer_2": "#2CA02C",  # Vivid Green
+        "Layer_3": "#D62728",  # Brick Red
+        "Layer_4": "#9467BD",  # Lavender Purple
+        "Layer_5": "#8C564B",  # Brown
+        "Layer_6": "#E377C2",  # Pink
+        "Layer_7": "#7F7F7F",  # Gray
+        "Layer_8": "#BCBD22",  # Olive Green
+        "Layer_9": "#17BECF",  # Cyan
+        "Layer_10": "#AEC7E8",  # Light Blue
+        "Layer_11": "#FFBB78",  # Light Orange
+    }
+
+    # Standardized font sizes
+    TITLE_FONT_SIZE = 18  # Increased from default
+    LABEL_FONT_SIZE = 16  # Increased from default
+    TICK_FONT_SIZE = 14  # Increased from default
+    LEGEND_FONT_SIZE = 14  # Added for consistent legend size
 
     for i, layer in enumerate(layers_to_plot):
         # Extract data for this layer
@@ -277,25 +296,22 @@ def plot_layer_timeline(all_timestamps, layers_to_plot, output_dir=None):
         runs = [item[0] for item in data]
         durations = [item[2] for item in data]  # Already in ms
 
+        # Get consistent color for this layer
+        color = LAYER_COLORS.get(layer, "#000000")  # Fallback to black if not found
+
         # Plot line
-        color = colors[i % len(colors)]
         plt.plot(
             runs, durations, "o-", label=layer, color=color, markersize=8, linewidth=2
         )
 
-        # Calculate and plot the trend line
-        if len(runs) > 1:
-            z = np.polyfit(runs, durations, 1)
-            p = np.poly1d(z)
-            plt.plot(runs, p(runs), "--", color=color, alpha=0.7)
-
-    plt.xlabel("Run Number", fontsize=14)
-    plt.ylabel("Latency (ms)", fontsize=14)
-    plt.title("Layer Latency Timeline Across Runs", fontsize=16)
+    plt.xlabel("Run Number", fontsize=LABEL_FONT_SIZE)
+    plt.ylabel("Latency (ms)", fontsize=LABEL_FONT_SIZE)
+    plt.title("Layer Latency Timeline Across Runs", fontsize=TITLE_FONT_SIZE)
     plt.grid(True, alpha=0.3)
-    plt.legend()
+    plt.legend(fontsize=LEGEND_FONT_SIZE)
+    plt.tick_params(axis="both", which="major", labelsize=TICK_FONT_SIZE)
 
-    # Optimize x-axis to show integer run numbers
+    # Optimize x-axis to show every 5th run
     ax = plt.gca()
     try:
         # Find min and max run numbers across all selected layers
@@ -307,7 +323,12 @@ def plot_layer_timeline(all_timestamps, layers_to_plot, output_dir=None):
         if all_runs:
             min_run = min(all_runs)
             max_run = max(all_runs)
-            ax.set_xticks(range(min_run, max_run + 1))
+            # Select ticks that are multiples of 5
+            xticks = list(range(min_run, max_run + 1, 5))
+            # Ensure the last run is included if it's not already a multiple of 5
+            if max_run % 5 != 0:
+                xticks.append(max_run)
+            ax.set_xticks(xticks)
     except (ValueError, AttributeError) as e:
         print(f"Warning: Could not optimize x-axis ticks: {e}")
 
