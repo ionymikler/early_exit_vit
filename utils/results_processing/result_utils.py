@@ -221,7 +221,7 @@ def plot_class_statistics_combined(metrics, title, colors, top_n_classes=10):
     Delegates to the plot_utils module.
     """
     return plot_utils.plot_class_statistics_combined(
-        metrics, title, colors, top_n_classes
+        metrics, title, colors, n_per_category=2
     )
 
 

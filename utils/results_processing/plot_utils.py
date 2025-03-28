@@ -982,7 +982,7 @@ def _plot_class_exit_distribution(
 
 
 def plot_class_statistics_combined(
-    metrics, title: str, colors, top_n_classes: int = 10
+    metrics, title: str, colors, n_per_category: int = 2
 ):
     """
     Plot exit mode distribution for top and bottom classes by both accuracy and speed in a single plot.
@@ -1000,12 +1000,6 @@ def plot_class_statistics_combined(
 
     class_stats = metrics["class_statistics"]
 
-    # Calculate how many classes to show from top and bottom
-    half_n = (
-        top_n_classes // 4
-    )  # We'll show fewer from each category since we're combining
-    remainder = top_n_classes % 4
-
     # Sort by accuracy (high to low)
     sorted_by_acc = sorted(
         class_stats.items(), key=lambda x: x[1]["accuracy"], reverse=True
@@ -1019,22 +1013,24 @@ def plot_class_statistics_combined(
     )
 
     # Get top and bottom classes by both criteria
-    top_acc_classes = sorted_by_acc[: half_n + remainder]
-    bottom_acc_classes = sorted_by_acc[-half_n:]
-    top_speed_classes = sorted_by_speed[:half_n]
-    bottom_speed_classes = sorted_by_speed[-half_n:]
+    top_acc_classes = sorted_by_acc[:n_per_category]
+    bottom_acc_classes = sorted_by_acc[-n_per_category:]
+    top_speed_classes = sorted_by_speed[:n_per_category]
+    bottom_speed_classes = sorted_by_speed[-n_per_category:]
 
     # Create a figure with a single subplot
     fig, ax = plt.subplots(figsize=(16, 8))
     fig.suptitle(
-        f"{title} - Exit Modes by Class Performance (Combined)", fontsize=16, y=0.98
+        f"{title} - Exit Modes by Class Performance (Combined)",
+        fontsize=FONT_SIZE_FIGURE_TITLE,
+        y=0.98,
     )
 
     # Define color map for consistency with scatter plot
     color_map = plt.cm.get_cmap(colors["scatter"], 5)
 
     # Create a dictionary to track which classes we've already processed
-    # to avoid duplicates
+    # We'll display classes multiple times if they appear in multiple categories
     processed_classes = {}
 
     # Prepare data for plotting - organize all classes
@@ -1042,8 +1038,9 @@ def plot_class_statistics_combined(
 
     # Add top accuracy classes
     for i, (class_id, stats) in enumerate(top_acc_classes):
-        if class_id not in processed_classes:
-            processed_classes[class_id] = True
+        category_key = f"acc_top_{class_id}"
+        if category_key not in processed_classes:
+            processed_classes[category_key] = True
             class_data.append(
                 {
                     "name": stats["name"][:20],  # Truncate long names
@@ -1056,22 +1053,24 @@ def plot_class_statistics_combined(
 
     # Add bottom accuracy classes
     for i, (class_id, stats) in enumerate(bottom_acc_classes):
-        if class_id not in processed_classes:
-            processed_classes[class_id] = True
+        category_key = f"acc_bottom_{class_id}"
+        if category_key not in processed_classes:
+            processed_classes[category_key] = True
             class_data.append(
                 {
                     "name": stats["name"][:20],
                     "exit_mode": stats["mode_exit_layer"],
                     "category": "Bottom Accuracy",
-                    "color": "#444444",  # Color for bottom accuracy
+                    "color": color_map(2),  # Color for bottom accuracy
                     "metric": f"{stats['accuracy']:.1f}%",
                 }
             )
 
     # Add top speed classes
     for i, (class_id, stats) in enumerate(top_speed_classes):
-        if class_id not in processed_classes:
-            processed_classes[class_id] = True
+        category_key = f"speed_top_{class_id}"
+        if category_key not in processed_classes:
+            processed_classes[category_key] = True
             class_data.append(
                 {
                     "name": stats["name"][:20],
@@ -1084,14 +1083,15 @@ def plot_class_statistics_combined(
 
     # Add bottom speed classes
     for i, (class_id, stats) in enumerate(bottom_speed_classes):
-        if class_id not in processed_classes:
-            processed_classes[class_id] = True
+        category_key = f"speed_bottom_{class_id}"
+        if category_key not in processed_classes:
+            processed_classes[category_key] = True
             class_data.append(
                 {
                     "name": stats["name"][:20],
                     "exit_mode": stats["mode_exit_layer"],
                     "category": "Bottom Speed",
-                    "color": "#AAAAAA",  # Color for bottom speed
+                    "color": color_map(4),  # Color for bottom speed
                     "metric": f"{stats['avg_inference_time_ms']:.1f}ms",
                 }
             )
@@ -1110,35 +1110,29 @@ def plot_class_statistics_combined(
         # Add metric value below class name
         ax.text(
             bar.get_x() + bar.get_width() / 2.0,
-            bar.get_height() + 0.2,
+            bar.get_height() + 0.4,
             class_metrics[i],
             ha="center",
             va="top",
-            fontsize=9,
-            color=bar_colors[i],
-            rotation=45,
-        )
-
-        # Add exit mode value on top of bar
-        height = bar.get_height()
-        ax.text(
-            bar.get_x() + bar.get_width() / 2.0,
-            height + 0.1,
-            f"{exit_modes[i]}",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-            fontweight="bold",
+            fontsize=FONT_SIZE_ANNOTATION,
+            color="black",
         )
 
     # Set labels and title
-    ax.set_title("Most Common Exit Layer by Class Performance", fontsize=14)
-    ax.set_ylabel("Exit Layer")
-    ax.set_xlabel("Classes")
+    ax.set_title(
+        "Most Common Exit Layer by Class Performance",
+        fontsize=FONT_SIZE_SUBPLOT_TITLE,
+        pad=15,
+    )
+    ax.set_ylabel("Exit Layer", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax.set_xlabel("Classes", fontsize=FONT_SIZE_AXIS_LABEL)
 
     # Set x-ticks with class names
     ax.set_xticks(range(len(class_names)))
-    ax.set_xticklabels(class_names, rotation=45, ha="right")
+    ax.set_xticklabels(
+        class_names, rotation=45, ha="right", fontsize=FONT_SIZE_TICK_LABEL
+    )
+    ax.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
     # Add gridlines
     ax.grid(axis="y", linestyle="--", alpha=0.3)
@@ -1146,11 +1140,11 @@ def plot_class_statistics_combined(
     # Add legend for categories
     legend_elements = [
         mpatches.Patch(facecolor=color_map(1), label="Top Accuracy"),
-        mpatches.Patch(facecolor="#444444", label="Bottom Accuracy"),
+        mpatches.Patch(facecolor=color_map(2), label="Bottom Accuracy"),
         mpatches.Patch(facecolor=color_map(3), label="Top Speed"),
-        mpatches.Patch(facecolor="#AAAAAA", label="Bottom Speed"),
+        mpatches.Patch(facecolor=color_map(4), label="Bottom Speed"),
     ]
-    ax.legend(handles=legend_elements, loc="upper right")
+    ax.legend(handles=legend_elements, loc="best", fontsize=FONT_SIZE_LEGEND)
 
     plt.tight_layout(rect=[0, 0.05, 1, 0.95])
 
