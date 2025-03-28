@@ -539,7 +539,9 @@ def plot_class_statistics_unified(
     return fig
 
 
-def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10):
+def plot_latency_accuracy_scatter(
+    metrics, results_dir, colors, top_n_classes=10, title_override=None
+):
     """
     Create a scatter plot showing the relationship between accuracy and latency for the
     top and bottom classes by accuracy and speed.
@@ -549,6 +551,7 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
         results_dir (str): Directory where results are stored
         colors (dict): Color scheme to use
         top_n_classes (int): Total number of classes to display (half top, half bottom)
+        title_override (str, optional): If provided, use this instead of generating a title
 
     Returns:
         matplotlib.figure.Figure: Scatter plot figure
@@ -556,11 +559,18 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
     # Import patches for legend
     import matplotlib.lines as mlines
 
-    # Extract model type and results identifier for title
-    model_type, results_id = get_results_info(results_dir)
+    # Determine title to use
+    if title_override is None:
+        # Extract model type and results identifier for title (original behavior)
+        model_type, results_id = get_results_info(results_dir)
+        title = f"{model_type} | {results_id}"
+    else:
+        # Use the provided title
+        title = title_override
 
-    title = f"{model_type} | {results_id}"
     logger.info(f"Using title for latency-accuracy plot: {title}")
+
+    # Rest of the function remains the same...
 
     # Extract class-level metrics
     class_stats = metrics.get("class_statistics", {})
@@ -689,7 +699,7 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
             [0],
             marker="o",
             color="w",
-            markerfacecolor="#444444",
+            markerfacecolor=color_map(2),
             markersize=10,
             label="Bottom Accuracy",
         ),
@@ -707,7 +717,7 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
             [0],
             marker="o",
             color="w",
-            markerfacecolor="#AAAAAA",
+            markerfacecolor=color_map(4),
             markersize=10,
             label="Bottom Speed",
         ),

@@ -6,7 +6,7 @@ args:
   profile_do: false
   save_metrics: true
   skip_conda_env_check: false
-  suffix: th90_again
+  suffix: Th_80%
   use_gpu: true
 config:
   dataset:
@@ -17,7 +17,7 @@ config:
     channels_num: 3
     dim_head: 64
     early_exit_config:
-      confidence_threshold: 0.9
+      confidence_threshold: 0.8
       embed_depth: 768
       enabled: true
       exit_strategy: confidence
@@ -56,4 +56,4 @@ config:
     pool: cls
     transformer_dropout: 0.0
 model_type: pytorch_gpu
-timestamp: '250328_155222'
+timestamp: '250328_140447'

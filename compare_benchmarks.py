@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # Compare EEVIT benchmark runs by visualizing exit distributions and metrics
-# Created for comparing performance metrics of EEVIT across different benchmark runs
 
 import os
 import json
 import argparse
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Dict, Any, Tuple
@@ -12,53 +12,66 @@ from typing import List, Dict, Any, Tuple
 # Define color palette for the runs (up to 4 distinct colors)
 COLORS_PALETTES = [
     [
-        "#57B4BA",
-        "#015551",
-        "#FE4F2D",
-        "#FDFBEE",
-    ],  # Light Teal, Dark Teal, Red Orange, Frosting Cream
+        "#57B4BA",  # Light Teal
+        "#015551",  # Dark Teal
+        "#FE4F2D",  # Red Orange
+        "#FDFBEE",  # Frosting Cream
+    ],
     [
-        "#FF6500",
-        "#FF8A08",
-        "#5CB338",
-        "#16C47F",
-    ],  # Orange, Light Orange, Green, Light Green
+        "#FF6500",  # Orange
+        "#FF8A08",  # Light Orange
+        "#5CB338",  # Green
+        "#16C47F",  # Light Green
+    ],
 ]
 
 COLORS = COLORS_PALETTES[0]
 
 # Constants for plotting
-PLOT_TITLE_FONTSIZE = 16
-AXIS_LABEL_FONTSIZE = 14
-LEGEND_FONTSIZE = 12
+PLOT_TITLE_FONTSIZE = 26
+AXIS_LABEL_FONTSIZE = 20
+LEGEND_FONTSIZE = 18
+FONT_SIZE_ANNOTATION = 18  # Text annotations (values on bars, etc)
+
 BAR_WIDTH = 0.15  # Will be adjusted based on number of runs
-FIGURE_SIZE = (15, 10)
+FIGURE_SIZE = (15, 12)
 
 
-def find_metric_files_in_directory(directory: str) -> List[str]:
+def _load_run_metadata(metadata_filename: str) -> Dict[str, Any]:
     """
-    Recursively find all directories containing advanced_metrics.json files
-    in the given directory.
+    Load metadata from a JSON file.
 
     Args:
-        directory: The root directory to search in
+        metadata_filename: Path to the metadata JSON file
 
     Returns:
-        List of directories containing metric files
+        Dictionary with metadata fields
     """
-    metric_dirs = []
+    metadata = {}
+    if os.path.exists(metadata_filename):
+        with open(metadata_filename, "r") as f:
+            metadata = yaml.safe_load(f)
+    return metadata
 
-    # Check if the provided directory itself contains metrics
-    if os.path.isfile(os.path.join(directory, "advanced_metrics.json")):
-        metric_dirs.append(directory)
-        return metric_dirs
 
-    # If not, look for subdirectories containing metrics
-    for root, dirs, files in os.walk(directory):
-        if "advanced_metrics.json" in files:
-            metric_dirs.append(root)
+def _get_run_name_from_metadata(metadata: Dict[str, Any]) -> str:
+    """
+    Extract the run name from metadata.
 
-    return metric_dirs
+    Args:
+        metadata: Dictionary with metadata fields
+
+    Returns:
+        Run name extracted from metadata
+    """
+    if "suffix" in metadata["args"]:
+        run_name = metadata["args"]["suffix"]
+    else:
+        model_type = metadata.get("model_type", "UnknownModel")
+        timestamp = metadata.get("timestamp", "UnknownTimestamp")
+        run_name = f"{model_type}_{timestamp}"
+
+    return run_name
 
 
 def load_metrics_from_dirs(
@@ -82,7 +95,11 @@ def load_metrics_from_dirs(
     if recursive:
         for directory in directories:
             if os.path.isdir(directory):
-                subdirs = find_metric_files_in_directory(directory)
+                subdirs = [
+                    os.path.join(directory, d)
+                    for d in os.listdir(directory)
+                    if os.path.isdir(os.path.join(directory, d))
+                ]
                 expanded_dirs.extend(subdirs)
             else:
                 expanded_dirs.append(directory)
@@ -92,24 +109,27 @@ def load_metrics_from_dirs(
     print(f"Found {len(expanded_dirs)} directories with metrics files")
 
     for dir_path in expanded_dirs:
-        # Use the directory name as the run name
-        run_name = os.path.basename(os.path.normpath(dir_path)).replace("_", " ")
-
-        # Look only for advanced metrics
-        metrics_path = os.path.join(dir_path, "advanced_metrics.json")
+        # Look for result_metrics.json
+        metrics_path = os.path.join(dir_path, "result_metrics.json")
 
         if not os.path.exists(metrics_path):
-            print(f"Warning: No advanced_metrics.json found in {dir_path}")
+            print(f"Warning: No result_metrics.json found in {dir_path}")
             continue
 
-        try:
-            with open(metrics_path, "r") as f:
-                metrics = json.load(f)
-                metrics_list.append(metrics)
-                run_names.append(run_name)
-                print(f"Loaded metrics from {metrics_path}")
-        except Exception as e:
-            print(f"Error loading metrics from {metrics_path}: {e}")
+        with open(metrics_path, "r") as f:
+            metrics = json.load(f)
+            metrics_list.append(metrics)
+
+            # Use directory name as run name, stripping timestamp if present
+            # run_name = os.path.basename(os.path.normpath(dir_path))
+            # run_name = run_name.split('_')
+            # run_name = run_name[0] if len(run_name) > 1 else run_name[0]
+            metadata_path = os.path.join(dir_path, "metadata.yaml")
+            metadata = _load_run_metadata(metadata_path)
+            run_name = _get_run_name_from_metadata(metadata)
+            run_names.append(run_name)
+
+            print(f"Loaded metrics from {metrics_path}")
 
     # Sort both metrics_list and run_names alphabetically by run_names
     sorted_pairs = sorted(zip(run_names, metrics_list), key=lambda x: x[0])
@@ -160,11 +180,11 @@ def get_metrics_by_exit(
             if exit_point in exit_stats:
                 # Advanced metrics use consistent field names
                 exit_metrics["sample_percentages"][exit_point].append(
-                    exit_stats[exit_point].get("percentage", 0)
+                    exit_stats[exit_point].get("percentage_samples", 0)
                 )
 
                 exit_metrics["accuracies"][exit_point].append(
-                    exit_stats[exit_point].get("avg_accuracy", 0)
+                    exit_stats[exit_point].get("accuracy", 0)
                 )
 
                 exit_metrics["inference_times"][exit_point].append(
@@ -248,7 +268,7 @@ def plot_sample_distribution(
                     f"{height:.1f}%",
                     ha="center",
                     va="bottom",
-                    fontsize=9,
+                    fontsize=FONT_SIZE_ANNOTATION,
                     rotation=0,
                 )
 
@@ -341,7 +361,7 @@ def plot_accuracy_latency_scatter(
         if not run_accuracies:
             continue
 
-        # Plot scatter points for this run (without label for legend)
+        # Plot scatter points for this run
         scatter = ax.scatter(  # noqa F841
             run_times,
             run_accuracies,
@@ -349,6 +369,7 @@ def plot_accuracy_latency_scatter(
             marker=markers[i % len(markers)],
             s=100,  # Marker size
             alpha=0.7,
+            label=run_name,
         )
 
         # Add labels for each exit point
@@ -358,7 +379,7 @@ def plot_accuracy_latency_scatter(
                 (x, y),
                 xytext=(7, 0),
                 textcoords="offset points",
-                fontsize=9,
+                fontsize=FONT_SIZE_ANNOTATION,
                 bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"),
                 ha="left",
                 va="center",
@@ -381,74 +402,8 @@ def plot_accuracy_latency_scatter(
                 linewidth=1.5,
             )
 
-    # Add overall average data points
-    for i, run_name in enumerate(run_names):
-        if i < len(metrics_list):
-            # Get overall metrics
-            overall_accuracy = metrics_list[i].get("overall_accuracy", 0)
-
-            # Calculate weighted average inference time
-            total_time = 0
-            total_samples = 0
-            exit_stats = metrics_list[i].get("exit_statistics", {})
-
-            for exit_name, stats in exit_stats.items():
-                exit_count = stats.get("count", 0)
-                exit_time = stats.get("avg_inference_time_ms", 0)
-                total_time += exit_count * exit_time
-                total_samples += exit_count
-
-            overall_time = total_time / total_samples if total_samples > 0 else 0
-
-            # Skip if no valid data
-            if overall_accuracy <= 0 or overall_time <= 0:
-                continue
-
-            # Plot overall point with a larger marker (without label for legend)
-            ax.scatter(
-                overall_time,
-                overall_accuracy,
-                color=COLORS[i % len(COLORS)],
-                marker="*",  # Use star marker to distinguish
-                s=250,  # Larger marker size
-                alpha=1.0,
-                zorder=0,  # Ensure it's on top
-                edgecolors="black",
-            )
-
-    # Create custom legend elements
-    legend_elements = []
-    for i, run_name in enumerate(run_names):
-        # Regular exit point marker
-        legend_elements.append(
-            plt.Line2D(
-                [0],
-                [0],
-                marker=markers[i % len(markers)],
-                color="w",
-                markerfacecolor=COLORS[i % len(COLORS)],
-                markersize=10,
-                label=run_name,
-            )
-        )
-
-        # Overall marker for this run
-        legend_elements.append(
-            plt.Line2D(
-                [0],
-                [0],
-                marker="*",
-                color="w",
-                markerfacecolor=COLORS[i % len(COLORS)],
-                markersize=15,
-                markeredgecolor="black",
-                markeredgewidth=1.5,
-                label=f"{run_name} (Overall)",
-            )
-        )
-
-    # Add a grid
-    ax.grid(True, linestyle="--", alpha=0.7)
+    # Add legend
+    ax.legend(fontsize=LEGEND_FONTSIZE)
 
     # Customize the plot
     ax.set_title(
@@ -457,14 +412,14 @@ def plot_accuracy_latency_scatter(
     ax.set_xlabel("Inference Time (ms)", fontsize=AXIS_LABEL_FONTSIZE)
     ax.set_ylabel("Accuracy (%)", fontsize=AXIS_LABEL_FONTSIZE)
 
-    # Set axis limits with some padding
-    if ax.get_xlim()[0] > 0:
-        ax.set_xlim(left=0)
-    if ax.get_ylim()[0] > 0:
-        ax.set_ylim(bottom=0)
+    # Add grid
+    ax.grid(True, linestyle="--", alpha=0.7)
 
-    # Add custom legend
-    ax.legend(handles=legend_elements, fontsize=LEGEND_FONTSIZE)
+    # # Set axis limits with some padding
+    # if ax.get_xlim()[0] > 0:
+    #     ax.set_xlim(left=0)
+    # if ax.get_ylim()[0] > 0:
+    #     ax.set_ylim(bottom=0)
 
     plt.tight_layout()
 
@@ -481,7 +436,7 @@ def parse_arguments():
         "directories",
         type=str,
         nargs="+",
-        help="Directories containing benchmark metrics files",
+        help="Directories containing result_metrics.json files",
     )
 
     parser.add_argument(
@@ -531,12 +486,12 @@ def parse_arguments():
         help="Prefix to add to output filenames",
     )
 
-    return parser.parse_args()
+    return parser
 
 
 def main():
     """Main function to run the script"""
-    args = parse_arguments()
+    args = parse_arguments().parse_args()
 
     # Set the color palette
     global COLORS
@@ -578,7 +533,10 @@ def main():
         # Create plots directory
         plots_dir = args.save_dir
         os.makedirs(plots_dir, exist_ok=True)
+
+        # Add file prefix if provided
         file_prefix = args.file_prefix + "_" if args.file_prefix else ""
+
         sample_plot.savefig(
             os.path.join(plots_dir, f"{file_prefix}sample_distribution.png"), dpi=300
         )

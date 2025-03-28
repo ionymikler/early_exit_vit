@@ -225,14 +225,16 @@ def plot_class_statistics_combined(metrics, title, colors, top_n_classes=10):
     )
 
 
-def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10):
+def plot_latency_accuracy_scatter(
+    metrics, results_dir, colors, top_n_classes=10, title_override=None
+):
     """
     Create a scatter plot showing the relationship between accuracy and latency for top/bottom classes.
 
     Delegates to the plot_utils module.
     """
     return plot_utils.plot_latency_accuracy_scatter(
-        metrics, results_dir, colors, top_n_classes
+        metrics, results_dir, colors, top_n_classes, title_override
     )
 
 

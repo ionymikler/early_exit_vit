@@ -82,6 +82,15 @@ def process_results_directory(
         result_utils.COLOR_SCHEMES_BACKEND[color_scheme],
     )
 
+    # 5. Latency-accuracy scatter plot
+    latency_accuracy_fig = result_utils.plot_latency_accuracy_scatter(
+        metrics,
+        results_dir,  # Still need to pass this for other functionality
+        result_utils.COLOR_SCHEMES_BACKEND[color_scheme],
+        top_n_classes,
+        title_override=title,  # Pass the custom or default title
+    )
+
     # Show plots
     plt.figure(exit_fig.number)
     plt.show(block=False)
@@ -93,6 +102,9 @@ def process_results_directory(
     plt.show(block=False)
 
     plt.figure(top_class_exit_fig.number)
+    plt.show(block=False)
+
+    plt.figure(latency_accuracy_fig.number)
     plt.show(block=False)
 
     # Ask if user wants to save figures
@@ -108,6 +120,9 @@ def process_results_directory(
         result_utils.save_figure(confusion_fig, results_dir, "confusion_matrix")
         result_utils.save_figure(
             top_class_exit_fig, results_dir, "top_class_exit_distribution"
+        )
+        result_utils.save_figure(
+            latency_accuracy_fig, results_dir, "class_latency_accuracy"
         )
 
     # Wait for user to close figures

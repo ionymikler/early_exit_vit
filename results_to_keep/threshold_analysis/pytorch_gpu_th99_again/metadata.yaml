@@ -6,7 +6,7 @@ args:
   profile_do: false
   save_metrics: true
   skip_conda_env_check: false
-  suffix:  threshold_0.99
+  suffix:  Th_99%
   use_gpu: true
 config:
   dataset:
