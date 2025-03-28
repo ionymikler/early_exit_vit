@@ -155,6 +155,7 @@ def plot_metrics(metrics, results_dir: str, color_scheme_key="teal", top_n_class
     class_accuracy_fig = plot_class_statistics_unified(
         metrics, title, colors, sort_by="accuracy", top_n_classes=top_n_classes
     )
+
     class_speed_fig = plot_class_statistics_unified(
         metrics, title, colors, sort_by="speed", top_n_classes=top_n_classes
     )
@@ -791,18 +792,18 @@ def plot_confusion_matrix(
     metrics: Dict[str, Any],
     title: str,
     normalize: bool = True,
-    top_n_classes: Optional[int] = None,
+    top_n_classes: Optional[int] = 4,  # Changed default to 4
     include_accuracy: bool = True,
     figsize: Tuple[int, int] = (12, 10),
 ) -> plt.Figure:
     """
-    Create a visualization of the confusion matrix.
+    Create a visualization of the confusion matrix focusing on classes with highest participation.
 
     Args:
         metrics: Dictionary containing evaluation metrics including confusion_matrix
         title: Title for the plot
         normalize: Whether to normalize the confusion matrix by row (true class)
-        top_n_classes: If provided, only show this many classes with the highest counts
+        top_n_classes: If provided, only show this many classes with the highest participation
         include_accuracy: Whether to include class accuracy in the y-axis labels
         figsize: Figure size as (width, height) tuple
 
@@ -821,6 +822,9 @@ def plot_confusion_matrix(
         else:
             class_names.append(f"Class {i}")
 
+    # Calculate participation - sum of each row (true class occurrences)
+    class_participation = confusion_matrix.sum(axis=1)
+
     # Normalize if requested
     if normalize:
         # Normalize by row (sum of each row = 1)
@@ -831,15 +835,16 @@ def plot_confusion_matrix(
     else:
         norm_confusion_matrix = confusion_matrix
 
-    # If top_n_classes is specified, select the classes with highest counts
+    # Select top classes by participation (most frequent true classes)
     if top_n_classes and top_n_classes < len(class_names):
-        # Sum occurrences for each class (true + predicted)
-        class_counts = confusion_matrix.sum(axis=1) + confusion_matrix.sum(axis=0)
-        # Get indices of top N classes
-        top_indices = np.argsort(class_counts)[-top_n_classes:]
+        # Get indices of top N classes by participation
+        top_indices = np.argsort(class_participation)[-top_n_classes:]
         # Select only rows and columns for these classes
         norm_confusion_matrix = norm_confusion_matrix[top_indices][:, top_indices]
         class_names = [class_names[i] for i in top_indices]
+        selected_indices = top_indices
+    else:
+        selected_indices = np.arange(len(class_names))
 
     # Create the figure
     fig, ax = plt.subplots(figsize=figsize)
@@ -860,23 +865,29 @@ def plot_confusion_matrix(
         # Create new yticklabels with accuracy information
         new_ylabels = []
         for i, label in enumerate(class_names):
-            class_id = str(i) if top_n_classes is None else str(top_indices[i])
+            class_id = str(selected_indices[i])
             if class_id in class_stats:
                 accuracy = class_stats[class_id].get("accuracy", 0)
                 new_ylabels.append(f"{label} ({accuracy:.1f}%)")
             else:
                 new_ylabels.append(label)
 
-        ax.set_yticklabels(new_ylabels)
+        ax.set_yticklabels(new_ylabels, fontsize=FONT_SIZE_TICK_LABEL)
+    else:
+        ax.set_yticklabels(class_names, fontsize=FONT_SIZE_TICK_LABEL)
+
+    ax.set_xticklabels(
+        class_names, fontsize=FONT_SIZE_TICK_LABEL, rotation=45, ha="right"
+    )
 
     # Set title and axis labels
     ax.set_title(
         f"{title} - {'Normalized ' if normalize else ''}Confusion Matrix",
-        fontsize=14,
+        fontsize=FONT_SIZE_SUBPLOT_TITLE,
         pad=20,
     )
-    ax.set_xlabel("Predicted Class", fontsize=12, labelpad=10)
-    ax.set_ylabel("True Class", fontsize=12, labelpad=10)
+    ax.set_xlabel("Predicted Class", fontsize=FONT_SIZE_AXIS_LABEL, labelpad=10)
+    ax.set_ylabel("True Class", fontsize=FONT_SIZE_AXIS_LABEL, labelpad=10)
 
     # Add a text box with overall accuracy
     overall_accuracy = metrics.get("overall_accuracy", 0)
@@ -886,12 +897,9 @@ def plot_confusion_matrix(
         f"Overall Accuracy: {overall_accuracy:.2f}%",
         transform=ax.transAxes,
         ha="center",
-        fontsize=12,
+        fontsize=FONT_SIZE_ANNOTATION,
         bbox=dict(facecolor="white", alpha=0.8, boxstyle="round,pad=0.5"),
     )
-
-    # Rotate x-tick labels for better readability
-    plt.xticks(rotation=45, ha="right")
 
     plt.tight_layout()
 
@@ -900,7 +908,7 @@ def plot_confusion_matrix(
 
 def plot_top_class_exit_distribution(metrics, title: str, colors):
     """
-    Plot the exit distribution for the top fastest and most accurate classes together.
+    Plot the exit distribution for the top fastest and most accurate classes and the bottom slowest and least accurate classes.
 
     Args:
         metrics: Dictionary containing evaluation metrics
@@ -935,14 +943,20 @@ def plot_top_class_exit_distribution(metrics, title: str, colors):
     ):
         raise ValueError("Could not find enough classes for plotting")
 
-    # Create figure with subplots - 1x2 grid for top performers
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    fig.suptitle(f"{title} - Exit Distribution for Top Classes", fontsize=16, y=0.98)
+    # Create figure with subplots - 2x2 grid for top and bottom performers
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(
+        2, 2, figsize=(15, 12), gridspec_kw={"hspace": 0.4}
+    )
+    fig.suptitle(
+        f"{title} - Exit Distribution for Top & Bottom Classes",
+        fontsize=FONT_SIZE_FIGURE_TITLE,
+        y=0.98,
+    )
 
     # Define colormap for consistency with scatter plot
     color_map = plt.cm.get_cmap(colors["scatter"], 5)
 
-    # Plot exit distribution for most accurate class - using color 1 from color_map
+    # Plot exit distribution for top classes
     _plot_class_exit_distribution(
         ax1,
         top_acc_class[1],
@@ -952,13 +966,31 @@ def plot_top_class_exit_distribution(metrics, title: str, colors):
         show_accuracy=True,
     )
 
-    # Plot exit distribution for fastest class - using color 3 from color_map
     _plot_class_exit_distribution(
         ax2,
         top_speed_class[1],
         "Fastest Class",
         color_map(3),  # Use speed color from scatter plot
         top_speed_class[1]["name"],
+        show_speed=True,
+    )
+
+    # Plot exit distribution for bottom classes
+    _plot_class_exit_distribution(
+        ax3,
+        bottom_acc_class[1],
+        "Least Accurate Class",
+        "#444444",  # Dark gray for bottom accuracy
+        bottom_acc_class[1]["name"],
+        show_accuracy=True,
+    )
+
+    _plot_class_exit_distribution(
+        ax4,
+        bottom_speed_class[1],
+        "Slowest Class",
+        "#AAAAAA",  # Light gray for bottom speed
+        bottom_speed_class[1]["name"],
         show_speed=True,
     )
 
@@ -990,8 +1022,15 @@ def _plot_class_exit_distribution(
     # Get exit distribution
     exit_dist = class_data.get("exit_distribution", {})
     if not exit_dist:
-        ax.text(0.5, 0.5, "No exit data available", ha="center", va="center")
-        ax.set_title(f"{title_prefix}: {class_name}")
+        ax.text(
+            0.5,
+            0.5,
+            "No exit data available",
+            ha="center",
+            va="center",
+            fontsize=FONT_SIZE_ANNOTATION,
+        )
+        ax.set_title(f"{title_prefix}: {class_name}", fontsize=FONT_SIZE_SUBPLOT_TITLE)
         return
 
     # Sort exit keys for consistent ordering
@@ -1021,17 +1060,15 @@ def _plot_class_exit_distribution(
     bars = ax.bar(exits, counts, color=color)
 
     # Add count and percentage labels on top of bars
-    total_samples = sum(counts)
     for bar in bars:
         height = bar.get_height()
-        percentage = (height / total_samples) * 100 if total_samples > 0 else 0
         ax.text(
             bar.get_x() + bar.get_width() / 2.0,
             height,
-            f"{int(height)}\n({percentage:.1f}%)",
+            f"{int(height)}",
             ha="center",
             va="bottom",
-            fontsize=9,
+            fontsize=FONT_SIZE_ANNOTATION,
         )
 
     # Create enhanced title with metrics if requested
@@ -1042,9 +1079,11 @@ def _plot_class_exit_distribution(
         title += f" (Latency: {class_data['avg_inference_time_ms']:.1f}ms)"
 
     # Set titles and labels
-    ax.set_title(title)
-    ax.set_xlabel("Exit Point")
-    ax.set_ylabel("Sample Count")
+    ax.set_title(title, fontsize=0.85 * FONT_SIZE_SUBPLOT_TITLE, pad=15)
+    ax.set_xlabel("Exit Point", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax.set_ylabel("Sample Count", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax.tick_params(axis="x", labelsize=FONT_SIZE_TICK_LABEL)
+    ax.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
     # Add grid lines for readability
     ax.grid(axis="y", linestyle="--", alpha=0.7)
