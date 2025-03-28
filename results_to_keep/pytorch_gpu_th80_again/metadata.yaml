@@ -1,0 +1,59 @@
+args:
+  config_path: ./config/run_args.yaml
+  dry_run: false
+  interactive: false
+  num_examples: null
+  profile_do: false
+  save_metrics: true
+  skip_conda_env_check: false
+  suffix: th80_again
+  use_gpu: true
+config:
+  dataset:
+    channels_num: 3
+    image_size: 224
+    num_classes: 100
+  model:
+    channels_num: 3
+    dim_head: 64
+    early_exit_config:
+      confidence_threshold: 0.8
+      embed_depth: 768
+      enabled: true
+      exit_strategy: confidence
+      exits:
+      - - 3
+        - conv1_1
+      - - 4
+        - conv1_1
+      - - 5
+        - conv2_1
+      - - 6
+        - conv2_1
+      - - 7
+        - attention
+        - sr_ratio: 2
+      - - 8
+        - attention
+        - sr_ratio: 2
+      - - 9
+        - attention
+        - sr_ratio: 3
+      - - 10
+        - attention
+        - sr_ratio: 3
+      num_attn_heads: 8
+      num_classes: 100
+    embed_depth: 768
+    enable_export: false
+    general_dropout: 0.0
+    image_size: 224
+    mlp_dim: 3072
+    num_attn_heads: 12
+    num_classes: 100
+    num_layers_transformer: 12
+    patch_size: 16
+    pool: cls
+    transformer_dropout: 0.0
+model_type: pytorch_gpu
+timestamp: '250328_140447'

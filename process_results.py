@@ -15,6 +15,7 @@ def process_results_directory(
     save_figures=False,
     no_plots=False,
     auto_save=False,
+    title_prefix=None,
 ):
     """
     Process a results directory to generate visualizations from pre-computed metrics.
@@ -26,6 +27,7 @@ def process_results_directory(
         save_figures: Whether to automatically save figures
         no_plots: If True, skip generating plots and only print statistics
         auto_save: If True, automatically save figures without prompting
+        title_prefix: Custom prefix for plot titles (overrides default)
     """
     # Load pre-computed metrics
     metrics = result_utils.load_metrics(results_dir)
@@ -41,11 +43,16 @@ def process_results_directory(
     if color_scheme is None:
         color_scheme = result_utils.choose_color_scheme_cli()
 
-    # Get model type and results identifier for plot titles
-    model_type, results_id = result_utils.get_results_info(results_dir)
-    title = f"{model_type} | {results_id}"
+    # Determine title prefix
+    if title_prefix is None:
+        # Use default: model type and results identifier
+        model_type, results_id = result_utils.get_results_info(results_dir)
+        title = f"{model_type} | {results_id}"
+    else:
+        # Use custom title prefix
+        title = title_prefix
 
-    # Generate plots individually instead of using plot_metrics
+    # Generate plots individually
     # 1. Exit statistics plot
     exit_fig = result_utils.plot_exit_statistics(
         metrics, title, result_utils.COLOR_SCHEMES_BACKEND[color_scheme]
@@ -62,7 +69,7 @@ def process_results_directory(
     # 3. Confusion matrix
     confusion_fig = result_utils.plot_confusion_matrix(
         metrics,
-        title + " | Not working as expected",
+        title,
         normalize=True,
         top_n_classes=4,  # Show only top 4 classes by participation
         include_accuracy=True,
@@ -152,6 +159,12 @@ def _get_argument_parser():
         help="Automatically save all outputs (figures and metrics) without prompting",
     )
 
+    parser.add_argument(
+        "--title-prefix",
+        type=str,
+        help="Custom prefix for plot titles (overrides default model-type | results-id)",
+    )
+
     return parser
 
 
@@ -166,6 +179,7 @@ def main():
         save_figures=args.save,
         no_plots=args.no_plots,
         auto_save=args.auto_save,
+        title_prefix=args.title_prefix,
     )
 
 

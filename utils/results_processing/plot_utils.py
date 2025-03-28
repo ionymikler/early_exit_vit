@@ -276,7 +276,7 @@ def plot_exit_statistics(metrics, title: str, colors):
         color=colors["secondary"],
         yerr=accuracy_stds,
         capsize=5,
-        error_kw={"ecolor": "black", "capthick": 1.5},
+        # error_kw={"ecolor": "black", "capthick": 1.5},
     )
 
     # Add accuracy values on top of bars
@@ -289,7 +289,7 @@ def plot_exit_statistics(metrics, title: str, colors):
             ha="center",
             va="bottom",
             fontsize=FONT_SIZE_ANNOTATION,
-            fontweight="bold",
+            # fontweight="bold",
         )
 
     # Add overall accuracy line
@@ -334,7 +334,7 @@ def plot_exit_statistics(metrics, title: str, colors):
             ha="center",
             va="center",
             fontsize=FONT_SIZE_ANNOTATION,
-            fontweight="bold",
+            # fontweight="bold",
             color="black",  # Black text for contrast with white background
             bbox=dict(
                 facecolor="white", alpha=0.8, pad=2, edgecolor="none"
@@ -508,7 +508,7 @@ def plot_class_statistics_unified(
             ha="center",
             va="bottom",
             fontsize=9,
-            fontweight="bold",
+            # fontweight="bold",
         )
 
     # Set labels and title
