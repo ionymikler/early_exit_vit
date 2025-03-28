@@ -594,30 +594,51 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
         selected_classes[class_id] = stats
 
     # Prepare data for plotting
-    class_names = []
+    class_ids = []  # Using IDs instead of names for annotations
+    class_names = []  # Full names for the mapping legend
     accuracies = []
     latencies = []
     class_types = []  # To track if class is in top/bottom acc/speed
 
+    # Keep track of which category each class belongs to
+    top_acc_ids = []
+    bottom_acc_ids = []
+    top_speed_ids = []
+    bottom_speed_ids = []
+
     for class_id, stats in selected_classes.items():
+        class_ids.append(class_id)
         class_names.append(stats["name"])
         accuracies.append(stats["accuracy"])
         latencies.append(stats["avg_inference_time_ms"])
 
-        # Determine class type for coloring
+        # Determine class type for coloring and track which category it belongs to
         class_type = 0  # Default
         if (class_id, stats) in top_acc_classes:
             class_type = 1  # Top accuracy
+            top_acc_ids.append((class_id, stats["name"], stats["accuracy"]))
         elif (class_id, stats) in bottom_acc_classes:
             class_type = 2  # Bottom accuracy
+            bottom_acc_ids.append((class_id, stats["name"], stats["accuracy"]))
         elif (class_id, stats) in top_speed_classes:
             class_type = 3  # Top speed
+            top_speed_ids.append(
+                (class_id, stats["name"], stats["avg_inference_time_ms"])
+            )
         elif (class_id, stats) in bottom_speed_classes:
             class_type = 4  # Bottom speed
+            bottom_speed_ids.append(
+                (class_id, stats["name"], stats["avg_inference_time_ms"])
+            )
         class_types.append(class_type)
 
-    # Create figure
-    fig, ax = plt.subplots(figsize=(12, 8))
+    # Create figure with adjusted size to make room for the class mapping
+    fig, ax = plt.subplots(figsize=(14, 8))
+    fig.suptitle(
+        f"{title} - Class Latency vs Accuracy (Top/Bottom Classes)",
+        fontsize=FONT_SIZE_FIGURE_TITLE,
+        y=0.98,
+    )
 
     # Define colors for different class types
     color_map = plt.cm.get_cmap(colors["scatter"], 5)
@@ -632,23 +653,26 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
         alpha=0.8,
     )
 
-    # Add labels for each point
-    for i, (name, lat, acc) in enumerate(zip(class_names, latencies, accuracies)):
+    # Add class IDs as labels for each point
+    for i, (class_id, lat, acc) in enumerate(zip(class_ids, latencies, accuracies)):
         ax.annotate(
-            name,
+            str(class_id),
             (lat, acc),
             xytext=(5, 5),
             textcoords="offset points",
-            fontsize=8,
-            alpha=0.7,
+            fontsize=FONT_SIZE_ANNOTATION,
+            fontweight="bold",
+            alpha=0.9,
         )
 
     # Customize the plot
-    ax.set_title(f"{title} - Class Latency vs Accuracy (Top/Bottom Classes)")
-    ax.set_xlabel("Average Inference Time (ms)")
-    ax.set_ylabel("Accuracy (%)")
+    ax.set_title("Class Latency vs Accuracy", fontsize=FONT_SIZE_SUBPLOT_TITLE, pad=15)
+    ax.set_xlabel("Average Inference Time (ms)", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax.set_ylabel("Accuracy (%)", fontsize=FONT_SIZE_AXIS_LABEL)
+    ax.tick_params(axis="x", labelsize=FONT_SIZE_TICK_LABEL)
+    ax.tick_params(axis="y", labelsize=FONT_SIZE_TICK_LABEL)
 
-    # Create legend for class types - use mlines instead of plt.Line2D
+    # Create legend for class types
     legend_elements = [
         mlines.Line2D(
             [0],
@@ -687,7 +711,8 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
             label="Bottom Speed",
         ),
     ]
-    ax.legend(handles=legend_elements, loc="upper right")
+    # Placed legend in top right as requested
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=FONT_SIZE_LEGEND)
 
     # Add overall metrics
     overall_accuracy = metrics.get("overall_accuracy", "N/A")
@@ -707,9 +732,57 @@ def plot_latency_accuracy_scatter(metrics, results_dir, colors, top_n_classes=10
             f"Correlation: {correlation:.2f}",
             transform=ax.transAxes,
             bbox=dict(facecolor="white", alpha=0.8),
+            fontsize=FONT_SIZE_ANNOTATION,
         )
 
-    plt.tight_layout()
+    # Add grid
+    ax.grid(True, linestyle="--", alpha=0.7)
+
+    # Create a textbox with class ID to name mapping on the right side
+    # First adjust the main axes to make room for the textbox
+    box = ax.get_position()
+    ax.set_position(
+        [box.x0, box.y0, box.width * 0.8, box.height]
+    )  # Increased from 0.75 to 0.8 to bring text box closer
+
+    # Create mapping text organized by category
+    mapping_text = "Class ID Mapping:\n\n"
+
+    # Add top accuracy classes
+    mapping_text += "Top Accuracy:\n"
+    for class_id, name, acc in sorted(top_acc_ids, key=lambda x: int(x[0])):
+        mapping_text += f"{class_id}: {name} ({acc:.1f}%)\n"
+
+    # Add bottom accuracy classes
+    mapping_text += "\nBottom Accuracy:\n"
+    for class_id, name, acc in sorted(bottom_acc_ids, key=lambda x: int(x[0])):
+        mapping_text += f"{class_id}: {name} ({acc:.1f}%)\n"
+
+    # Add top speed classes
+    mapping_text += "\nTop Speed:\n"
+    for class_id, name, speed in sorted(top_speed_ids, key=lambda x: int(x[0])):
+        mapping_text += f"{class_id}: {name} ({speed:.1f}ms)\n"
+
+    # Add bottom speed classes
+    mapping_text += "\nBottom Speed:\n"
+    for class_id, name, speed in sorted(bottom_speed_ids, key=lambda x: int(x[0])):
+        mapping_text += f"{class_id}: {name} ({speed:.1f}ms)\n"
+
+    # Add the mapping textbox - moved closer to main plot
+    fig.text(
+        0.82,  # x position (moved from 0.85 to 0.82 to be closer to plot)
+        0.5,  # y position (center)
+        mapping_text,
+        fontsize=FONT_SIZE_SMALL_ANNOTATION,
+        va="center",
+        bbox=dict(
+            facecolor="white", alpha=0.8, boxstyle="round,pad=0.5", edgecolor="gray"
+        ),
+    )
+
+    plt.tight_layout(
+        rect=[0, 0.05, 0.8, 0.95]
+    )  # Adjusted from 0.75 to 0.8 to match the new position
 
     return fig
 

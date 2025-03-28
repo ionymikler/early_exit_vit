@@ -111,6 +111,15 @@ def process_results_directory(
             )
 
     else:
+        latency_accuracy_fig = result_utils.plot_latency_accuracy_scatter(
+            metrics,
+            results_dir,
+            result_utils.COLOR_SCHEMES_BACKEND[color_scheme],
+            top_n_classes,
+        )
+        plt.figure(latency_accuracy_fig.number)
+        plt.show(block=False)
+
         # Standard mode - Generate the original plots as before
         exit_fig, class_accuracy_fig, class_speed_fig, confusion_fig = (
             result_utils.plot_metrics(metrics, results_dir, color_scheme, top_n_classes)
@@ -137,10 +146,6 @@ def process_results_directory(
 
         plt.figure(class_combined_fig.number)
         plt.show(block=False)
-
-        if confusion_fig:
-            plt.figure(confusion_fig.number)
-            plt.show(block=False)
 
         plt.figure(top_class_exit_fig.number)
         plt.show(block=False)
